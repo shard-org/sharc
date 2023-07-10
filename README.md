@@ -21,7 +21,10 @@ NONE
 
 # FAQ
 > \<onyx\>? with brackets?  
+
 yes  
 
-> why?
+
+> why?  
+
 Never seen something like this, so thought I'd give er a shot
