@@ -71,7 +71,12 @@ pub fn post_compile() -> Result<(), &'static str> {
     Ok(())
 }
 
-pub fn post_link(out_file: &str) -> Result<(), ()> {
+pub fn post_link(out_file: Option<String>) -> Result<(), ()> {
+    let out_file = match out_file {
+        Some(file) => file,
+        None => "output".to_string(),
+    };
+
     match Command::new("ld")
         .arg(TEMP_OBJ)
         .arg("-o")
