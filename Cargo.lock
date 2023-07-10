@@ -3,5 +3,5 @@
 version = 3
 
 [[package]]
-name = "lang"
+name = "onyx"
 version = "0.1.0"

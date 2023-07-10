@@ -6,10 +6,11 @@ use crate::defs::*;
 
 // compiles the asm to machine code
 // TODO: add other os/arch than linux/x86
-fn post_compile(out_file: &str) -> Result<(), ()> {
+//
+// FIXME: the printing of nasm output is only for debug, remove for release
+pub fn post_compile() -> Result<(), &'static str> {
     //
     // NASM stuff
-    eprint!("Compiling asm... ");
     let mut nasm = match Command::new("nasm")
         .arg("-f elf64")
         .arg(TEMP_ASM)
@@ -20,19 +21,13 @@ fn post_compile(out_file: &str) -> Result<(), ()> {
         .spawn() 
     {
         Ok(child) => child,
-        Err(_) => {
-            eprint!("ERR: Failed to Run nasm!");
-            return Err(());
-        },
+        Err(_) => return Err("Failed to Run nasm!"),
     };
 
     // stdout here ====================
     let stdout = match nasm.stdout.take() {
         Some(out) => out,
-        None => {
-            eprint!("ERR: Failed to Read Stdout!\n");
-            return Err(());
-        },
+        None => return Err("Failed to Read Stdout!"),
     };
 
     let stdout_thread = thread::spawn(move || {
@@ -47,10 +42,7 @@ fn post_compile(out_file: &str) -> Result<(), ()> {
     // stderr here ====================
     let stderr = match nasm.stderr.take() {
         Some(out) => out,
-        None => {
-            eprint!("ERR: Failed to Read Stderr!\n");
-            return Err(());
-        }
+        None => return Err("Failed to Read Stderr!"),
     };
 
     let stderr_thread = thread::spawn(move || {
@@ -64,38 +56,29 @@ fn post_compile(out_file: &str) -> Result<(), ()> {
 
     //
     // running n stuff
-    let status = nasm.wait().unwrap();
-    if !status.success() {
-        eprint!("ERR: nasm exited with: {}!", status);
+    if !nasm.wait().unwrap().success() {
+        return Err("nasm exited with Error!");
     }
     
-    // 
-    // runnin threads
-    match stdout_thread.join() {
-        Ok(()) => (),
-        Err(_) => {
-            eprint!("ERR: Failed to Spawn Stdout Thread!\n");
-            return Err(());
-        },
+    if let Err(_)  = stdout_thread.join() {
+        return Err("Failed to Spawn Stdout Thread!");
     }
 
-    match stderr_thread.join() {
-        Ok(()) => (),
-        Err(_) => {
-            eprint!("ERR: Failed to Spawn Stderr Thread!\n");
-            return Err(());
-        },
-    }
-
-    eprint!("Done!\n");
-
-    // 
-    // Linker stuff
-    eprint!("Linking Object Files... ");
-    match Command::new("ld").arg(TEMP_OBJ).arg("-o").arg(out_file).spawn() {
-        Ok(_) => eprint!("Done!\n"),
-        Err(why) => eprint!("ERR!\n{}", why),
+    if let Err(_) = stderr_thread.join() {
+        return Err("Failed to Spawn Stderr Thread!");
     }
 
     Ok(())
+}
+
+pub fn post_link(out_file: &str) -> Result<(), ()> {
+    match Command::new("ld")
+        .arg(TEMP_OBJ)
+        .arg("-o")
+        .arg(out_file)
+        .output() 
+    {
+        Ok(_) => Ok(()),
+        Err(_) => Err(()),
+    }
 }
