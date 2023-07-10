@@ -19,9 +19,9 @@ macro_rules! done {
 
 fn main() {
     let flags = parse_args();
+    // returns a Flags struct, see arg_parser file
 
 
-    // TODO: colours for Ok/Err, prob use AnsiTerm
     eprint!("Compiling Assembly... ");
     match post_compile() {
         Ok(()) => done!(),
