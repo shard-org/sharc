@@ -20,11 +20,8 @@ NONE
 - miltiple files  
 
 # FAQ
-> \<onyx\>? with brackets?  
+> \> \<onyx\>? with brackets?  
+> yes  
 
-yes  
-
-
-> why?  
-
-Never seen something like this, so thought I'd give er a shot
+> \> why?  
+> Never seen something like this, so thought I'd give er a shot
