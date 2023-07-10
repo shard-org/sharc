@@ -10,9 +10,10 @@ I cant do it all by myself... :/
 - For now: Compile to asm, and let nasm do the rest  
 
 # Features Implemented
-NONE  
+- Calling `nasm` and `ld`
 
 # Features Planned Next
+- Remove temp files
 - Loops  
 - Comments  
 - Subroutines (Basics)  
