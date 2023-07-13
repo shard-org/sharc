@@ -1,9 +1,9 @@
-use crate::{eprintex, printlnex};
+use crate::utils::printlnex;
 use crate::defs::{HELP_MESSAGE, VERSION};
 
-// FIXME: this is a BAD way to dom this, ideally we'd have a (&str, &str, u8)
+// FIXME: this is a BAD way to do this, ideally we'd have a (&str, &str, u8)
 // u8 being the bit packed bools
-pub struct Flags {
+pub struct Args {
     pub temp: bool,
     pub debug: bool,
     pub noasm: bool,
@@ -11,10 +11,10 @@ pub struct Flags {
     pub output_file: Option<String>,
 }
 
-pub fn parse_args() -> Flags {
+pub fn parse_args() -> Result<Args, &'static str> {
     let mut args = std::env::args().skip(1);
     
-    let mut input_file: Option<String> = None;
+    let mut input_file = String::from("");
     let mut output_file: Option<String> = None;
     let mut temp: bool = false;
     let mut debug: bool = false;
@@ -31,30 +31,29 @@ pub fn parse_args() -> Flags {
                 if let Some(file) = args.next() {
                     output_file = Some(file);
                 } else {
-                    eprintex("Output File Argument Missing!");
+                    return Err("Output File Argument Missing!");
                 }
             },
             _ => {
-                if input_file.is_some() {
-                    eprintex(&format!("Unrecognized Argument `{}`", arg));
+                if !input_file.is_empty() {
+                    return Err("Unrecognized Argument!");
                 }
-                input_file = Some(arg);
+                input_file = arg;
             },
         }
     }
 
-    let input_file = match input_file {
-        Some(file) => file,
-        None => eprintex("No Input File Provided!"),
-    };
+    if input_file.is_empty() {
+        return Err("Input File Missing!");
+    }
 
-    Flags {
+    Ok(Args {
         temp,
         debug,
         noasm,
         input_file,
         output_file,
-    }
+    })
 }
 
 

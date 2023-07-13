@@ -157,8 +157,24 @@ for utf-8
 # Definitions ==================
 .def NAME::type, value
 
+ex:
+.def FOO, 4
+
 will basically replace every occurance of NAME with value
 name *Should* be UPPERCASE
+
+# Macros =======================
+.mac name, macro
+
+whenever it's mentioned, and it meets a certain condition, it'll expand to equal code within 'macro'
+variables then given to the macro are arg[n], prefix with $ to make sure the compiler knows that you're reffering to the ones creteated by the macro
+
+ex:
+.mac println, *stdout <- cat<&, "\n"> <- fmt<$arg0>
+
+call one just like ye would a subroutine, but suffix with a $:
+println$<"Hello, World!">
+
 
 #=============================
 #||       Maybe Later       ||
