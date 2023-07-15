@@ -12,13 +12,10 @@ pub fn post_compile() -> Result<(), &'static str> {
     //
     // NASM stuff
     let mut nasm = match Command::new("nasm")
-        .arg("-f elf64")
-        .arg(TEMP_ASM)
-        .arg("-o")
-        .arg(TEMP_OBJ)
+        .args(["-f", "elf64", TEMP_ASM, "-o", TEMP_OBJ])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
-        .spawn() 
+        .spawn()
     {
         Ok(child) => child,
         Err(_) => return Err("Failed to Run nasm!"),
@@ -32,11 +29,7 @@ pub fn post_compile() -> Result<(), &'static str> {
 
     let stdout_thread = thread::spawn(move || {
         let reader = io::BufReader::new(stdout);
-        for line in reader.lines() {
-            if let Ok(line) = line {
-                println!("{}", line);
-            }
-        }
+        reader.lines().flatten().for_each(|l| println!("{l}"))
     });
 
     // stderr here ====================
@@ -47,11 +40,7 @@ pub fn post_compile() -> Result<(), &'static str> {
 
     let stderr_thread = thread::spawn(move || {
         let reader = io::BufReader::new(stderr);
-        for line in reader.lines() {
-            if let Ok(line) = line {
-                eprintln!("{}", line);
-            }
-        }
+        reader.lines().flatten().for_each(|l| eprintln!("{l}"))
     });
 
     //
@@ -59,12 +48,12 @@ pub fn post_compile() -> Result<(), &'static str> {
     if !nasm.wait().unwrap().success() {
         return Err("nasm exited with Error!");
     }
-    
-    if let Err(_)  = stdout_thread.join() {
+
+    if stdout_thread.join().is_err() {
         return Err("Failed to Spawn Stdout Thread!");
     }
 
-    if let Err(_) = stderr_thread.join() {
+    if stderr_thread.join().is_err() {
         return Err("Failed to Spawn Stderr Thread!");
     }
 
@@ -78,10 +67,8 @@ pub fn post_link(out_file: Option<String>) -> Result<(), ()> {
     };
 
     match Command::new("ld")
-        .arg(TEMP_OBJ)
-        .arg("-o")
-        .arg(out_file)
-        .output() 
+        .args([TEMP_OBJ, "-o", &out_file])
+        .output()
     {
         Ok(_) => Ok(()),
         Err(_) => Err(()),

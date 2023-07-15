@@ -10,14 +10,15 @@ I cant do it all by myself... :/
 - For now: Compile to asm, and let nasm do the rest  
 
 # Features Implemented
-- Calling `nasm` and `ld`
+- Calling `nasm` and `ld`  
+- Comments (only newline, not inline)  
+- Parsing Directives   
 
 # Features Planned Next
-- Remove temp files
+- Remove temp files  
 - Loops  
-- Comments  
-- Subroutines (Basics)  
-- definitions  
+- Subroutines (Basics)   
+- definitions   
 - miltiple files  
 
 # FAQ

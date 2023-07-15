@@ -1,36 +1,64 @@
 use ansi_term::Colour::RGB;
+use std::process::exit;
 use std::fs;
 
-mod asm_compile;
 mod args_parser;
-mod wrapup;
+mod asm_compile;
 mod defs;
-mod utils;
 mod parser;
+mod utils;
+mod wrapup;
+mod compiler;
 
-use crate::wrapup::wrapup;
-use crate::asm_compile::*;
 use crate::args_parser::*;
-use crate::utils::eprintex;
+use crate::asm_compile::*;
 use crate::parser::parser;
+use crate::utils::eprintex;
+use crate::wrapup::wrapup;
+use crate::compiler::compiler;
 
 fn main() {
     let args = parse_args().unwrap_or_else(|e| eprintex(e));
     // returns a Flags struct, see arg_parser file
 
+    if args.debug {
+        eprintln!("{}{args:?}", deb!())
+    }
+
     eprint!("Reading File... ");
     let in_file_cont = match reader(args.input_file) {
         Ok(stuff) => {
-            eprint!("{}", ok!("Done!\n"));
+            eprintln!("{}", ok!("Done!"));
             stuff
         },
-        Err(why) => eprintex(why),
+        Err(why) => eprintex(&why),
     };
 
-    eprint!("Parsing Code... ");
-    match parser(in_file_cont) {
-        Ok(_parsed) => todo!(),
-        Err(why) => eprintex(&why),
+    eprintln!("Parsing Code... ");
+    let tokens = match parser(in_file_cont, args.debug) {
+        Ok(parsed) => {
+            eprintln!("{}", ok!("Done!"));
+            parsed
+        },
+        Err(why) => {
+            why.into_iter().rev().for_each(|e| eprintln!("{} {e}", err!()));
+            exit(1);
+        },
+    };
+
+
+    eprintln!("Compiling... ");
+    match compiler(tokens) {
+        Ok(()) => eprintln!("{}", ok!("Done!")),
+        Err(why) => {
+            why.into_iter().rev().for_each(|e| eprintln!("{} {e}", err!()));
+            exit(1);
+        },
+    }
+
+    if args.noasm {
+        println!("{}Compiled only to ASM", warn!());
+        return;
     }
 
     eprint!("Compiling Assembly... ");
@@ -42,7 +70,7 @@ fn main() {
     eprint!("Linking Object Files... ");
     match post_link(args.output_file) {
         Ok(()) => eprint!("{}", ok!("Done!\n")),
-        Err(()) => eprintex("Fuck")
+        Err(()) => eprintex("Fuck"),
     }
     // removes temp files, cleans shit up
     // all those last minute non-essential things
@@ -50,14 +78,20 @@ fn main() {
     wrapup();
 }
 
-fn reader(in_file: String) -> Result<String, &'static str> {
+fn reader(in_file: String) -> Result<String, String> {
     match fs::metadata(&in_file) {
         Ok(_) => (),
-        Err(_) => return Err("File Not Found!"),
+        Err(_) => return Err("File Not Found!".into()),
     }
 
-    match fs::read_to_string(in_file) {
-        Ok(f) => Ok(f),
-        Err(_) => return Err("Failed To Read File!"),
+    let file = match fs::read_to_string(&in_file) {
+        Ok(f) => f,
+        Err(_) => return Err("Failed To Read File!".into()),
+    };
+
+    if file.replace(char::is_whitespace, "").is_empty() {
+        return Err(format!("File `{in_file}` is Empty"));
     }
+
+    Ok(file)
 }

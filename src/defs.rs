@@ -1,7 +1,6 @@
 pub static TEMP_ASM: &str = "temp.asm";
 pub static TEMP_OBJ: &str = "temp.o";
-pub static HELP_MESSAGE: &str = 
-"nail - Compiler for the <onyx> Programming Language
+pub static HELP_MESSAGE: &str = "nail - Compiler for the <onyx> Programming Language
 Usage: nail <IN_FILE> [OPTIONS]
 
 Options:
