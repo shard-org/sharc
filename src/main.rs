@@ -42,18 +42,27 @@ fn main() {
         },
         Err(why) => {
             why.into_iter().rev().for_each(|e| eprintln!("{} {e}", err!()));
-            exit(1);
+            return;
         },
     };
 
 
     eprintln!("Compiling... ");
-    match compiler(tokens) {
-        Ok(()) => eprintln!("{}", ok!("Done!")),
+    let asm_output = match parser(tokens, args.debug) {
+        Ok(out) => {
+            eprintln!("{}", ok!("Done!"));
+            out
+        },
         Err(why) => {
             why.into_iter().rev().for_each(|e| eprintln!("{} {e}", err!()));
-            exit(1);
+            return;
         },
+    };
+
+    eprintln!("Writing Temp Files... ");
+    match writer(asm_output, ) {
+        Ok(()) => eprintln!("{}", ok!("Done!")),
+        Err(why) eprintex(why),
     }
 
     if args.noasm {
@@ -94,4 +103,15 @@ fn reader(in_file: String) -> Result<String, String> {
     }
 
     Ok(file)
+}
+
+fn writer(asm: String, filename: String) -> Result<(), &'static str> {
+    let mut new_file = get_or_err!(fs::File::create(filename),
+        "Failed to Create temp asm file!");
+
+    if new_file.write_all(asm.as_bytes()).is_err() {
+        return Err("Failed to Write to asm temp File!");
+    }
+
+    Ok(())
 }

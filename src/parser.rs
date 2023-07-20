@@ -25,6 +25,7 @@ pub enum Token {
     Subroutine,
 }
 
+#[macro_export]
 macro_rules! errfmt {
     ($i:ident, $errs:ident, $err:expr) => {
         $errs.push(format!("Line {}: {}", $i + 1, $err));
