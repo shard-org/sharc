@@ -1,49 +1,61 @@
 use crate::parser::{Data, Token};
 use crate::utils::{logger, Level, At};
 
+#[macro_export]
 macro_rules! fmtln {
     ($ln:ident, $msg:expr) => {
-        &format!("{}| {}", $ln, $msg)
+        &format!("{}: {}", $ln, $msg)
     };
 }
 
-pub fn compiler(tokens: Vec<Data>, debug: bool) -> Result<String, ()> {
+trait SafeRemove<Token> {
+    fn next(&mut self) -> Option<Token>;
+}
+
+impl<Token> SafeRemove<Token> for Vec<Token> {
+    fn next(&mut self) -> Option<Token> {
+        if self.is_empty() {
+            return None;
+        }
+
+        Some(self.remove(0))
+    }
+}
+
+pub fn compiler(mut tokens: Vec<Data>, debug: bool) -> Result<String, ()> {
     // TODO change the text field to a &str, prob by implementing a method
     let mut e: bool = false;             // error bool
     let mut o: String = String::new();   // output str
     let mut inc: Option<String> = None;  // include files str
     let a = At::Compiler;
 
-    while let Some(data) = tokens.iter().next() {
+    while let Some(data) = tokens.next() {
         let ln = data.line;
         match data.token {
             Token::Directive => match data.text.as_str() {
                 "use" => {
-                    let mut fname = match tokens.iter().next().unwrap().text.trim().strip_suffix(".ox") {
-                        Some(f) => f.to_string(),
-                        None => { 
-                            logger(Level::Err, &a, fmtln!(ln, "Filenames not ending with `.ox` are currently not Supported\nIf you Want this Feature, please File an Issue in the Github Repo.")); 
-                            e = true;
-                            continue;
-                        }
-                    };
-
-                    // TODO: Implement linking files
-                    // TODO: Compile into multiple asm files, and have ld link em
-                    fname.replace_range(fname.len()-2.., "asm");
-                    o.push_str(&format!(".include {}", fname));
-
-                    todo!();
+                    logger(Level::Err, &a, fmtln!(ln, "Nested Includes aren't Yet Supported!\nIf you Want this Feature, please donate to this project.")); 
+                    e = true;
+                    continue;
                 },
-                _ => todo!(),
+                _ => (),
             },
-            _ => todo!(),
+            Token::Marker => {
+                if data.scope.is_none() {
+                    logger(Level::Err, &a, fmtln!(ln, "Markers Must be Within a Scope"));
+                    e = true;
+                    continue;
+                }
+
+                o.push_str(&format!("{}:\n", data.text));
+            }
+            _ => (),
         }
 
     }
 
     if debug {
-        eprintln!("{o}");
+        o.split('\n').for_each(|l| logger(Level::Debug, &a, l));
     }
 
     if e { return Err(()); }

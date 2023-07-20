@@ -8,7 +8,7 @@ pub struct Data {
     pub scope: Option<String>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Token {
     Directive,
     SubroutineDef, // FIXME dont wrap everything in the definition
@@ -23,14 +23,6 @@ pub enum Token {
     Macro,
     Subroutine,
 }
-
-// struct TokenIterator {
-    // data
-// }
-//
-// impl Iterator for TokenIterator {
-//
-// }
 
 #[macro_export]
 macro_rules! errfmt {

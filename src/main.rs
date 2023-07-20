@@ -9,6 +9,7 @@ mod parser;
 mod utils;
 mod wrapup;
 mod compiler;
+mod pre_compiler;
 
 use crate::args_parser::*;
 use crate::asm_compile::*;
@@ -16,6 +17,7 @@ use crate::parser::parser;
 use crate::utils::{logger, Level, At};
 use crate::wrapup::wrapup;
 use crate::compiler::compiler;
+use crate::pre_compiler::pre_compiler;
 
 fn main() {
     // returns a Flags struct, see arg_parser file
@@ -25,10 +27,9 @@ fn main() {
     });
 
     if args.debug {
-        logger(Level::Debug, &At::ArgParser, &format!("args:?"));
+        logger(Level::Debug, &At::ArgParser, &format!("{args:?}"));
     }
 
-    eprint!("Reading File... ");
     let in_file_cont = match reader(args.input_file) {
         Ok(stuff) => {
             logger(Level::Ok, &At::Reader, "Done!");
@@ -40,10 +41,17 @@ fn main() {
         }
     };
 
+    let preparsed_file_cont = match pre_compiler(in_file_cont, args.debug) {
+        Ok(cont) => {
+            logger(Level::Ok, &At::PreCompiler, "Done!");
+            cont
+        },
+        Err(()) => exit(1),
+    };
+
     // TODO: make this run for every file
     // "Parsing {filename}..."
-    eprintln!("Parsing Code... ");
-    let tokens = match parser(in_file_cont, args.debug) {
+    let tokens = match parser(preparsed_file_cont, args.debug) {
         Ok(parsed) => {
             logger(Level::Ok, &At::Parser, "Done!");
             parsed
@@ -52,7 +60,6 @@ fn main() {
     };
 
     // TODO: make this run for every file
-    eprintln!("Compiling... ");
     let asm_output = match compiler(tokens, args.debug) {
         Ok(out) => {
             logger(Level::Ok, &At::Compiler, "Done!");
@@ -63,7 +70,6 @@ fn main() {
 
     // TODO: have this write per file
     // FIXME: "temp.asm" is a placeholder
-    eprintln!("Writing Temp Files... ");
     match writer(asm_output, "temp.asm".to_string()) {
         Ok(()) => logger(Level::Ok, &At::Writer, "Done!"),
         Err(why) => {
@@ -77,7 +83,6 @@ fn main() {
         exit(1);
     }
 
-    eprint!("Compiling Assembly... ");
     match post_compile() {
         Ok(()) => logger(Level::Ok, &At::Nasm, "Done!"),
         Err(why) => {
@@ -86,7 +91,6 @@ fn main() {
         },
     }
 
-    eprint!("Linking Object Files... ");
     match post_link(args.output_file) {
         Ok(()) => logger(Level::Ok, &At::Ld, "Done!"),
         Err(()) => {
@@ -100,7 +104,7 @@ fn main() {
     wrapup();
 }
 
-fn reader(in_file: String) -> Result<String, String> {
+pub fn reader(in_file: String) -> Result<String, String> {
     match fs::metadata(&in_file) {
         Ok(_) => (),
         Err(_) => return Err("File Not Found!".into()),

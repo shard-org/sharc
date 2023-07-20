@@ -15,19 +15,21 @@ pub enum At {
     Nasm,
     Ld,
     Writer,
+    PreCompiler,
     Empty,
 }
 
 pub fn logger(lev: Level, at: &At, msg: &str) {
     let dir = match at {
-        At::Reader    => format!(" at {}", RGB(255,255,255).bold().paint("READER:")),
-        At::Parser    => format!(" at {}", RGB(255,255,255).bold().paint("PARSER:")),
-        At::ArgParser => format!(" at {}", RGB(255,255,255).bold().paint("ARGPARSER:")),
-        At::Compiler  => format!(" at {}", RGB(255,255,255).bold().paint("COMPILER:")),
-        At::Nasm      => format!(" at {}", RGB(255,255,255).bold().paint("NASM:")),
-        At::Ld        => format!(" at {}", RGB(255,255,255).bold().paint("LD:")),
-        At::Writer    => format!(" at {}", RGB(255,255,255).bold().paint("WRITER:")),
-        At::Empty     => "".to_string(),
+        At::Reader      => format!(" at {}", RGB(255,255,255).bold().paint("READER:")),
+        At::Parser      => format!(" at {}", RGB(255,255,255).bold().paint("PARSER:")),
+        At::ArgParser   => format!(" at {}", RGB(255,255,255).bold().paint("ARGPARSER:")),
+        At::Compiler    => format!(" at {}", RGB(255,255,255).bold().paint("COMPILER:")),
+        At::Nasm        => format!(" at {}", RGB(255,255,255).bold().paint("NASM:")),
+        At::Ld          => format!(" at {}", RGB(255,255,255).bold().paint("LD:")),
+        At::Writer      => format!(" at {}", RGB(255,255,255).bold().paint("WRITER:")),
+        At::PreCompiler => format!(" at {}", RGB(255,255,255).bold().paint("PRECOMPILER:")),
+        At::Empty       => "".to_string(),
     };
 
     match lev {
