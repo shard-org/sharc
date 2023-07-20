@@ -1,37 +1,42 @@
 use crate::parser::{Data, Token};
+use crate::utils::{logger, Level, At};
 
-macro_rules! get_or_err {
-    ($val:expr, $err:expr) => {
-        match $val {
-            Ok(v) => v,
-            Err(_) => return Err($err),
-        }
+macro_rules! fmtln {
+    ($ln:ident, $msg:expr) => {
+        &format!("{}| {}", $ln, $msg)
     };
 }
 
-pub fn compiler(tokens: Vec<Data>, debug: bool) -> Result<String, Vec<String>> {
+pub fn compiler(tokens: Vec<Data>, debug: bool) -> Result<String, ()> {
     // TODO change the text field to a &str, prob by implementing a method
-    let mut e: Vec<String> = Vec::new();
-    let mut o: String = String::new();
+    let mut e: bool = false;             // error bool
+    let mut o: String = String::new();   // output str
+    let mut inc: Option<String> = None;  // include files str
+    let a = At::Compiler;
 
-    for data in tokens {
+    while let Some(data) = tokens.iter().next() {
+        let ln = data.line;
         match data.token {
-            Token::Directive => match data.text {
+            Token::Directive => match data.text.as_str() {
                 "use" => {
-                        let filename = match data.next() {
-                            Some(dat) => dat,
-                            None => errfmt!(e, )
+                    let mut fname = match tokens.iter().next().unwrap().text.trim().strip_suffix(".ox") {
+                        Some(f) => f.to_string(),
+                        None => { 
+                            logger(Level::Err, &a, fmtln!(ln, "Filenames not ending with `.ox` are currently not Supported\nIf you Want this Feature, please File an Issue in the Github Repo.")); 
+                            e = true;
+                            continue;
                         }
+                    };
 
-                        // TODO: Implement linking files
-                        // TODO: Compile into multiple asm files, and have ld link em
-                        o.push_str(format!(".include {}", ));
+                    // TODO: Implement linking files
+                    // TODO: Compile into multiple asm files, and have ld link em
+                    fname.replace_range(fname.len()-2.., "asm");
+                    o.push_str(&format!(".include {}", fname));
 
-                        todo!();
-                    }
-                }
-            }
-
+                    todo!();
+                },
+                _ => todo!(),
+            },
             _ => todo!(),
         }
 
@@ -41,10 +46,9 @@ pub fn compiler(tokens: Vec<Data>, debug: bool) -> Result<String, Vec<String>> {
         eprintln!("{o}");
     }
 
+    if e { return Err(()); }
+
     todo!();
-
-    if !e.is_empty() { return Err(e); }
-
-    Ok(o);
+    Ok(o)
 }
 

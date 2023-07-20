@@ -1,6 +1,6 @@
-use ansi_term::Colour::RGB;
 use std::process::exit;
 use std::fs;
+use std::io::Write;
 
 mod args_parser;
 mod asm_compile;
@@ -13,73 +13,86 @@ mod compiler;
 use crate::args_parser::*;
 use crate::asm_compile::*;
 use crate::parser::parser;
-use crate::utils::eprintex;
+use crate::utils::{logger, Level, At};
 use crate::wrapup::wrapup;
 use crate::compiler::compiler;
 
 fn main() {
-    let args = parse_args().unwrap_or_else(|e| eprintex(e));
     // returns a Flags struct, see arg_parser file
+    let args = parse_args().unwrap_or_else(|e| {
+        logger(Level::Err, &At::ArgParser, e);
+        exit(1);
+    });
 
     if args.debug {
-        eprintln!("{}{args:?}", deb!())
+        logger(Level::Debug, &At::ArgParser, &format!("args:?"));
     }
 
     eprint!("Reading File... ");
     let in_file_cont = match reader(args.input_file) {
         Ok(stuff) => {
-            eprintln!("{}", ok!("Done!"));
+            logger(Level::Ok, &At::Reader, "Done!");
             stuff
         },
-        Err(why) => eprintex(&why),
+        Err(why) => {
+            logger(Level::Err, &At::Reader, &why);
+            exit(1);
+        }
     };
 
+    // TODO: make this run for every file
+    // "Parsing {filename}..."
     eprintln!("Parsing Code... ");
     let tokens = match parser(in_file_cont, args.debug) {
         Ok(parsed) => {
-            eprintln!("{}", ok!("Done!"));
+            logger(Level::Ok, &At::Parser, "Done!");
             parsed
         },
-        Err(why) => {
-            why.into_iter().rev().for_each(|e| eprintln!("{} {e}", err!()));
-            return;
-        },
+        Err(_) => exit(1),
     };
 
-
+    // TODO: make this run for every file
     eprintln!("Compiling... ");
-    let asm_output = match parser(tokens, args.debug) {
+    let asm_output = match compiler(tokens, args.debug) {
         Ok(out) => {
-            eprintln!("{}", ok!("Done!"));
+            logger(Level::Ok, &At::Compiler, "Done!");
             out
         },
-        Err(why) => {
-            why.into_iter().rev().for_each(|e| eprintln!("{} {e}", err!()));
-            return;
-        },
+        Err(()) => exit(1),
     };
 
+    // TODO: have this write per file
+    // FIXME: "temp.asm" is a placeholder
     eprintln!("Writing Temp Files... ");
-    match writer(asm_output, ) {
-        Ok(()) => eprintln!("{}", ok!("Done!")),
-        Err(why) eprintex(why),
+    match writer(asm_output, "temp.asm".to_string()) {
+        Ok(()) => logger(Level::Ok, &At::Writer, "Done!"),
+        Err(why) => {
+            logger(Level::Err, &At::Writer, why);
+            exit(1);
+        },
     }
 
     if args.noasm {
-        println!("{}Compiled only to ASM", warn!());
-        return;
+        logger(Level::Warn, &At::Writer, "Compiled only to ASM");
+        exit(1);
     }
 
     eprint!("Compiling Assembly... ");
     match post_compile() {
-        Ok(()) => eprint!("{}", ok!("Done!\n")),
-        Err(why) => eprintex(why),
+        Ok(()) => logger(Level::Ok, &At::Nasm, "Done!"),
+        Err(why) => {
+            logger(Level::Err, &At::Nasm, why);
+            exit(1);
+        },
     }
 
     eprint!("Linking Object Files... ");
     match post_link(args.output_file) {
-        Ok(()) => eprint!("{}", ok!("Done!\n")),
-        Err(()) => eprintex("Fuck"),
+        Ok(()) => logger(Level::Ok, &At::Ld, "Done!"),
+        Err(()) => {
+            logger(Level::Err, &At::Ld, "Shit Went Down!");
+            exit(1);
+        },
     }
     // removes temp files, cleans shit up
     // all those last minute non-essential things
@@ -106,8 +119,10 @@ fn reader(in_file: String) -> Result<String, String> {
 }
 
 fn writer(asm: String, filename: String) -> Result<(), &'static str> {
-    let mut new_file = get_or_err!(fs::File::create(filename),
-        "Failed to Create temp asm file!");
+    let mut new_file = match fs::File::create(filename) {
+        Ok(n) => n,
+        Err(_) => return Err("Failed to Create temp asm file!"),
+    };
 
     if new_file.write_all(asm.as_bytes()).is_err() {
         return Err("Failed to Write to asm temp File!");

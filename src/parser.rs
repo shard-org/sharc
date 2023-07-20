@@ -1,5 +1,4 @@
-use crate::deb;
-use ansi_term::Colour::RGB;
+use crate::utils::{logger, At, Level};
 
 #[derive(Debug)]
 pub struct Data {
@@ -24,6 +23,14 @@ pub enum Token {
     Macro,
     Subroutine,
 }
+
+// struct TokenIterator {
+    // data
+// }
+//
+// impl Iterator for TokenIterator {
+//
+// }
 
 #[macro_export]
 macro_rules! errfmt {
@@ -77,6 +84,7 @@ pub fn parser(file_contents: String, debug: bool) -> Result<Vec<Data>, Vec<Strin
     let mut data: Vec<Data> = Vec::new();
     let mut scope: Option<String> = None;
     let mut e: Vec<String> = Vec::new();
+    let a = At::Parser;
 
     for (i, s) in file_contents.lines().enumerate() {
         let s = s.trim();
@@ -175,7 +183,9 @@ pub fn parser(file_contents: String, debug: bool) -> Result<Vec<Data>, Vec<Strin
     }
 
     if debug {
-        data.iter().for_each(|d| eprintln!("{}{d:?}", deb!()));
+        data.iter().for_each(|d| 
+            logger(Level::Debug, &a, &format!("{d:?}"))
+        );
     }
 
     if !e.is_empty() { return Err(e); }

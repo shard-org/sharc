@@ -1,5 +1,5 @@
 use crate::defs::{HELP_MESSAGE, VERSION};
-use crate::utils::printlnex;
+use std::process::exit;
 
 // FIXME: this is a BAD way to do this, ideally we'd have a (&str, &str, u8)
 // u8 being the bit packed bools
@@ -23,8 +23,14 @@ pub fn parse_args() -> Result<Args, &'static str> {
 
     while let Some(arg) = args.next() {
         match arg.as_str() {
-            "-h" | "--help" => printlnex(HELP_MESSAGE),
-            "-v" | "--version" => printlnex(VERSION),
+            "-h" | "--help" => {
+                println!("{HELP_MESSAGE}");
+                exit(1);
+            },
+            "-v" | "--version" => {
+                println!("{VERSION}");
+                exit(1);
+            },
             "-t" | "--temp" => temp = true,
             "-d" | "--debug" => debug = true,
             "-C" | "--noasm" => noasm = true,
