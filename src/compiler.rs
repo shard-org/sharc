@@ -1,5 +1,5 @@
 use crate::parser::{Data, Token};
-use crate::utils::{logger, Level, At};
+use crate::utils::*;
 
 #[macro_export]
 macro_rules! fmtln {
@@ -22,19 +22,18 @@ impl<Token> SafeRemove<Token> for Vec<Token> {
     }
 }
 
-pub fn compiler(mut tokens: Vec<Data>, debug: bool) -> Result<String, ()> {
-    // TODO change the text field to a &str, prob by implementing a method
-    let mut e: bool = false;             // error bool
-    let mut o: String = String::new();   // output str
-    let mut inc: Option<String> = None;  // include files str
+pub fn compiler(mut tokens: Vec<Data>, debug: bool) -> Result<String, usize> {
+    let mut e: usize = 0;               // err count
+    let mut o: String = String::new();  // output str
     let a = At::Compiler;
 
     while let Some(data) = tokens.next() {
+        let f = data.file; // f is the file
         let ln = data.line;
         match data.token {
             Token::Directive => match data.text.as_str() {
                 "use" => {
-                    logger(Level::Err, &a, fmtln!(ln, "Nested Includes aren't Yet Supported!\nIf you Want this Feature, please donate to this project.")); 
+                    logger(Level::Err, &a, &logfmt(&ln, &f, "Nested Includes aren't Yet Supported!\nIf you Want this Feature, please donate to this project.")); 
                     e = true;
                     continue;
                 },
@@ -48,7 +47,7 @@ pub fn compiler(mut tokens: Vec<Data>, debug: bool) -> Result<String, ()> {
                 }
 
                 o.push_str(&format!("{}:\n", data.text));
-            }
+            },
             _ => (),
         }
 
@@ -58,7 +57,7 @@ pub fn compiler(mut tokens: Vec<Data>, debug: bool) -> Result<String, ()> {
         o.split('\n').for_each(|l| logger(Level::Debug, &a, l));
     }
 
-    if e { return Err(()); }
+    if e != 0 { return Err(e); }
 
     todo!();
     Ok(o)

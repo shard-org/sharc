@@ -8,7 +8,7 @@ use crate::defs::*;
 // TODO: add other os/arch than linux/x86
 //
 // FIXME: the printing of nasm output is only for debug, remove for release
-pub fn post_compile() -> Result<(), &'static str> {
+pub fn post_compiler() -> Result<(), &'static str> {
     //
     // NASM stuff
     let mut nasm = match Command::new("nasm")
@@ -60,7 +60,7 @@ pub fn post_compile() -> Result<(), &'static str> {
     Ok(())
 }
 
-pub fn post_link(out_file: Option<String>) -> Result<(), ()> {
+pub fn linker(out_file: Option<String>) -> Result<(), ()> {
     let out_file = match out_file {
         Some(file) => file,
         None => "output".to_string(),

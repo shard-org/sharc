@@ -30,7 +30,8 @@ fn main() {
         logger(Level::Debug, &At::ArgParser, &format!("{args:?}"));
     }
 
-    let in_file_cont = match reader(args.input_file) {
+    // reads the file specified and returns it's output
+    let in_file_cont = match reader(&args.input_file) {
         Ok(stuff) => {
             logger(Level::Ok, &At::Reader, "Done!");
             stuff
@@ -41,7 +42,8 @@ fn main() {
         }
     };
 
-    let preparsed_file_cont = match pre_compiler(in_file_cont, args.debug) {
+    // combines all the include files into one String
+    let preparsed_file_cont = match pre_compiler(in_file_cont, args.debug, &args.input_file) {
         Ok(cont) => {
             logger(Level::Ok, &At::PreCompiler, "Done!");
             cont
@@ -49,17 +51,19 @@ fn main() {
         Err(()) => exit(1),
     };
 
-    // TODO: make this run for every file
-    // "Parsing {filename}..."
+    // converts the file String into tokens Vec<Data>
     let tokens = match parser(preparsed_file_cont, args.debug) {
         Ok(parsed) => {
             logger(Level::Ok, &At::Parser, "Done!");
             parsed
         },
-        Err(_) => exit(1),
+        Err(e) => {
+            logger(Level::Info, &At::Parser, &format!("Could not Compile `{}`; {e} errors emmited", args.input_file));
+            exit(1);
+        },
     };
 
-    // TODO: make this run for every file
+    // compiles the tokens into asm 
     let asm_output = match compiler(tokens, args.debug) {
         Ok(out) => {
             logger(Level::Ok, &At::Compiler, "Done!");
@@ -68,9 +72,8 @@ fn main() {
         Err(()) => exit(1),
     };
 
-    // TODO: have this write per file
-    // FIXME: "temp.asm" is a placeholder
-    match writer(asm_output, "temp.asm".to_string()) {
+    // writes the asm 
+    match writer(asm_output, "temp.asm") {
         Ok(()) => logger(Level::Ok, &At::Writer, "Done!"),
         Err(why) => {
             logger(Level::Err, &At::Writer, why);
@@ -83,7 +86,8 @@ fn main() {
         exit(1);
     }
 
-    match post_compile() {
+    // compiles asm into object files (using `nasm`)
+    match post_compiler() {
         Ok(()) => logger(Level::Ok, &At::Nasm, "Done!"),
         Err(why) => {
             logger(Level::Err, &At::Nasm, why);
@@ -91,7 +95,8 @@ fn main() {
         },
     }
 
-    match post_link(args.output_file) {
+    // object files into an executable binary
+    match linker(args.output_file) {
         Ok(()) => logger(Level::Ok, &At::Ld, "Done!"),
         Err(()) => {
             logger(Level::Err, &At::Ld, "Shit Went Down!");
@@ -104,13 +109,13 @@ fn main() {
     wrapup();
 }
 
-pub fn reader(in_file: String) -> Result<String, String> {
-    match fs::metadata(&in_file) {
+pub fn reader(in_file: &str) -> Result<String, String> {
+    match fs::metadata(in_file) {
         Ok(_) => (),
         Err(_) => return Err("File Not Found!".into()),
     }
 
-    let file = match fs::read_to_string(&in_file) {
+    let file = match fs::read_to_string(in_file) {
         Ok(f) => f,
         Err(_) => return Err("Failed To Read File!".into()),
     };
@@ -122,7 +127,7 @@ pub fn reader(in_file: String) -> Result<String, String> {
     Ok(file)
 }
 
-fn writer(asm: String, filename: String) -> Result<(), &'static str> {
+fn writer(asm: String, filename: &str) -> Result<(), &'static str> {
     let mut new_file = match fs::File::create(filename) {
         Ok(n) => n,
         Err(_) => return Err("Failed to Create temp asm file!"),

@@ -1,10 +1,11 @@
 use crate::utils::*;
 use crate::{fmtln, reader};
 
-pub fn pre_compiler(contents: String, debug: bool) -> Result<String, ()> {
+pub fn pre_compiler(contents: String, debug: bool, main_file: &str) -> Result<String, ()> {
     let mut e: bool = false;
     let a = At::PreCompiler;
     let mut clean_contents: String = contents.split('\n').filter(|l| !l.trim().starts_with(".use")).collect::<Vec<&str>>().join("\n");
+    clean_contents.insert_str(0, &format!("; @FILENAME {main_file}\n"));
     
     for (i, ln) in contents.split('\n').filter_map(|l| l.trim().strip_prefix(".use")).rev().enumerate() {
         let ln = ln.trim();
@@ -19,10 +20,10 @@ pub fn pre_compiler(contents: String, debug: bool) -> Result<String, ()> {
             logger(Level::Debug, &a, &format!("Path {i}: {ln:?}"));
         }
         
-        let incl_contents = match reader(ln.to_string()) {
-            Ok(c) => c + "\n",
+        let incl_contents = match reader(ln) {
+            Ok(c) => format!("; @FILENAME {ln}\n {c}\n"),
             Err(why) => {
-                logger(Level::Err, &a, &why);
+                logger(Level::Err, &At::Reader, &why);
                 e = true;
                 continue;
             },
@@ -30,8 +31,6 @@ pub fn pre_compiler(contents: String, debug: bool) -> Result<String, ()> {
 
         clean_contents.insert_str(0, &incl_contents);
     }
-
-    println!("{clean_contents}");
 
     if e { return Err(()); }
 

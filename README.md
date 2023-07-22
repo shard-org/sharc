@@ -25,7 +25,7 @@ I cant do it all by myself... :/
 
 # FAQ
 > \<onyx\>? with brackets?  
-> yes  
+> Yupp!
 
 > why?  
 > Never seen something like this, so thought I'd give er a shot
