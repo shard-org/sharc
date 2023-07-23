@@ -1,7 +1,10 @@
 pub static TEMP_ASM: &str = "temp.asm";
 pub static TEMP_OBJ: &str = "temp.o";
-pub static HELP_MESSAGE: &str = "nail - Compiler for the <onyx> Programming Language
-Usage: nail <IN_FILE> [OPTIONS]
+// TODO: come up with a better name for the compiler. Suggestions so far:
+// - Nail
+// - Crag
+pub static HELP_MESSAGE: &str = "onyx - Compiler for the <onyx> Programming Language
+Usage: onyxc <IN_FILE> [OPTIONS]
 
 Options:
   -h, --help      Shows this Message
