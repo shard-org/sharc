@@ -14,7 +14,7 @@ mod pre_compiler;
 use crate::args_parser::*;
 use crate::asm_compile::*;
 use crate::parser::parser;
-use crate::utils::{logger, Level, At};
+use crate::utils::{logger, Level, At, get_tip};
 use crate::wrapup::wrapup;
 use crate::compiler::compiler;
 use crate::pre_compiler::pre_compiler;
@@ -25,7 +25,7 @@ fn main() {
     // returns a Flags struct, see arg_parser file
     let args = parse_args().unwrap_or_else(|e| {
         logger(Level::Err, &At::ArgParser, e);
-        exit(1);
+        exit_err();
     });
 
     if args.debug {
@@ -40,7 +40,7 @@ fn main() {
         },
         Err(why) => {
             logger(Level::Err, &At::Reader, &why);
-            exit(1);
+            exit_err();
         }
     };
 
@@ -50,7 +50,7 @@ fn main() {
             logger(Level::Ok, &At::PreCompiler, "Done!");
             cont
         },
-        Err(()) => exit(1),
+        Err(()) => exit_err(),
     };
 
     // converts the file String into tokens Vec<Data>
@@ -61,7 +61,7 @@ fn main() {
         },
         Err(e) => {
             logger(Level::Info, &At::Parser, &format!("Could not Compile `{}`; {e} errors emmited", args.input_file));
-            exit(1);
+            exit_err();
         },
     };
 
@@ -73,7 +73,7 @@ fn main() {
         },
         Err(e) => {
             logger(Level::Info, &At::Parser, &format!("Could not Compile `{}`; {e} errors emmited", args.input_file));
-            exit(1);
+            exit_err();
         },
     };
 
@@ -82,13 +82,13 @@ fn main() {
         Ok(()) => logger(Level::Ok, &At::Writer, "Done!"),
         Err(why) => {
             logger(Level::Err, &At::Writer, why);
-            exit(1);
+            exit_err();
         },
     }
 
     if args.noasm {
         logger(Level::Warn, &At::Writer, "Compiled only to ASM");
-        exit(1);
+        exit_err();
     }
 
     // compiles asm into object files (using `nasm`)
@@ -96,7 +96,7 @@ fn main() {
         Ok(()) => logger(Level::Ok, &At::Nasm, "Done!"),
         Err(why) => {
             logger(Level::Err, &At::Nasm, why);
-            exit(1);
+            exit_err();
         },
     }
 
@@ -105,7 +105,7 @@ fn main() {
         Ok(()) => logger(Level::Ok, &At::Ld, "Done!"),
         Err(()) => {
             logger(Level::Err, &At::Ld, "Shit Went Down!");
-            exit(1);
+            exit_err();
         },
     }
     // removes temp files, cleans shit up
@@ -151,3 +151,8 @@ fn writer(asm: String, filename: &str) -> Result<(), &'static str> {
 
     Ok(())
 }
+
+fn exit_err() -> ! {
+    logger(Level::Tip, &At::None, get_tip());
+    exit(1)
+} 

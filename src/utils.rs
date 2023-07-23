@@ -1,4 +1,6 @@
 use ansi_term::Colour::RGB;
+use crate::defs::TIPS;
+use rand::seq::SliceRandom;
 
 pub enum Level {
     Ok,
@@ -6,6 +8,7 @@ pub enum Level {
     Err,
     Debug,
     Info,
+    Tip,
 }
 
 pub enum At {
@@ -45,5 +48,10 @@ pub fn logger(lev: Level, at: &At, msg: &str) {
         Level::Debug => println!("{}{dir} {msg}", RGB(46, 184, 184).bold().paint("DEBUG")), 
         Level::Warn => println!("{}{dir} {msg}", RGB(230, 230, 0).bold().paint("WARN")), 
         Level::Info => println!("{}{dir} {msg}", RGB(57, 96, 96).bold().paint("INFO")), 
+        Level::Tip => println!("{}{dir} {msg}", RGB(255, 179, 255).bold().paint("TIP")), 
     }
+}
+
+pub fn get_tip() -> &'static str {
+    *TIPS.choose(&mut rand::thread_rng()).unwrap_or(&"Failed to Fetch Tip!")
 }

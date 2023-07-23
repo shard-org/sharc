@@ -11,3 +11,8 @@ Options:
   -t, --temp      Keep Temp Files
   -C, --noasm     Compile Only, Outputting an Assembly File";
 pub static VERSION: &str = "0.0.1";
+pub static TIPS: &[&str] = &[
+"This Language has Significant Whitespace",
+"Use snake_case or ANGRY_SNAKE_CASE",
+"Check the Docs Sometime",
+"All Files must be within the Working Directory"];

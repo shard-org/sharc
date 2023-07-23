@@ -10,6 +10,7 @@ I cant do it all by myself... :/
 - most things are represented as just series of bits making ye have to think bout how stuff maps in mem  
 - Freedom of asm, but without the tediousness and low readability of it
 - For now: Compile to asm, and let nasm do the rest  
+- Both Curly Brackets, and Significant whitespace
 
 # Hello World
 ```
@@ -18,11 +19,18 @@ main {
 }
 ```
 
-# std subroutine example
+# std subroutine examples
 ```
-// check if a value is null, or 0... they're the same
-nil<&> -> <1> {
-    <- (arg1 = 0) 
+// used for indexing linked lists, takes the first element and wanted index
+llix<&(ptr::llp):(start), &(8,16,32,64):(index)> -> <&>|!<E> {
+    
+    @loop
+
+    // TODO 
+    
+    dec<index>
+    (index > 0) => jmp(loop)
+
 }
 ```
 

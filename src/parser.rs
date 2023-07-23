@@ -22,7 +22,7 @@ pub enum Token {
     Operator(),
     Bracket,
     Macro,
-    Subroutine,
+    Subroutine(),
     ExtExport,
 }
 
@@ -70,6 +70,7 @@ pub fn parser(file_contents: String, debug: bool) -> Result<Vec<Data>, usize> {
         }
 
         // directives
+        // TODO: move all of these to the precompiler
         else if s.starts_with('.') {
             let (dir, args) = match s.split_once(' ') {
                 Some(s) => s,
@@ -182,7 +183,7 @@ pub fn parser(file_contents: String, debug: bool) -> Result<Vec<Data>, usize> {
          
         else if s.starts_with("*") {
             // FIXME: prob split before that operator, leavin it to the daisy chain func
-            let (export, args) = match s.split_once("<-") {
+            let (export, args) = match s.split_once("") {
                 Some(ex) => ex,
                 None => {
                     logger(Level::Err, &a, &logfmt(&i, f, "Expected a Directional Operator!"));
@@ -231,7 +232,6 @@ fn validate_str(s: &str) -> bool {
         s.chars().any(|c| !(c.is_ascii_alphabetic() || c == '_') || 
         (c.is_uppercase() && s.chars().any(|pc| pc.is_lowercase()))
     ) {
-        logger(Level::Info, &At::Parser, "Tip: Use snake_case or ANGRY_SNAKE_CASE");
         return false;
     }
 
