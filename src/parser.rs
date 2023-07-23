@@ -23,6 +23,7 @@ pub enum Token {
     Bracket,
     Macro,
     Subroutine,
+    ExtExport,
 }
 
 impl Data {
@@ -37,6 +38,7 @@ impl Data {
     }
 }
 
+#[macro_export]
 macro_rules! err {
     ($e:ident) => {
         $e += 1;
@@ -67,6 +69,7 @@ pub fn parser(file_contents: String, debug: bool) -> Result<Vec<Data>, usize> {
             continue;
         }
 
+        // directives
         else if s.starts_with('.') {
             let (dir, args) = match s.split_once(' ') {
                 Some(s) => s,
@@ -94,6 +97,7 @@ pub fn parser(file_contents: String, debug: bool) -> Result<Vec<Data>, usize> {
             d.push(Data::new(Token::Argument, &i, f, &scope, args));
         }
 
+        // markers
         else if s.starts_with('@') {
             if s.len() <= 1 {
                 logger(Level::Err, &a, &logfmt(&i, f, "Marker Needs an Identifier"));
@@ -109,6 +113,7 @@ pub fn parser(file_contents: String, debug: bool) -> Result<Vec<Data>, usize> {
             d.push(Data::new(Token::Marker, &i, f, &scope, s));
         }
 
+        // subroutine defs
         else if s.chars().next().unwrap().is_alphabetic() && scope.is_none() {
             let s: Vec<&str> = s.split_whitespace().collect();
             let (ident, vars) = match s[0].split_once('<') {
@@ -134,7 +139,7 @@ pub fn parser(file_contents: String, debug: bool) -> Result<Vec<Data>, usize> {
             let vars: Vec<&str> = vars[0..(vars.len() - 1)]
                 .split(',')
                 .map(|a| a.trim())
-                .filter(|&e| e != "")
+                .filter(|&e| !e.is_empty())
                 .collect();
 
             if !vars.is_empty() {
@@ -155,9 +160,10 @@ pub fn parser(file_contents: String, debug: bool) -> Result<Vec<Data>, usize> {
             scope = Some(ident.to_string());
         }
 
+        // scope down
         else if s == "}" { 
-            match scope {
-                Some(_) => scope = None,
+            scope = match scope {
+                Some(_) => None,
                 None => { 
                     logger(Level::Err, &a, &logfmt(&i, f, "Unmatched Bracket"));
                     err!(e);
@@ -174,6 +180,25 @@ pub fn parser(file_contents: String, debug: bool) -> Result<Vec<Data>, usize> {
             }
         }
          
+        else if s.starts_with("*") {
+            // FIXME: prob split before that operator, leavin it to the daisy chain func
+            let (export, args) = match s.split_once("<-") {
+                Some(ex) => ex,
+                None => {
+                    logger(Level::Err, &a, &logfmt(&i, f, "Expected a Directional Operator!"));
+                    err!(e);
+                },
+            };
+
+            if !(export == "stdout" || export == "stderr") {
+                logger(Level::Err, &a, &logfmt(&i, f, &format!("Unknown External Export `{s}`")));
+                err!(e);
+            }
+
+            d.push(Data::new(Token::ExtExport, &i, f, &scope, export))
+
+            // TODO: call the daisy chain func here
+        }
 
         else { 
             logger(Level::Err, &a, &logfmt(&i, f, &format!("Unrecognized Token `{s}`")));
@@ -200,10 +225,13 @@ pub fn parser(file_contents: String, debug: bool) -> Result<Vec<Data>, usize> {
 }
 
 fn validate_str(s: &str) -> bool {
-    if s.chars().any(|c| 
-        !(c.is_ascii_alphabetic() || c == '_') || 
-        (c.is_uppercase() && s.chars().any(|pc| c.is_lowercase()))
+    let s = s.trim();
+
+    if s == "stdout" || s == "stderr" ||
+        s.chars().any(|c| !(c.is_ascii_alphabetic() || c == '_') || 
+        (c.is_uppercase() && s.chars().any(|pc| pc.is_lowercase()))
     ) {
+        logger(Level::Info, &At::Parser, "Tip: Use snake_case or ANGRY_SNAKE_CASE");
         return false;
     }
 

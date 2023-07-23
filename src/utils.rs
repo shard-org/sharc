@@ -18,7 +18,7 @@ pub enum At {
     Writer,
     PreCompiler,
     Wrapup,
-    Empty,
+    None,
 }
 
 pub fn logfmt(line: &usize, filename: &str, msg: &str) -> String {
@@ -36,7 +36,7 @@ pub fn logger(lev: Level, at: &At, msg: &str) {
         At::Writer      => format!(" at {}", RGB(255,255,255).bold().paint("WRITER:")),
         At::PreCompiler => format!(" at {}", RGB(255,255,255).bold().paint("PRECOMPILER:")),
         At::Wrapup      => format!(" at {}", RGB(255,255,255).bold().paint("WRAPUP:")),
-        At::Empty       => "".to_string(),
+        At::None        => "".to_string(),
     };
 
     match lev {
@@ -44,6 +44,6 @@ pub fn logger(lev: Level, at: &At, msg: &str) {
         Level::Err => println!("{}{dir} {msg}", RGB(179, 0, 0).bold().paint("ERR")), 
         Level::Debug => println!("{}{dir} {msg}", RGB(46, 184, 184).bold().paint("DEBUG")), 
         Level::Warn => println!("{}{dir} {msg}", RGB(230, 230, 0).bold().paint("WARN")), 
-        Level::Info => println!("{}{dir} {msg}", RGB(159, 198, 198).bold().paint("INFO")), 
+        Level::Info => println!("{}{dir} {msg}", RGB(57, 96, 96).bold().paint("INFO")), 
     }
 }

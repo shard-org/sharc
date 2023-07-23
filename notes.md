@@ -149,45 +149,10 @@ error_code<8> -> <8>|!<8> {
     exp(Null)<arg*> => ret<#>
 
     // not only E can be returned as err
-    // use [] to pick the value returned
-    ;bar = (200 + 200)?[1]
+    // use $[] to pick the value returned
+    ;bar = (200 + 200)?$[1]
     
     // errors also may be handled this way
     <- bar + 1 !=> 1 
-}
-
-# Hello World Example
-main {
-    *stdout <- "Hello, World!"
-}
-
-# Fibonacci
-```
-main -> <$0> {
-    ;n = 9
-    print_fib
-}
-
-print_fib -> *stdout {
-    (n < 1) => ret<"Invalid Number of Terms!\n">
-    (n = 1) => ret<"0\n">
-    (n = 2) => ret<"0 1\n">
-    
-    *stdout <- "0 1\n"
-
-    ;#prev1 = 1
-    ;#prev2 = 0
-
-    @loop
-    ;fn = (prev1 + prev2)
-
-    prev2 <=?! prev1
-    prev1 <=?! fn
-
-    *stdout <- cat<&, "\n"> <- fmt<#fn>
-    dec<n>
-    (n > 0) => jmp(loop)
-
-    ret<#>
 }
 

@@ -1,5 +1,6 @@
 use crate::parser::{Data, Token};
 use crate::utils::*;
+use crate::err;
 
 #[macro_export]
 macro_rules! fmtln {
@@ -34,16 +35,14 @@ pub fn compiler(mut tokens: Vec<Data>, debug: bool) -> Result<String, usize> {
             Token::Directive => match data.text.as_str() {
                 "use" => {
                     logger(Level::Err, &a, &logfmt(&ln, &f, "Nested Includes aren't Yet Supported!\nIf you Want this Feature, please donate to this project.")); 
-                    e = true;
-                    continue;
+                    err!(e);
                 },
                 _ => (),
             },
             Token::Marker => {
                 if data.scope.is_none() {
                     logger(Level::Err, &a, fmtln!(ln, "Markers Must be Within a Scope"));
-                    e = true;
-                    continue;
+                    err!(e);
                 }
 
                 o.push_str(&format!("{}:\n", data.text));

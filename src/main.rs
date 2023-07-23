@@ -20,6 +20,8 @@ use crate::compiler::compiler;
 use crate::pre_compiler::pre_compiler;
 
 fn main() {
+    let warns: usize = 0;
+
     // returns a Flags struct, see arg_parser file
     let args = parse_args().unwrap_or_else(|e| {
         logger(Level::Err, &At::ArgParser, e);
@@ -69,7 +71,10 @@ fn main() {
             logger(Level::Ok, &At::Compiler, "Done!");
             out
         },
-        Err(()) => exit(1),
+        Err(e) => {
+            logger(Level::Info, &At::Parser, &format!("Could not Compile `{}`; {e} errors emmited", args.input_file));
+            exit(1);
+        },
     };
 
     // writes the asm 
@@ -107,6 +112,13 @@ fn main() {
     // all those last minute non-essential things
     eprint!("Removing temp files... ");
     wrapup();
+
+    if warns != 0 {
+        logger(Level::Info, &At::None, &format!("Compiled `{}`; {warns} warnings emmited", args.input_file));
+        exit(0);
+    }
+
+    logger(Level::Info, &At::None, &format!("Successfully Compiled `{}`", args.input_file));
 }
 
 pub fn reader(in_file: &str) -> Result<String, String> {
