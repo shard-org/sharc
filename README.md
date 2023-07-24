@@ -18,21 +18,20 @@ main {
     *stdout <- "Hello, World!"
 }
 ```
-
-# std subroutine examples
-```
-// used for indexing linked lists, takes the first element and wanted index
-llix<&(ptr::llp):(start), &(8,16,32,64):(index)> -> <&>|!<E> {
-    
-    @loop
-
-    // TODO 
-    
-    dec<index>
-    (index > 0) => jmp(loop)
-
-}
-```
+<!-- # std subroutine examples -->
+<!-- ``` -->
+<!-- // used for indexing linked lists, takes the first element and wanted index -->
+<!-- llix<&(ptr::llp):(start), &(8,16,32,64):(index)> -> <&>|!<E> { -->
+<!--      -->
+<!--     @loop -->
+<!--  -->
+<!--     // TODO  -->
+<!--      -->
+<!--     dec<index> -->
+<!--     (index > 0) => jmp(loop) -->
+<!--  -->
+<!-- } -->
+<!-- ``` -->
 
 # Fibonacci
 ```
