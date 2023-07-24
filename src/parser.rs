@@ -22,8 +22,8 @@ pub enum Token {
     Operator(),
     Bracket,
     Macro,
-    Subroutine(),
-    ExtExport,
+    Subroutine,
+    ExtExport(),
 }
 
 impl Data {
@@ -46,6 +46,43 @@ macro_rules! err {
     };
 }
 
+macro_rules! test {
+    ($chk:expr, $g:ident) => {
+        match $chk {
+            Ok(e) => e,
+            Err(b) => {
+                let (i, f, mut e) = $g;
+                logger(Level::Err, &At::Parser, &logfmt(i, f, &b));
+                e += 1;
+                continue
+            }
+        }
+    };
+}
+
+macro_rules! st {
+    ($cnv:expr) => {
+        $cnv.to_string()
+    };
+} 
+
+macro_rules! testo {
+    ($chk:expr, $err:block) => {
+        match $chk {
+            Some(e) => e,
+            None => {
+                $err
+            }
+        }
+    };
+}
+
+macro_rules! bail {
+    ($expr:expr) => {
+        return Err($expr)
+    };
+}
+
 pub fn parser(file_contents: String, debug: bool) -> Result<Vec<Data>, usize> {
     let mut d: Vec<Data> = Vec::new();
     let mut scope: Option<String> = None;
@@ -55,6 +92,7 @@ pub fn parser(file_contents: String, debug: bool) -> Result<Vec<Data>, usize> {
 
     for (i, s) in file_contents.lines().enumerate() {
         let s = s.trim();
+        let g = (&i, f, e);
 
         if s.is_empty() || s.starts_with("//") { continue; }
 
@@ -70,51 +108,22 @@ pub fn parser(file_contents: String, debug: bool) -> Result<Vec<Data>, usize> {
         }
 
         // directives
-        // TODO: move all of these to the precompiler
-        else if s.starts_with('.') {
-            let (dir, args) = match s.split_once(' ') {
-                Some(s) => s,
-                None => {
-                    logger(Level::Err, &a, &logfmt(&i, f, "Directive Missing an Argument!"));
-                    err!(e);
-                },
-            };
+        else if let Some(s) = s.strip_prefix(".") {
+            let (dir, args) = test!(parse_directive(s), g);
 
-            let dir_type = match dir.get(0..4) {
-                Some(dir) => match &dir[1..] {
-                    "use" | "def" | "mac" | "ent" => &dir[1..], // skip the trailing period
-                    &_ => {
-                        logger(Level::Err, &a, &logfmt(&i, f, &format!("Invalid Directive `{}`", dir)));
-                        err!(e);
-                    },
-                },
-                None => {
-                    logger(Level::Err, &a, &logfmt(&i, f, "Expected a Directive!"));
-                    err!(e);
-                },
-            };
-
-            d.push(Data::new(Token::Directive, &i, f, &scope, &dir_type[1..]));
+            d.push(Data::new(Token::Directive, &i, f, &scope, dir));
             d.push(Data::new(Token::Argument, &i, f, &scope, args));
         }
 
         // markers
-        else if s.starts_with('@') {
-            if s.len() <= 1 {
-                logger(Level::Err, &a, &logfmt(&i, f, "Marker Needs an Identifier"));
-                err!(e);
-            }
-
-            let s = &s[1..];
-            if !validate_str(s) {
-                logger(Level::Err, &a, &logfmt(&i, f, "Invalid Character"));
-                err!(e);
-            }
-
-            d.push(Data::new(Token::Marker, &i, f, &scope, s));
+        else if let Some(s) = s.strip_prefix("@") {
+            d.push(Data::new(Token::Marker, &i, f, &scope, test!(parse_marker(s), g)));
         }
 
         // subroutine defs
+        // TODO: make the scope a stack, allowing for defs inside of defs
+        // FIXME: the current code here is only to make the compiler shut up
+        // replace with parse_subroutine_def(), defined below
         else if s.chars().next().unwrap().is_alphabetic() && scope.is_none() {
             let s: Vec<&str> = s.split_whitespace().collect();
             let (ident, vars) = match s[0].split_once('<') {
@@ -163,8 +172,8 @@ pub fn parser(file_contents: String, debug: bool) -> Result<Vec<Data>, usize> {
 
         // scope down
         else if s == "}" { 
-            scope = match scope {
-                Some(_) => None,
+            match scope {
+                Some(_) => scope = None,
                 None => { 
                     logger(Level::Err, &a, &logfmt(&i, f, "Unmatched Bracket"));
                     err!(e);
@@ -181,25 +190,6 @@ pub fn parser(file_contents: String, debug: bool) -> Result<Vec<Data>, usize> {
             }
         }
          
-        else if s.starts_with("*") {
-            // FIXME: prob split before that operator, leavin it to the daisy chain func
-            let (export, args) = match s.split_once("") {
-                Some(ex) => ex,
-                None => {
-                    logger(Level::Err, &a, &logfmt(&i, f, "Expected a Directional Operator!"));
-                    err!(e);
-                },
-            };
-
-            if !(export == "stdout" || export == "stderr") {
-                logger(Level::Err, &a, &logfmt(&i, f, &format!("Unknown External Export `{s}`")));
-                err!(e);
-            }
-
-            d.push(Data::new(Token::ExtExport, &i, f, &scope, export))
-
-            // TODO: call the daisy chain func here
-        }
 
         else { 
             logger(Level::Err, &a, &logfmt(&i, f, &format!("Unrecognized Token `{s}`")));
@@ -225,13 +215,86 @@ pub fn parser(file_contents: String, debug: bool) -> Result<Vec<Data>, usize> {
     Ok(d)
 }
 
-fn validate_str(s: &str) -> bool {
-    let s = s.trim();
+fn parse_marker(s: &str) -> Result<&str, String> {
+    if s.is_empty() {
+        bail!(st!("Marker Needs an Identifier"));
+    }
 
-    if s == "stdout" || s == "stderr" ||
-        s.chars().any(|c| !(c.is_ascii_alphabetic() || c == '_') || 
+    if !validate_str(s) {
+        bail!(st!("Invalid Character"));
+    }
+
+    Ok(s)
+}
+
+fn parse_directive(s: &str) -> Result<(&str, &str), String> {
+    let (dir, args) = testo!(s.split_once(' '), {
+        bail!(st!("Directive Missing an Argument!"));
+    });
+
+    let dir = match dir {
+        "use" | "def" | "mac" | "ent" => dir,
+        &_ => bail!(format!("Invalid Directive `{}`", dir)),
+    };
+
+    Ok((dir, args))
+
+}
+
+// // FIXME: big todo, no idea how to do this
+// fn parse_subroutine_def(s: &str) -> Result<&str, String> {
+//     let s: Vec<&str> = s.split_whitespace().collect();
+//     let (ident, vars) = testo!(s[0].split_once('<'), {
+//         bail!(format!("Unrecognized Token `{}`", s[0]));
+//     });
+//
+//     if !validate_str(ident) {
+//         bail!(st!("Invalid Character"));
+//     }
+//
+//     if !s.last().unwrap().ends_with('{') {
+//         bail!(st!("Expected an Opening Bracket"));
+//     }
+//
+//     d.push(Data::new(Token::SubroutineDef, &i, f, &scope, ident));
+//
+//     // i dont even rember what this does
+//     let vars: Vec<&str> = vars[0..(vars.len() - 1)]
+//         .split(',')
+//         .map(|a| a.trim())
+//         .filter(|&e| !e.is_empty())
+//         .collect();
+//
+//     if !vars.is_empty() {
+//         // FIXME: SOMEHOW IMPLEMENT THIS WITH THE NEW FUNC SYSTEM
+//         // might return a Vec<Data> and append that to the `d` var?
+//         vars.iter().for_each(|v| d.push(Data::new(Token::Argument, &i, f, &scope, v)));
+//     }
+//
+//     if s.len() > 2 {
+//         for arg in &s[1..(s.len())] {
+//             // TODO: same as above
+//             d.push(Data::new(Token::HeaderArg, &i, f, &scope, &arg.replace('{', "")));
+//         }
+//     }
+//
+//     // TODO: this is also a mistery... maybe have the whole func return
+//     // Result<(Option<String>, Vec<Data>), String> ??!?!??!?
+//     if !s[0].contains('<') {
+//         scope = Some(s[0].to_string());
+//         continue;
+//     }
+//
+//     scope = Some(ident.to_string());
+//
+// }
+
+fn validate_str(s: &str) -> bool {
+    if s.chars().any(|c| 
+        !(c.is_ascii_alphabetic() || c == '_') || 
         (c.is_uppercase() && s.chars().any(|pc| pc.is_lowercase()))
     ) {
+        logger(Level::Info, &At::Parser, "Tip: Use snake_case or ANGRY_SNAKE_CASE");
         return false;
     }
 

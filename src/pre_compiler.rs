@@ -1,6 +1,8 @@
 use crate::utils::*;
 use crate::{fmtln, reader};
 
+// TODO: concat all lines ending with `\` together, for multiline code like in lua
+// any other char works, just has to be something not used anywhere else
 pub fn pre_compiler(contents: String, debug: bool, main_file: &str) -> Result<String, ()> {
     let mut e: bool = false;
     let a = At::PreCompiler;
