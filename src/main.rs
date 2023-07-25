@@ -19,6 +19,15 @@ use crate::wrapup::wrapup;
 use crate::compiler::compiler;
 use crate::pre_compiler::pre_compiler;
 
+// =================================
+// TODO: We'll prob want this kinda structure
+// Pre-compiler (check includes, macros, defs, etc)
+// Parser (parse it into tokens, checking for syntax)
+// Mapper (create hash maps of all the subroputine defs, markers, etc)
+// Compiler (generate the asm, most other errors)
+// Post-Compiler (generate machine code) (handled by nasm)
+// =================================
+
 fn main() {
     let warns: usize = 0;
 

@@ -22,6 +22,8 @@ pub fn pre_compiler(contents: String, debug: bool, main_file: &str) -> Result<St
             logger(Level::Debug, &a, &format!("Path {i}: {ln:?}"));
         }
         
+        // FIXME: parses the first file fine, but the includes are trated in reference of the
+        // workin dir of the compiler, not the actual file
         let incl_contents = match reader(ln) {
             Ok(c) => format!("; @FILENAME {ln}\n {c}\n"),
             Err(why) => {

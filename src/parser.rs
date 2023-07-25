@@ -1,5 +1,8 @@
 use crate::utils::*;
 
+// TODO: clean this up to be more efficient
+// maybe for the scope provide a list of ranges, scope doesn't change every line
+// same with file ^^^^
 #[derive(Debug)]
 pub struct Data {
     pub line: usize,
@@ -60,6 +63,8 @@ macro_rules! test {
     };
 }
 
+// this is just to help my obsession with shortening everything
+// hate useless verbocity, like `.to_string()`, 12 chars for a really common method?!?
 macro_rules! st {
     ($cnv:expr) => {
         $cnv.to_string()
@@ -83,6 +88,9 @@ macro_rules! bail {
     };
 }
 
+// if we apply the todos above the out of this func would be:
+// Result<(Vec<usize>, Vec<String>, Vec<Data>), usize>
+// or we might wanna use a struct..? idk
 pub fn parser(file_contents: String, debug: bool) -> Result<Vec<Data>, usize> {
     let mut d: Vec<Data> = Vec::new();
     let mut scope: Option<String> = None;
@@ -91,17 +99,26 @@ pub fn parser(file_contents: String, debug: bool) -> Result<Vec<Data>, usize> {
     let a = At::Parser;
 
     for (i, s) in file_contents.lines().enumerate() {
-        let s = s.trim();
+        let mut s = s.trim();
         let g = (&i, f, e);
 
+        //
+        // comments section
         if s.is_empty() || s.starts_with("//") { continue; }
 
-        else if s.chars().any(|c| !c.is_ascii()) {
+        if let Some(pos) = s.find("//") {
+            s = s[..pos];
+        }
+
+
+        if s.chars().any(|c| !c.is_ascii()) {
+            // originally to save mem, dunno if thats actually needed
             logger(Level::Err, &a, &logfmt(&i, f, "Only ASCII characters allowed for now!"));
             err!(e);
         }
 
-        // handle the precompiler flags
+        // handle file changes
+        // FIXME: this clearly isn't *the way*, but yeah
         else if let Some(file) = s.strip_prefix("; @FILENAME ") {
             f = file;
             continue;
@@ -171,6 +188,7 @@ pub fn parser(file_contents: String, debug: bool) -> Result<Vec<Data>, usize> {
         }
 
         // scope down
+        // TODO: prob have a func for the scope stack, (check todo above)
         else if s == "}" { 
             match scope {
                 Some(_) => scope = None,
@@ -181,6 +199,8 @@ pub fn parser(file_contents: String, debug: bool) -> Result<Vec<Data>, usize> {
             }
         }
 
+        // TODO: finish this
+        // subroutine calls
         else if s.chars().next().unwrap().is_alphabetic() && scope.is_some() {
             let s: Vec<&str> = s.split_whitespace().collect();
 
@@ -289,12 +309,13 @@ fn parse_directive(s: &str) -> Result<(&str, &str), String> {
 //
 // }
 
+// TODO: this is a mess... make it return the exact token that it failed on, prob Option<char>
 fn validate_str(s: &str) -> bool {
     if s.chars().any(|c| 
         !(c.is_ascii_alphabetic() || c == '_') || 
         (c.is_uppercase() && s.chars().any(|pc| pc.is_lowercase()))
     ) {
-        logger(Level::Info, &At::Parser, "Tip: Use snake_case or ANGRY_SNAKE_CASE");
+        logger(Level::Warn, &At::Parser, "Use snake_case or ANGRY_SNAKE_CASE");
         return false;
     }
 

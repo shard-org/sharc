@@ -12,6 +12,11 @@ I cant do it all by myself... :/
 - For now: Compile to asm, and let nasm do the rest  
 - Both Curly Brackets, and Significant whitespace
 
+# Done
+- Comments `//`
+- Parsing Markers
+- Console Logger
+
 # Hello World
 ```
 main {
