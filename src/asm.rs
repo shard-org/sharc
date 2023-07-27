@@ -1,3 +1,5 @@
+// TODO currently this file is unused
+// store asm snippets in here, everything prefixed with `_` is reserved by the compiler 
 pub static ASM_HEADER: &str = 
 "section .text
     global _start\n";

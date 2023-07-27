@@ -1,9 +1,11 @@
 pub static TEMP_ASM: &str = "temp.asm";
 pub static TEMP_OBJ: &str = "temp.o";
+
 // TODO: come up with a better name for the compiler. Suggestions so far:
 // - Nail
 // - Crag
-pub static HELP_MESSAGE: &str = "onyx - Compiler for the <onyx> Programming Language
+pub static HELP_MESSAGE: &str = 
+"onyx - Compiler for the <onyx> Programming Language
 Usage: onyxc <IN_FILE> [OPTIONS]
 
 Options:
@@ -14,8 +16,20 @@ Options:
   -t, --temp      Keep Temp Files
   -C, --noasm     Compile Only, Outputting an Assembly File";
 pub static VERSION: &str = "0.0.1";
+
 pub static TIPS: &[&str] = &[
 "This Language has Significant Whitespace",
 "Use snake_case or ANGRY_SNAKE_CASE",
 "Check the Docs Sometime",
 "All Files must be within the Working Directory"];
+
+
+pub static BUILTINS: &[&str] = &[
+"stdio",
+"stderr",
+"stdin"]
+
+pub static STD: &[&str] = &[
+"fmt",
+"cat",
+"prtl"]
