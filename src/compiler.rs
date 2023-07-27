@@ -5,7 +5,7 @@ use crate::err;
 #[macro_export]
 macro_rules! fmtln {
     ($ln:ident, $msg:expr) => {
-        &format!("{}: {}", $ln, $msg)
+        format!("{}: {}", $ln, $msg)
     };
 }
 
@@ -34,13 +34,13 @@ pub fn compiler(mut tokens: Vec<Data>, debug: bool) -> Result<String, usize> {
         match data.token {
             Token::Directive => match data.text.as_str() {
                 "use" => {
-                    logger(Level::Err, &a, &logfmt(&ln, &f, "Nested Includes aren't Yet Supported!\nIf you Want this Feature, please donate to this project.")); 
+                    logger(Level::Err, &a, logfmt(&ln, &f, "Nested Includes aren't Yet Supported!\nIf you Want this Feature, please donate to this project.")); 
                     err!(e);
                 },
                 _ => (),
             },
             Token::Marker => {
-                if data.scope.is_none() {
+                if data.scope.is_empty() {
                     logger(Level::Err, &a, fmtln!(ln, "Markers Must be Within a Scope"));
                     err!(e);
                 }

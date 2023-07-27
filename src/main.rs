@@ -14,7 +14,7 @@ mod pre_compiler;
 use crate::args_parser::*;
 use crate::asm_compile::*;
 use crate::parser::parser;
-use crate::utils::{logger, Level, At, get_tip};
+use crate::utils::{logger, Level, At, get_tip, reader};
 use crate::wrapup::wrapup;
 use crate::compiler::compiler;
 use crate::pre_compiler::pre_compiler;
@@ -38,13 +38,13 @@ fn main() {
     });
 
     if args.debug {
-        logger(Level::Debug, &At::ArgParser, &format!("{args:?}"));
+        logger(Level::Debug, &At::ArgParser, format!("{args:?}"));
     }
 
     // reads the file specified and returns it's output
     let in_file_cont = match reader(&args.input_file) {
         Ok(stuff) => {
-            logger(Level::Ok, &At::Reader, "Done!");
+            logger(Level::Ok, &At::Reader, "");
             stuff
         },
         Err(why) => {
@@ -56,7 +56,7 @@ fn main() {
     // combines all the include files into one String
     let preparsed_file_cont = match pre_compiler(in_file_cont, args.debug, &args.input_file) {
         Ok(cont) => {
-            logger(Level::Ok, &At::PreCompiler, "Done!");
+            logger(Level::Ok, &At::PreCompiler, "");
             cont
         },
         Err(()) => exit_err(),
@@ -65,11 +65,11 @@ fn main() {
     // converts the file String into tokens Vec<Data>
     let tokens = match parser(preparsed_file_cont, args.debug) {
         Ok(parsed) => {
-            logger(Level::Ok, &At::Parser, "Done!");
+            logger(Level::Ok, &At::Parser, "");
             parsed
         },
         Err(e) => {
-            logger(Level::Info, &At::Parser, &format!("Could not Compile `{}`; {e} errors emmited", args.input_file));
+            logger(Level::Info, &At::Parser, format!("Could not Compile `{}`; {e} errors emmited", args.input_file));
             exit_err();
         },
     };
@@ -81,7 +81,7 @@ fn main() {
             out
         },
         Err(e) => {
-            logger(Level::Info, &At::Parser, &format!("Could not Compile `{}`; {e} errors emmited", args.input_file));
+            logger(Level::Info, &At::Parser, format!("Could not Compile `{}`; {e} errors emmited", args.input_file));
             exit_err();
         },
     };
@@ -123,32 +123,15 @@ fn main() {
     wrapup();
 
     if warns != 0 {
-        logger(Level::Info, &At::None, &format!("Compiled `{}`; {warns} warnings emmited", args.input_file));
+        logger(Level::Info, &At::None, format!("Compiled `{}`; {warns} warnings emmited", args.input_file));
         exit(0);
     }
 
-    logger(Level::Info, &At::None, &format!("Successfully Compiled `{}`", args.input_file));
+    logger(Level::Info, &At::None, format!("Successfully Compiled `{}`", args.input_file));
 }
 
-pub fn reader(in_file: &str) -> Result<String, String> {
-    match fs::metadata(in_file) {
-        Ok(_) => (),
-        Err(_) => return Err("File Not Found!".into()),
-    }
-
-    let file = match fs::read_to_string(in_file) {
-        Ok(f) => f,
-        Err(_) => return Err("Failed To Read File!".into()),
-    };
-
-    if file.replace(char::is_whitespace, "").is_empty() {
-        return Err(format!("File `{in_file}` is Empty"));
-    }
-
-    Ok(file)
-}
-
-fn writer(asm: String, filename: &str) -> Result<(), &'static str> {
+// only for writing the temp asm file
+pub fn writer(asm: String, filename: &str) -> Result<(), &'static str> {
     let mut new_file = match fs::File::create(filename) {
         Ok(n) => n,
         Err(_) => return Err("Failed to Create temp asm file!"),

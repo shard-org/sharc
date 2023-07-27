@@ -23,13 +23,15 @@ pub static TIPS: &[&str] = &[
 "Check the Docs Sometime",
 "All Files must be within the Working Directory"];
 
-
+//TODO: have this dynamically updated
 pub static BUILTINS: &[&str] = &[
-"stdio",
-"stderr",
-"stdin"]
+"inc",
+"dec",
+"ret",
+"jmp"];
 
+//TODO: have this dynamically updated
 pub static STD: &[&str] = &[
 "fmt",
 "cat",
-"prtl"]
+"prtl"];
