@@ -13,7 +13,6 @@ pub enum Level {
 }
 
 pub enum At {
-    Reader,
     Parser,
     ArgParser,
     Compiler,
@@ -60,7 +59,6 @@ pub fn logfmt<T: std::fmt::Display>(line: &usize, filename: &str, msg: T) -> Str
 
 pub fn logger<T: std::fmt::Display>(lev: Level, at: &At, msg: T) {
     let dir = match at {
-        At::Reader      => format!(" at {}", RGB(255,255,255).bold().paint("READER")),
         At::Parser      => format!(" at {}", RGB(255,255,255).bold().paint("PARSER")),
         At::ArgParser   => format!(" at {}", RGB(255,255,255).bold().paint("ARGPARSER")),
         At::Compiler    => format!(" at {}", RGB(255,255,255).bold().paint("COMPILER")),
@@ -83,13 +81,13 @@ pub fn logger<T: std::fmt::Display>(lev: Level, at: &At, msg: T) {
 }
 
 pub fn get_tip() -> &'static str {
-    *TIPS.choose(&mut rand::thread_rng()).unwrap_or(&"Failed to Fetch Tip!")
+    TIPS.choose(&mut rand::thread_rng()).unwrap_or(&"Failed to Fetch Tip!")
 }
 
 pub fn reader(in_file: &str) -> Result<String, String> {
     match fs::metadata(in_file) {
         Ok(_) => (),
-        Err(_) => return Err("File Not Found!".into()),
+        Err(_) => return Err(format!("File `{in_file}` Not Found!")),
     }
 
     let file = match fs::read_to_string(in_file) {

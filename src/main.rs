@@ -23,10 +23,11 @@ use crate::pre_compiler::pre_compiler;
 // TODO: We'll prob want this kinda structure
 // Pre-compiler (check includes, macros, defs, etc)
 // Parser (parse it into tokens, checking for syntax)
-// Mapper (create hash maps of all the subroputine defs, markers, etc)
+// Mapper (create hash maps of all the subroputine defs, markers, etc), check if none repeat
 // Compiler (generate the asm, most other errors)
 // Post-Compiler (generate machine code) (handled by nasm)
 // =================================
+
 
 fn main() {
     let warns: usize = 0;
@@ -41,25 +42,30 @@ fn main() {
         logger(Level::Debug, &At::ArgParser, format!("{args:?}"));
     }
 
-    // reads the file specified and returns it's output
-    let in_file_cont = match reader(&args.input_file) {
-        Ok(stuff) => {
-            logger(Level::Ok, &At::Reader, "");
-            stuff
-        },
-        Err(why) => {
-            logger(Level::Err, &At::Reader, &why);
-            exit_err();
+
+    fn find_path(file: &str) -> Option<(String, String)> {
+
+        None
+    }
+
+    let file = &args.input_file;
+    let mut file_and_dir: (&str, &str) = ("", file);
+    if !file.ends_with('/') { 
+        if let Some(i) = file.rfind('/') {
+            file_and_dir = file.split_at(i + 1);
         }
-    };
+    }
 
     // combines all the include files into one String
-    let preparsed_file_cont = match pre_compiler(in_file_cont, args.debug, &args.input_file) {
+    let preparsed_file_cont = match pre_compiler(file_and_dir, args.debug) {
         Ok(cont) => {
             logger(Level::Ok, &At::PreCompiler, "");
             cont
         },
-        Err(()) => exit_err(),
+        Err(e) => {
+            logger(Level::Info, &At::Parser, format!("Could not Compile `{}`; {e} errors emmited", args.input_file));
+            exit_err();
+        },
     };
 
     // converts the file String into tokens Vec<Data>

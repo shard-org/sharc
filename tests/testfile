@@ -1,5 +1,6 @@
 // comment 
-.use filename.ox
+.inc boop
+.inc hhh.ox
 
 main<2:8,16> {
   @loop
