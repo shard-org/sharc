@@ -5,6 +5,22 @@ use crate::err;
 
 const A: &At = &At::PreCompiler;
 
+trait StringReplaceFirst {
+    fn replace_first(&self, from: &str, to: &str) -> String;
+}
+
+impl StringReplaceFirst for str {
+    fn replace_first(&self, from: &str, to: &str) -> String {
+        if let Some(index) = self.find(from) {
+            let (before, after) = self.split_at(index);
+            let replaced = [before, to, &after[from.len()..]].concat();
+            return replaced;
+        } 
+
+        self.to_string()
+    }
+}
+
 // TODO: concat all lines ending with `\` together, for multiline code like in lua
 // any other char works, just has to be something not used anywhere else
 // pub fn pre_compiler(contents: String, debug: bool, main_file: &str) -> Result<String, ()> {
@@ -53,12 +69,36 @@ macro_rules! hfx {
 
 
 pub fn pre_compiler((dir, main_file): (&str, &str), debug: bool) -> Result<Vec<(String, String)>, usize> {
+    let mut file_concat = String::new();
     let e: usize = 0;
 
     let mut incl = parse_includes(main_file, dir)?;
+
     if debug {
         incl.iter().for_each(|(f, c)| logger(Level::Debug, A, format!("File: `{f}`\n{c}")));
     }
+
+    file_concat.push_str(&incl.remove(0).1);
+
+    for (name, content) in incl {
+        let include_string = &format!(".inc {}", name.strip_prefix(dir).unwrap());
+        let include_content = content.trim_end_matches('\n');
+
+        file_concat = file_concat.replace_first(include_string, include_content);
+    }
+
+    let file_concat = file_concat.lines()
+        .filter(|l| {
+            let l = l.trim();
+            !(l.starts_with(".inc") ||
+            l.starts_with("//") ||
+            l.is_empty())
+        }).collect::<Vec<&str>>().join("\n");
+
+    if debug {
+        logger(Level::Debug, A, format!("Final String:\n{}\n", &file_concat));
+    }
+
     todo!();
 
 }
@@ -130,6 +170,5 @@ fn parse_includes_file(filename: &str) -> Result<VecDeque<String>, usize> {
 
     if e != 0 { return Err(e); }
 
-    // dbg!(&includes);
     Ok(includes)
 }
