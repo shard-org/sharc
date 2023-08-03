@@ -43,21 +43,16 @@ fn main() {
     }
 
 
-    fn find_path(file: &str) -> Option<(String, String)> {
-
-        None
-    }
-
-    let file = &args.input_file;
-    let mut file_and_dir: (&str, &str) = ("", file);
-    if !file.ends_with('/') { 
-        if let Some(i) = file.rfind('/') {
-            file_and_dir = file.split_at(i + 1);
+    let dir = match &args.input_file {
+        f if !f.ends_with('/') => match f.rfind('/') {
+            Some(i) => &f[..i+1],
+            None => "",
         }
-    }
+        _ => "",
+    };
 
     // combines all the include files into one String
-    let preparsed_file_cont = match pre_compiler(file_and_dir, args.debug) {
+    let preparsed_file_cont = match pre_compiler(dir, &args.input_file, args.debug) {
         Ok(cont) => {
             logger(Level::Ok, &At::PreCompiler, "");
             cont

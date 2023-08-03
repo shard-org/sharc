@@ -54,7 +54,7 @@ macro_rules! bail {
 
 
 pub fn logfmt<T: std::fmt::Display>(line: &usize, filename: &str, msg: T) -> String {
-    format!("{filename}:{line}: {msg}")
+    format!("{filename}:{}: {msg}", line+1)
 }
 
 pub fn logger<T: std::fmt::Display>(lev: Level, at: &At, msg: T) {

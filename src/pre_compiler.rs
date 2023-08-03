@@ -1,6 +1,6 @@
 use crate::utils::*;
-use crate::{fmtln, reader};
-use std::collections::{VecDeque, HashSet};
+use crate::reader;
+use std::collections::VecDeque;
 use crate::err;
 
 const A: &At = &At::PreCompiler;
@@ -21,54 +21,33 @@ impl StringReplaceFirst for str {
     }
 }
 
-// TODO: concat all lines ending with `\` together, for multiline code like in lua
-// any other char works, just has to be something not used anywhere else
-// pub fn pre_compiler(contents: String, debug: bool, main_file: &str) -> Result<String, ()> {
-//     let mut e: bool = false;
-//     let a = At::PreCompiler;
-//     let mut clean_contents: String = contents.split('\n').filter(|l| !l.trim().starts_with(".use")).collect::<Vec<&str>>().join("\n");
-//     clean_contents.insert_str(0, &format!("; @FILENAME {main_file}\n"));
-//
-//     for (i, ln) in contents.split('\n').filter_map(|l| l.trim().strip_prefix(".use")).rev().enumerate() {
-//         let ln = ln.trim();
-//
-//         if ln.is_empty() {
-//             logger(Level::Err, &a, fmtln!(i, "`.use` Directive Missing a Path Argument"));
-//             e = true;
-//             continue;
-//         }
-//
-//         if debug {
-//             logger(Level::Debug, &a, &format!("Path {i}: {ln:?}"));
-//         }
-//
-//         // FIXME: parses the first file fine, but the includes are trated in reference of the
-//         // workin dir of the compiler, not the actual file
-//         let incl_contents = match reader(ln) {
-//             Ok(c) => format!("; @FILENAME {ln}\n {c}\n"),
-//             Err(why) => {
-//                 logger(Level::Err, &At::Reader, &why);
-//                 e = true;
-//                 continue;
-//             },
-//         };
-//
-//         clean_contents.insert_str(0, &incl_contents);
-//     }
-//
-//     if e { return Err(()); }
-//
-//     Ok(clean_contents)
-// }
-
-macro_rules! hfx {
-    ($file:expr, $dir:ident) => {
-        format!("{}{}", $dir, $file)
-    };
+trait Concat<'a>: Iterator<Item=&'a str> {
+    fn parse_backticks(self) -> String;
 }
 
+impl<'a, I> Concat<'a> for I where I: Iterator<Item=&'a str> {
+    fn parse_backticks(mut self) -> String {
+        let mut result: Vec<String> = Vec::new();
 
-pub fn pre_compiler((dir, main_file): (&str, &str), debug: bool) -> Result<Vec<(String, String)>, usize> {
+        for ln in self {
+            if ln.starts_with('`') {
+                let i = result.len() - 1;
+                if let Some(e) = result.get_mut(i) {
+                    *e = format!("{e}{}", ln.replace_first("`", " "))
+                }
+                continue;
+            }
+            result.push(ln.to_string());
+        }
+
+        result.into_iter()
+            .map(|l| l.trim().to_string())
+            .collect::<Vec<String>>()
+            .join("\n")
+    }
+}
+
+pub fn pre_compiler(dir: &str, main_file: &str, debug: bool) -> Result<String, usize> {
     let mut file_concat = String::new();
     let e: usize = 0;
 
@@ -82,25 +61,63 @@ pub fn pre_compiler((dir, main_file): (&str, &str), debug: bool) -> Result<Vec<(
 
     for (name, content) in incl {
         let include_string = &format!(".inc {}", name.strip_prefix(dir).unwrap());
-        let include_content = content.trim_end_matches('\n');
+        let include_content = format!("~FILESTART {name}\n {}\n ~FILEEND", content.trim_end_matches('\n');
 
         file_concat = file_concat.replace_first(include_string, include_content);
     }
 
-    let file_concat = file_concat.lines()
+    let i: usize = 0
+    let mut i_stack: Vec<usize> = Vec::new();
+    let mut file_stack = Vec::new();
+    for ln in file_concat.lines()
+        .map(|l| l.trim())
+        .filter(|l| !(l.starts_with(".inc") || l.starts_with("//") || l.is_empty()))
+        .map(|l| {
+            if let Some(i) = l.find("//") {
+                return &l[..i];
+            } l
+        })
+    {
+        i += 1;
+        if let Some(ln) = ln.strip_prefix("~~FILESTART") {
+            file_stack.push(ln.trim());
+            i_stack.push(i);
+            i = 0;
+            continue;
+        }
+
+        if ln == "~~FILEEND" {
+            file_stack.pop();
+            i = i_stack.pop();
+            continue;
+        }
+        
+
+        
+    }
+
+    let file_concat = match file_concat.lines()
         .filter(|l| {
             let l = l.trim();
-            !(l.starts_with(".inc") ||
-            l.starts_with("//") ||
-            l.is_empty())
-        }).collect::<Vec<&str>>().join("\n");
+        })
+        .enumerate()
+        .map(|(i, l)| {
+            if l.find(";!").is_some() {
+                return Err(i);
+            } Ok(l)
+        })
+        .map(|(i, l)| {
+            if ln.chars().any(|c| !c.is_ascii()) {
+                return Err(i);
+            } Ok(l)
+        })
+        .parse_backticks();
 
     if debug {
         logger(Level::Debug, A, format!("Final String:\n{}\n", &file_concat));
     }
 
-    todo!();
-
+    Ok(file_concat)
 }
 
 fn parse_includes(filename: &str, dir: &str) -> Result<Vec<(String, String)>, usize> {
@@ -109,14 +126,15 @@ fn parse_includes(filename: &str, dir: &str) -> Result<Vec<(String, String)>, us
     let mut e: usize = 0;
 
     // parse main
-    let filename = hfx!(filename, dir);
-    includes_queue.append(&mut parse_includes_file(&filename)?);
-    includes.push(filename);
+    includes_queue.append(&mut parse_includes_file(filename)?);
+    includes.push(filename.to_string());
 
     while let Some(file) = includes_queue.pop_front() { 
         if includes_queue.contains(&file) { continue; }
-        includes_queue.append(&mut parse_includes_file(&hfx!(file, dir))?);
-        includes.push(hfx!(file, dir));
+
+        let file = format!("{}{}", dir, file);
+        includes_queue.append(&mut parse_includes_file(&file)?);
+        includes.push(file);
     }
 
     let mut thing: Vec<(String, String)> = Vec::new();
@@ -161,6 +179,11 @@ fn parse_includes_file(filename: &str) -> Result<VecDeque<String>, usize> {
 
             if includes.contains(&file.to_string()) {
                 logger(Level::Err, A, logfmt(&i, filename, "Duplicate Include"));
+                err!(e);
+            }
+
+            if ln.find("~~").is_some() {
+                logger(Level::Err, A, logfmt(&i, filename, "Usage of `~~` not allowed, as it is an Internal Marker"));
                 err!(e);
             }
 

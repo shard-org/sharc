@@ -2,6 +2,8 @@ use crate::utils::*;
 use crate::{testo, st, bail};
 use crate::defs::STD;
 
+const A: &At = &At::Parser;
+
 // TODO: clean this up to be more efficient
 // maybe for the scope provide a list of ranges, scope doesn't change every line
 // same with file ^^^^
@@ -88,32 +90,19 @@ macro_rules! test {
 // if we apply the todos above the out of this func would be:
 // Result<(Vec<usize>, Vec<String>, Vec<Data>), usize>
 // or we might wanna use a struct..? idk
-pub fn parser(files: Vec<(String, String)>, debug: bool) -> Result<Vec<Data>, usize> {
+pub fn parser(file_contents: String, debug: bool) -> Result<Vec<Data>, usize> {
     let mut d: Vec<Data> = Vec::new();
     let mut scope: Vec<&str> = vec![];
     let mut f: &str = "";   // current file
     let mut e: usize = 0;   // num of errors
-    let a = At::Parser;
     
-    let file_contents = String::new(); // FIXME: this is temorary to make the compier shut up
-    todo!();
-
     for (i, s) in file_contents.lines().enumerate() {
         let mut s = s.trim();
         let g = (&i, f, &mut e);
 
-        //
-        // comments section
-        if s.is_empty() || s.starts_with("//") { continue; }
-
-        if let Some(pos) = s.find("//") {
-            s = &s[..pos];
-        }
-
-
         if s.chars().any(|c| !c.is_ascii()) {
             // originally to save mem, dunno if thats actually needed
-            logger(Level::Err, &a, logfmt(&i, f, "Only ASCII characters allowed for now!"));
+            logger(Level::Err, A, logfmt(&i, f, "Only ASCII characters allowed for now!"));
             err!(e);
         }
 
@@ -159,36 +148,33 @@ pub fn parser(files: Vec<(String, String)>, debug: bool) -> Result<Vec<Data>, us
                 continue;
             }
 
-            logger(Level::Err, &a, logfmt(&i, f, format!("Unrecognized Token `{s}`")));
-            err!(e);
-        }
-
+            logger(Level::Err, A, logfmt(&i, f, format!("Unrecognized Token `{s}`"))); err!(e); }
         else if s == "}" {
             if !scope.is_empty() {
                 scope.pop();
                 continue;
             }
 
-            logger(Level::Err, &a, logfmt(&i, f, "Unmatched Bracket"));
+            logger(Level::Err, A, logfmt(&i, f, "Unmatched Bracket"));
             err!(e);
         }
 
         else {
-            logger(Level::Err, &a, logfmt(&i, f, format!("Unrecognized Token `{s}`")));
+            logger(Level::Err, A, logfmt(&i, f, format!("Unrecognized Token `{s}`")));
             err!(e);
         }
     }
 
     if !scope.is_empty() {
         scope.iter().for_each(|s| {
-            logger(Level::Err, &a, format!("Unmached Delimiter for Subroutine `{}`", s));
+            logger(Level::Err, A, format!("Unmached Delimiter for Subroutine `{}`", s));
             e += 1;
         });
     }
 
     if debug {
         d.iter().for_each(|d|
-            logger(Level::Debug, &a, format!("{d:?}"))
+            logger(Level::Debug, A, format!("{d:?}"))
         );
     }
 
@@ -203,7 +189,7 @@ fn parse_subroutine(s: &str) -> Result<&str, String> {
     let s: Vec<&str> = s.split_whitespace().collect();
 
     // if !validate_str(s[0]) {
-        // logger(Level::Err, &a, logfmt(&i, f, "Invalid Character"));
+        // logger(Level::Err, A, logfmt(&i, f, "Invalid Character"));
         // err!(e);
     // }
     todo!();
