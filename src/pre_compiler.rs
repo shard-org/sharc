@@ -26,7 +26,7 @@ trait Concat<'a>: Iterator<Item=&'a str> {
 }
 
 impl<'a, I> Concat<'a> for I where I: Iterator<Item=&'a str> {
-    fn parse_backticks(mut self) -> String {
+    fn parse_backticks(self) -> String {
         let mut result: Vec<String> = Vec::new();
 
         for ln in self {
@@ -49,8 +49,6 @@ impl<'a, I> Concat<'a> for I where I: Iterator<Item=&'a str> {
 
 pub fn pre_compiler(dir: &str, main_file: &str, debug: bool) -> Result<String, usize> {
     let mut file_concat = String::new();
-    let e: usize = 0;
-
     let mut incl = parse_includes(main_file, dir)?;
 
     if debug {
@@ -61,15 +59,12 @@ pub fn pre_compiler(dir: &str, main_file: &str, debug: bool) -> Result<String, u
 
     for (name, content) in incl {
         let include_string = &format!(".inc {}", name.strip_prefix(dir).unwrap());
-        let include_content = format!("~FILESTART {name}\n {}\n ~FILEEND", content.trim_end_matches('\n');
+        let include_content = &format!("~FILESTART {name}\n {}\n ~FILEEND", content.trim_end_matches('\n'));
 
         file_concat = file_concat.replace_first(include_string, include_content);
     }
 
-    let i: usize = 0
-    let mut i_stack: Vec<usize> = Vec::new();
-    let mut file_stack = Vec::new();
-    for ln in file_concat.lines()
+    file_concat.lines()
         .map(|l| l.trim())
         .filter(|l| !(l.starts_with(".inc") || l.starts_with("//") || l.is_empty()))
         .map(|l| {
@@ -77,41 +72,8 @@ pub fn pre_compiler(dir: &str, main_file: &str, debug: bool) -> Result<String, u
                 return &l[..i];
             } l
         })
-    {
-        i += 1;
-        if let Some(ln) = ln.strip_prefix("~~FILESTART") {
-            file_stack.push(ln.trim());
-            i_stack.push(i);
-            i = 0;
-            continue;
-        }
-
-        if ln == "~~FILEEND" {
-            file_stack.pop();
-            i = i_stack.pop();
-            continue;
-        }
-        
-
-        
-    }
-
-    let file_concat = match file_concat.lines()
-        .filter(|l| {
-            let l = l.trim();
-        })
-        .enumerate()
-        .map(|(i, l)| {
-            if l.find(";!").is_some() {
-                return Err(i);
-            } Ok(l)
-        })
-        .map(|(i, l)| {
-            if ln.chars().any(|c| !c.is_ascii()) {
-                return Err(i);
-            } Ok(l)
-        })
         .parse_backticks();
+
 
     if debug {
         logger(Level::Debug, A, format!("Final String:\n{}\n", &file_concat));

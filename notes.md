@@ -156,3 +156,20 @@ error_code<8> -> <8>|!<8> {
     <- bar + 1 !=> 1 
 }
 
+
+THE GOAL FOR NOW
+- creating vars 
+- adding two vars 
+- printing 
+- returning
+
+
+```
+main -> <$0> {
+    ;foo = 24
+    ;bar = 42
+
+    ;baz = (foo + bar)
+    *stdout <= fmt<baz>
+}
+```

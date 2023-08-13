@@ -18,20 +18,35 @@ pub struct Data {
 
 #[derive(Debug, Clone)]
 pub enum Token {
-    Directive,
+    Directive, // TODO: pretty sure only the `ent` directive has to be passed to the compiler
     SubroutineDef, // FIXME dont wrap everything in the definition
-    Logic(),
     Argument,
     HeaderArg,
     VariableDef(),
     Return,
     Marker,
     Operator(),
+    Operation(Vec<Op>),
     Bracket,
-    Macro,
+    // Macro,
     Subroutine,
     ExtExport(), // idk what this
     Import(Import),
+}
+
+#[derive(Debug, Clone)]
+pub enum Op {
+    Add(String), // +
+    Sub(String), // -
+    Mul(String), // *
+    Div(String), // /
+    Mod(String), // %
+
+    Get(String), // >=
+    Let(String), // <=
+    Gtt(String), // >
+    Ltt(String), // <
+    Equ(String), // =
 }
 
 // prob add a utf-8 lib in the future
@@ -87,69 +102,121 @@ macro_rules! test {
     };
 }
 
+    use std::thread;
+    use std::time::Duration;
+
+    fn break() {
+        println!("Be Right Back!");
+        Stream::pause();
+
+        // eta: 5 minutes
+        thread::sleep(Duration::from_secs(300));
+        
+        Stream::resume();
+    }
+
+
+
 // if we apply the todos above the out of this func would be:
 // Result<(Vec<usize>, Vec<String>, Vec<Data>), usize>
 // or we might wanna use a struct..? idk
-pub fn parser(file_contents: String, debug: bool) -> Result<Vec<Data>, usize> {
-    let mut d: Vec<Data> = Vec::new();
-    let mut scope: Vec<&str> = vec![];
-    let mut f: &str = "";   // current file
-    let mut e: usize = 0;   // num of errors
-    
-    for (i, s) in file_contents.lines().enumerate() {
-        let mut s = s.trim();
-        let g = (&i, f, &mut e);
+pub fn parser(file_concat: String, debug: bool) -> Result<Vec<Data>, usize> {
+    let mut line_stack: Vec<usize> = vec![1];
+    let mut file_stack = Vec::new();            
+    let mut e: usize = 0;              // total error count
+    let mut d: Vec<Data> = Vec::new(); // data out
+    let mut scope: Vec<&str> = vec![]; // scope stack
 
-        if s.chars().any(|c| !c.is_ascii()) {
-            // originally to save mem, dunno if thats actually needed
-            logger(Level::Err, A, logfmt(&i, f, "Only ASCII characters allowed for now!"));
-            err!(e);
-        }
+    for ln in file_concat.lines() {
+        line_stack[0] += 1;
+        let i = line_stack[0];
+        let f = file_stack[0];
+        let g = (&i, f, &mut e);  // abbrv tuple
 
-        // handle file changes
-        // FIXME: this clearly isn't "the way", but yeah
-        else if let Some(file) = s.strip_prefix("; @FILENAME ") {
-            f = file;
+        /*
+         * filestuff logic
+         */     
+        if let Some(ln) = ln.strip_prefix("~~FILESTART") {
+            file_stack.push(ln.trim());
+            line_stack.push(1);
             continue;
         }
 
+        if ln == "~~FILEEND" {
+            file_stack.pop();
+            line_stack.pop();
+            continue;
+        }
+
+        if ln.starts_with("~~") {
+            logger(Level::Warn, A, logfmt(&i, f, format!("Unknown Internal Directive `{ln}`, Skipping!")));
+            continue;
+        }
+
+        /*
+         * Ascii Filtering
+         */
+        if ln.chars().any(|c| !c.is_ascii()) {
+            logger(Level::Err, A, logfmt(&i, f, "For now Only ASCII allowed"));
+            err!(e);
+        }
+
+        /*
+         * Actual Tokenizing
+         */
+
+        //
         // directives
-        else if let Some(s) = s.strip_prefix('.') {
-            let (dir, args) = test!(parse_directive(s), g);
+        if let Some(ln) = ln.strip_prefix('.') {
+            let (dir, args) = test!(parse_directive(ln), g);
 
             d.push(Data::new(Token::Directive, &i, f, &scope, dir));
             d.push(Data::new(Token::Argument, &i, f, &scope, args));
+            continue;
         }
 
+
+        //
         // markers
-        else if let Some(s) = s.strip_prefix('@') {
+        if let Some(ln) = ln.strip_prefix('@') {
             if scope.is_empty() {
-                d.push(Data::from_faux(test!(parse_import(s), g), f, &scope, &i));
+                d.push(Data::from_faux(test!(parse_import(ln), g), f, &scope, &i));
+                continue;
             }
-            else {
-                d.push(Data::new(Token::Marker, &i, f, &scope, test!(parse_marker(s), g)));
-            }
+
+            d.push(Data::new(Token::Marker, &i, f, &scope, test!(parse_marker(ln), g)));
+            continue;
         }
 
-        else if s.chars().next().unwrap().is_alphabetic() {
-            if s.ends_with('{') {
-                // subroutine defs
-                let (name, data) = test!(parse_subroutine_def(s), g);
+
+        //
+        // subroutines
+        if ln.chars().next().unwrap().is_alphabetic() {
+            //
+            // subroutine defs
+            if ln.ends_with('{') {
+                let (name, data) = test!(parse_subroutine_def(ln), g);
 
                 data.iter().for_each(|e| d.push(Data::from_faux(e.clone(), f, &scope, &i)));
                 scope.push(name);
                 continue;
             }
 
+            //
             //subroutine calls
             // TODO: finish this
             if !scope.is_empty() {
-                test!(parse_subroutine(s), g);
+                test!(parse_subroutine(ln), g);
                 continue;
             }
 
-            logger(Level::Err, A, logfmt(&i, f, format!("Unrecognized Token `{s}`"))); err!(e); }
-        else if s == "}" {
+            logger(Level::Err, A, logfmt(&i, f, format!("Unrecognized Token `{ln}`"))); 
+            err!(e); 
+        }
+
+        //
+        // scope end
+        if ln == "}" {
             if !scope.is_empty() {
                 scope.pop();
                 continue;
@@ -159,12 +226,12 @@ pub fn parser(file_contents: String, debug: bool) -> Result<Vec<Data>, usize> {
             err!(e);
         }
 
-        else {
-            logger(Level::Err, A, logfmt(&i, f, format!("Unrecognized Token `{s}`")));
-            err!(e);
-        }
+        logger(Level::Err, A, logfmt(&i, f, format!("Unrecognized Token `{ln}`")));
+        err!(e);
+
     }
 
+    // delimiters not matching
     if !scope.is_empty() {
         scope.iter().for_each(|s| {
             logger(Level::Err, A, format!("Unmached Delimiter for Subroutine `{}`", s));
@@ -172,6 +239,7 @@ pub fn parser(file_contents: String, debug: bool) -> Result<Vec<Data>, usize> {
         });
     }
 
+    // debug info
     if debug {
         d.iter().for_each(|d|
             logger(Level::Debug, A, format!("{d:?}"))
@@ -204,20 +272,48 @@ fn parse_marker(s: &str) -> Result<&str, String> {
     Ok(s)
 }
 
+// 40 + 8 * 9 + (6 - foo)
+
+// TODO
+// arithmetic logic
+fn al_parser(s: &str)  -> Result<(Vec<Token>, String), String> {
+    if s.is_empty() {
+        bail!(st!("Empty Arithmetic Operation"));
+    }
+
+    let args: Vec<&str> = s.split_whitespace().collect();
+    
+    if args.len() < 2 {
+        bail!(st!("Arythmetic Operations Require at least two Arguments"));
+    }
+
+
+    let first = args[0];
+
+
+    todo!();
+}
+
 // TODO maybe in the future have a package manager?!?!??
 // for now we're testing against a static list
 // TODO have a mechanism where the libraries are stored 1 file per module and that entire file is
 // added on import, and if not found localy a lib will be searched for on the repo
 fn parse_import(s: &str) -> Result<(Token, String), String> {
-    let (lib, module) = testo!(s.split_once(' '), {
+    let s: Vec<&str> = s.split_whitespace().collect();
+    if s.len() < 2 {
         bail!(st!("the Module needs to be Specified"));
-    });
+    } 
+
+    let lib = s[0];
+    let modules = &s[1..];
 
     //TODO: have this dynamically updated
     let import = match lib {
         "std"  => {
-            if !STD.contains(&module) {
-                bail!(format!("Module `{module}` not found in std"));
+            for module in modules {
+                if !STD.contains(module) {
+                    bail!(format!("Module `{module}` not found in std"));
+                }
             }
             Import::Std
         },
@@ -228,7 +324,7 @@ fn parse_import(s: &str) -> Result<(Token, String), String> {
         },
     };
 
-    Ok((Token::Import(import), module.to_string()))
+    Ok((Token::Import(import), modules.join(" ")))
 }
 
 fn parse_directive(s: &str) -> Result<(&str, &str), String> {
@@ -237,7 +333,7 @@ fn parse_directive(s: &str) -> Result<(&str, &str), String> {
     });
 
     let dir = match dir {
-        "use" | "def" | "mac" | "ent" => dir,
+        "def" | "mac" | "ent" => dir,
         &_ => bail!(format!("Invalid Directive `{}`", dir)),
     };
 

@@ -8,16 +8,18 @@ Check out `TUTORIAL.md` for a quick crash course
 # General
 - `.ox` file extension
 - asm but with high level features, like iterators and closures  
-- very hands on   
+- very hands on and 'Do it Yourself'. 
 - most things are represented as just series of bits making ye have to think bout how stuff maps in mem  
-- Freedom of asm, but without the tediousness and low readability of it
-- For now: Compile to asm, and let nasm do the rest  
+- Freedom of asm, anywhere-to-anywhere data flow and execution order
+- no bs oop, just code
 - Both Curly Brackets, and Significant whitespace
+- DENSE operator oriented syntax
 
 # Done
 - Comments `//`
 - Parsing Markers
 - Console Logger
+- Parsing Includes
 
 # Hello World
 ```
