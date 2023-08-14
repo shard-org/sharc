@@ -1,64 +1,68 @@
-use crate::defs::{HELP_MESSAGE, VERSION};
 use std::process::exit;
+use crate::logger::{logger, Level, Debug};
+use once_cell::sync::Lazy;
+use crate::defs::{VERSION, HELP};
 
-// FIXME: this is a BAD way to do this, ideally we'd have a (&str, &str, u8)
-// u8 being the bit packed bools
 #[derive(Debug)]
 pub struct Args {
-    pub temp: bool,
-    pub debug: bool,
-    pub noasm: bool,
-    pub input_file: String,
-    pub output_file: Option<String>,
+    pub infile:  String,
+    pub outfile: String,
+    pub nobin:   bool,
+    pub debug:   bool,
+    pub noclean: bool,
 }
 
-pub fn parse_args() -> Result<Args, &'static str> {
-    let mut args = std::env::args().skip(1);
+// the actual args
+pub static ARGS: Lazy<Args> = Lazy::new(parse);
 
-    let mut input_file = String::from("");
-    let mut output_file: Option<String> = None;
-    let mut temp: bool = false;
-    let mut debug: bool = false;
-    let mut noasm: bool = false;
+const DBG: &Debug = &Debug::ArgParser;
 
-    while let Some(arg) = args.next() {
-        match arg.as_str() {
-            "-h" | "--help" => {
-                println!("{HELP_MESSAGE}");
-                exit(1);
-            },
-            "-v" | "--version" => {
-                println!("{VERSION}");
-                exit(1);
-            },
-            "-t" | "--temp" => temp = true,
-            "-d" | "--debug" => debug = true,
-            "-C" | "--noasm" => noasm = true,
-            "-o" | "--output" => {
-                if let Some(file) = args.next() {
-                    output_file = Some(file);
-                } else {
-                    return Err("Output File Argument Missing!");
-                }
-            }
-            _ => {
-                if !input_file.is_empty() {
-                    return Err("Unrecognized Argument!");
-                }
-                input_file = arg;
-            }
+// parse em!
+fn parse() -> Args {
+    let args = std::env::args().skip(1).collect::<Vec<String>>();
+
+    // Check for help
+    if args.iter().any(|a| a == "--help" || a == "-h") {
+        println!("{}", HELP);
+        exit(0);
+    }
+
+    // Check for version
+    if args.iter().any(|a| a == "--version" || a == "-v") {
+        println!("{}", VERSION);
+        exit(0);
+    }
+
+
+    // Parse the args
+    let mut parsed = Args {
+        infile:  args.get(0).unwrap_or_else(|| {
+            logger(Level::Err, None, DBG, "No input file specified");
+            exit(1);
+        }).to_string(),
+        outfile: String::from("output"),
+        debug:   args.iter().any(|a| a == "--debug" || a == "-d"),
+        noclean: args.iter().any(|a| a == "--noclean" || a == "-t"),
+        nobin:   args.iter().any(|a| a == "--nobin" || a == "-C"),
+    };
+
+    // Check for output file
+    if let Some(index) = args.iter().position(|a| a == "--output" || a == "-o") {
+        // check if its provided
+        if let Some(out) = args.get(index + 1) {
+            parsed.outfile = out.to_string();
+            return parsed;
         }
+
+        // if not, error
+        logger(Level::Err, None, DBG, "No output file specified");
+        exit(1);
     }
 
-    if input_file.is_empty() {
-        return Err("Input File Missing!");
+    dbg!();
+    if parsed.debug {
+        logger(Level::Debug, None, DBG, format!("{:#?}", parsed));
     }
 
-    Ok(Args {
-        temp,
-        debug,
-        noasm,
-        input_file,
-        output_file,
-    })
+    parsed
 }
