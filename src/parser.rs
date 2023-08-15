@@ -102,21 +102,6 @@ macro_rules! test {
     };
 }
 
-    use std::thread;
-    use std::time::Duration;
-
-    fn break() {
-        println!("Be Right Back!");
-        Stream::pause();
-
-        // eta: 5 minutes
-        thread::sleep(Duration::from_secs(300));
-        
-        Stream::resume();
-    }
-
-
-
 // if we apply the todos above the out of this func would be:
 // Result<(Vec<usize>, Vec<String>, Vec<Data>), usize>
 // or we might wanna use a struct..? idk
