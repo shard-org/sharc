@@ -33,7 +33,6 @@ fn parse() -> Args {
         exit(0);
     }
 
-
     // Parse the args
     let mut parsed = Args {
         infile:  args.get(0).unwrap_or_else(|| {
@@ -57,11 +56,6 @@ fn parse() -> Args {
         // if not, error
         logger(Level::Err, None, DBG, "No output file specified");
         exit(1);
-    }
-
-    dbg!();
-    if parsed.debug {
-        logger(Level::Debug, None, DBG, format!("{:#?}", parsed));
     }
 
     parsed

@@ -183,27 +183,3 @@ idk
 idk
 ```
 ```
-
-
-
-# the thing
-```
-@main 
-    ;side1 = 5
-    ;side2 = 10
-
-    // calculate area, setting it as `area`
-    !calc_area side1, side2 -> ;area
-
-    !prtl "Rectangle 1 Area: ", area
-
-    // modify the area
-    !calc_area 7, 8 -> area
-
-    !prtl "Rectangle 2 Area: ", area
-
-    *ext 0
-
-@calc_area x, y -> z
-    ret (x * y) 
-```

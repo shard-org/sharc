@@ -9,9 +9,15 @@ pub enum Level {
     Debug,
 }
 
-pub struct At {
-    pub file: String,
-    pub line: usize,
+pub struct At<'a> {
+    pub file: &'a str,
+    pub line: &'a usize,
+}
+
+impl<'a> At<'a> {
+    pub fn new(line: &'a usize, file: &'a str) -> Option<At<'a>> {
+        Some(At { file, line, })
+    }
 }
 
 #[derive(PartialEq)]
@@ -28,6 +34,9 @@ pub enum Debug {
     None,
 }
 
+// error count
+pub static mut ERRORS: usize = 0;
+
 pub fn logger<T: Display>(
     lev: Level,
     at: Option<At>,
@@ -37,7 +46,10 @@ pub fn logger<T: Display>(
     // set the level
     let lev = match lev {
         Level::Ok    => RGB(0, 153, 51).bold().paint("OK"),
-        Level::Err   => RGB(179, 0, 0).bold().paint("ERR:"),
+        Level::Err   => {
+            unsafe { ERRORS += 1; }
+            RGB(179, 0, 0).bold().paint("ERR:")
+        },
         Level::Debug => RGB(46, 184, 184).bold().paint("DEBUG:"),
         Level::Warn  => RGB(230, 230, 0).bold().paint("WARN:"),
         // Level::Info  => RGB(57, 96, 96).bold().paint("INFO:"),
@@ -45,7 +57,7 @@ pub fn logger<T: Display>(
     };
 
     // Print the message if there is no debug info
-    if debug == &Debug::ArgParser || !ARGS.debug {
+    if !ARGS.debug {
         if at.is_none() {
             println!("{lev} {msg}");
             return;

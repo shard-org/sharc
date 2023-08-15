@@ -1,32 +1,137 @@
+use std::path::{Path, PathBuf};
+use std::fmt::Write;
+
 use crate::args_parser::ARGS;
 use crate::utils;
-use std::path::Path;
-use std::fmt::Write;
+use crate::logger::{Level, Debug, logger, At};
+
+const DBG: &Debug = &Debug::PreProcessor;
 
 pub fn process() -> String {
     let infile = &ARGS.infile;
 
-    // Read the file
-    let file = utils::reader(infile);
-
-    // Get the parent directory
-    let parent_dir = match Path::new(infile).parent() {
-        Some(p) => p.to_str().unwrap(),
-        None => "",
-    };
+    let path = PathBuf::from(infile).into_boxed_path();
     
-    let file = clear_junk(&file);
+    // trim, clean, handle comments, and backticks
+    let file = basic_process_pass(utils::reader(infile));
 
+    // debug loging
+    if ARGS.debug {
+        logger(Level::Debug, None, DBG, format!("\n{}", &file));
+    }
 
-    // // remove comments, empty lines, and trim
-    // let file = file.lines()
-    //     .filter(|l| !l.starts_with("//"))
-    //     .filter(|l| !l.is_empty())
-    //     .map(|l| l.trim())
-    //     .collect::<Vec<&str>>()
-    //     .join("\n");
+    let mut file = File::new(path, file);
+
+    let _ = parse_preprocess_directives(&mut file);
+
     todo!();
 }
+
+struct File {
+    path: Box<Path>, // dunno if this needs option
+    outer_modules: Option<Vec<File>>, // modules of external libraries
+    inner_modules: Option<Vec<File>>, // modules of the current file
+    contents: String,
+}
+
+impl File {
+    fn new(path: Box<Path>, contents: String) -> File {
+        File {
+            path,
+            outer_modules: None,
+            inner_modules: None,
+            contents,
+        }
+    }
+}
+
+fn parse_preprocess_directives(file: &mut File) -> &mut File {
+    // FIXME prob shouldnt unwrap here
+    let name = file.path.file_name().unwrap().to_str().unwrap();
+
+    for (i, line) in file.contents.lines().enumerate() {
+        // check if the line is a directive
+        if !line.starts_with('.') {
+            continue;
+        }
+
+        if line == "." {
+            logger(Level::Err, At::new(&i, name), DBG, "Missing Directive after `.`");
+            continue;
+        }
+
+        let Some((directive, line)) = line.split_once(' ') else {
+            logger(Level::Err, At::new(&i, name), DBG, "Directive missing argument");
+            continue;
+        };
+
+        match directive.trim() {
+
+            "use" => {
+                // check for module
+                let Some((library, modules)) = line.trim().split_once(' ') else {
+                    logger(Level::Err, At::new(&i, name), DBG, "`use` directive missing module argument");
+                    continue;
+                };
+
+                let mut temp_modules: Vec<String> = Vec::new();
+                let modules = modules.trim();
+
+                // if more than one module
+                if let Some(mods) = modules.strip_prefix('{') {
+                    // look for closing bracket
+                    if let Some(mods) = mods.strip_suffix('}') {
+                        let mut mods = mods.split(',').map(|s| s.trim().to_string()).collect::<Vec<String>>();
+                        temp_modules.append(&mut mods);
+                    }
+                    else {
+                        logger(Level::Err, At::new(&i, name), DBG, "Missing a Closing Bracket `}`");
+                        continue;
+                    }
+                }
+                else { // if just a single one
+                    temp_modules.push(modules.to_string());
+                }
+
+                // open n check if the library exists
+                
+
+                todo!()
+            },
+
+            "mod" => {
+                todo!()
+            },
+
+            _ => {
+                logger(Level::Err, At::new(&i, name), DBG, format!("Invalid directive `{}`", directive));
+                continue;
+            },
+        }
+        
+
+
+            // // check if exists
+            // if !library.exists() {
+            //     logger(Level::Err, At::new(&i, &file), DBG, format!("Library `{}` not found in the Directory", library.display()));
+            //     continue;
+            // }
+            //
+            // // check if it is a directory
+            // if !library.is_dir() {
+            //     logger(Level::Err, At::new(&i, &file), DBG, format!("Library `{}` is not a directory", library.display()));
+            //     continue;
+            // }
+    }
+
+    // remove all diorectives after we're done with it
+    file.contents = file.contents.lines()
+        .filter(|l| !l.starts_with('.'))
+        .collect::<String>();
+
+    todo!()
+}
+
 
 #[derive(PartialEq)]
 enum State {
@@ -37,17 +142,28 @@ enum State {
     InStringEscape,
 }
 
-fn clear_junk(input: &str) -> String {
-    let input = input.lines()
+fn basic_process_pass(file: String) -> String {
+    // surface level cleaning
+    let file = file.lines()
         .map(|l| l.trim())
         .filter(|l| !l.starts_with("//") && !l.is_empty());
  
     let mut state = State::Normal;
     let mut out = String::new();
+    let mut continue_line = false;
 
-    for ln in input { 
-        let mut chars = ln.chars().peekable();
+    for mut ln in file { 
         let mut out_line = String::new();
+
+        if State::Normal == state {
+            // check for line continuation
+            if ln.starts_with('`') {
+                continue_line = true;
+                ln = ln.trim_start_matches('`');
+            }
+        }
+
+        let mut chars = ln.chars().peekable();
 
         while let Some(c) = chars.next() {
             match state {
@@ -85,12 +201,8 @@ fn clear_junk(input: &str) -> String {
                     }
                 },
 
-                State::InSingleLineComment => {
-                    // check for end line
-                    if c == '\n' {
-                        state = State::Normal;
-                    }
-                },
+                // do nothing in single line comments
+                State::InSingleLineComment => (),
 
                 State::InString => {
                     out_line.push(c);
@@ -114,15 +226,26 @@ fn clear_junk(input: &str) -> String {
             }
         }
 
-        if state != State::InComment && !out_line.is_empty() {
-            writeln!(out, "{}", out_line);
+        // reset single line comments at the end of the line
+        if state == State::InSingleLineComment {
+            state = State::Normal;
+            continue;
+        }
+
+        if !out_line.is_empty() {
+            // append to the last line if we are continuing
+            if continue_line {
+                continue_line = false;
+
+                out.push(' ');
+                out.push_str(&out_line);
+
+                continue;
+            }
+
+            write!(out, "\n{}", out_line);
         }
     }
 
-    println!("{}", out);
-    todo!();
-}
-
-fn append_lines() {
-
+    out.trim_start().to_string()
 }
