@@ -9,4 +9,3 @@ edition = "2021"
 ansi_term = "0.12.1"
 rand = "0.8.5"
 # strp = "1.1.2"
-inkwell = { version = "0.2.0", features = ["llvm15-0"] }
