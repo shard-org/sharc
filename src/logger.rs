@@ -40,6 +40,7 @@ pub static mut ERRORS: usize = 0;
 pub fn logger<T: Display>(
     lev: Level,
     at: Option<At>,
+
     debug: &Debug,
     msg: T
 ) {
