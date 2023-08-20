@@ -1,6 +1,7 @@
 use std::fmt::Display;
 use crate::args_parser::ARGS;
 use ansi_term::Colour::RGB;
+use crate::trust_me;
 
 pub enum Level {
     Ok,
@@ -40,7 +41,6 @@ pub static mut ERRORS: usize = 0;
 pub fn logger<T: Display>(
     lev: Level,
     at: Option<At>,
-
     debug: &Debug,
     msg: T
 ) {
@@ -48,7 +48,7 @@ pub fn logger<T: Display>(
     let lev = match lev {
         Level::Ok    => RGB(0, 153, 51).bold().paint("OK"),
         Level::Err   => {
-            unsafe { ERRORS += 1; }
+            trust_me! { ERRORS += 1; }
             RGB(179, 0, 0).bold().paint("ERR:")
         },
         Level::Debug => RGB(46, 184, 184).bold().paint("DEBUG:"),

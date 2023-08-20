@@ -12,3 +12,12 @@ Options:
   -C, --nobin     Compile to Assembly";
 
 pub const VERSION: &str = "onyx 0.1.0";
+
+//
+// macro definitions ===============================
+#[macro_export]
+macro_rules! trust_me {
+    ($($content:tt)*) => {{
+        unsafe { $($content)* }
+    }};
+}

@@ -1,4 +1,5 @@
 use std::process::exit;
+use std::path::{Path, PathBuf};
 use std::fs;
 use crate::logger::{logger, Level, Debug};
 
@@ -11,10 +12,10 @@ pub fn reader(filename: &str) -> String {
     }
 
     // read the file
-    let file = fs::read_to_string(filename).unwrap_or_else(|_| {
+    let Ok(file) = fs::read_to_string(filename) else {
         logger(Level::Err, None, DBGR, format!("Could not read file {}", filename));
         exit(1);
-    });
+    };
 
     // Check if it's empty
     if file.replace(char::is_whitespace, "").is_empty() {
@@ -23,6 +24,30 @@ pub fn reader(filename: &str) -> String {
     }
 
     file
+}
+
+pub fn rec_reader(path: &Path) -> Vec<PathBuf> {
+    let mut files = Vec::new();
+
+    let entries = fs::read_dir(path).unwrap_or_else(|_| {
+        logger(Level::Err, None, DBGR, "Could not read Project Directory");
+        exit(1);
+    });
+
+    for entry in entries {
+        // FIXME dont unwrap
+        let entry = entry.unwrap();
+        let path = entry.path();
+
+        if path.is_dir() {
+            files.append(&mut rec_reader(&path));
+            continue;
+        }
+
+        files.push(path);
+    }
+
+    files
 }
 
 static DBGW: &Debug = &Debug::Writer;
