@@ -3,7 +3,7 @@ use std::fmt::Write;
 use std::rc::Rc;
 
 use crate::args_parser::ARGS;
-use crate::utils;
+use crate::{utils, logerr};
 use crate::logger::{Level, Debug, logger, At};
 
 const DBG: &Debug = &Debug::PreProcessor;
@@ -21,65 +21,184 @@ pub fn process() -> String {
         logger(Level::Debug, None, DBG, format!("\n{}", &content));
     }
 
-    // FIXME prob shouldnt unwrap here
-    let fname = path.file_name().unwrap().to_str().unwrap();
+    // add all files within the project dir
+    let mut groups = init_project(path);
 
-    let mut files = vec![(path.clone(), content.clone())];
+    parse_includes(&mut groups);
 
-    //
-    // parse project files
-    {
-        // if there's no parent just read the current dir
-        let mut files_to_parse = utils::rec_reader(
-            path.parent().unwrap_or(Path::new("."))
-        );
+    // thing();
+    todo!()
+}
 
-        // read all the files
-        for file in files_to_parse {
+type Group = Vec<File>;
+
+// these are just for debugging
+#[derive(Debug, Clone)]
+struct File {
+    path: Rc<Path>,
+    content: String,
+}
+
+fn new_group(path: Rc<Path>, content: String) -> Group {
+    vec![File { path, content }]
+}
+
+fn init_project(path: Rc<Path>) -> Vec<Vec<File>> {
+    // if there's no parent just read the current dir
+    let files_to_parse = utils::rec_reader( {
+        let Some(path) = path.parent() else {
+            logerr!(DBG, "Could not get parent directory");
+            std::process::exit(1);
+        };
+
+        if path == Path::new("") {
+            Path::new("./")
+        } else { path }
+    });
+
+    let mut out_files = Vec::new();
+
+    // read all the files
+    for file in files_to_parse {
+        let path = Rc::from(file.as_path());
+        let content = utils::reader(file.to_str().unwrap()).basic_process_pass();
+
+        out_files.push(File { path, content });
+    }
+
+    vec![out_files]
+} 
+
+// groups level
+fn parse_includes(groups: &mut Vec<Group>) -> Vec<Group> {
+    let mut out_groups = Vec::new();
+
+    while let Some(group) = groups.pop() {
+        // group = Vec<File>
+
+        for file in &group {
+            // file = Rc<Path>, String
+            let fname = file.path.to_str().unwrap();
+
+            for (i, line) in file.content.lines().enumerate() {
+                let i = i + 1;
+
+                let Some(args) = line.strip_prefix(".inc") else {
+                    continue;
+                };
+
+                let args = args.trim();
+                match parse_mod_lib(args) {
+                    // file? real?!
+                    Ok(inc) if !inc.path.exists() => {
+                        logger(Level::Err, At::new(&i, fname), DBG, format!("File {} does not exist", inc.path.to_str().unwrap()));
+                        continue;
+                    },
+
+                    Ok(inc) => {
+                        match inc.module {
+                            // all modules in the lib
+                            Some(module) if module == "*" => {
+                                utils::rec_reader(&inc.path).into_iter().new_group_all(groups);
+                            },
+
+                            // only one module
+                            Some(module) => {
+                                utils::rec_reader(&inc.path).into_iter()
+                                    .filter(|f| f.is_file())
+                                    .filter(|f| f.to_str().unwrap().contains(inc.path.join(&module).to_str().unwrap()))
+                                    .new_group_all(groups);
+                            },
+
+                            // only the base files
+                            None => {
+                                utils::read_dir(&inc.path).into_iter()
+                                    .filter(|f| f.is_file())
+                                    .new_group_all(groups);
+                            }
+                        }
+                        
+                    },
+
+                    Err(e) => {
+                        logger(Level::Err, At::new(&i, fname), DBG, e);
+                        continue;
+                    }
+                }
+            }
+        }
+
+        out_groups.push(group);
+    }
+
+    if ARGS.debug {
+        logger(Level::Debug, None, DBG, format!("Groups: {:#?}", out_groups));
+    }
+
+    out_groups
+}
+
+struct Include {
+    path: Rc<Path>,
+    module: Option<String>,
+}
+
+fn parse_mod_lib(args: &str) -> Result<Include, String> {
+    let path: Rc<Path>;
+    let module: Option<String>;
+
+    if let Some(args) = args.strip_prefix('"') {
+        // split path and module
+        let Some((path_str, module_arg)) = args.split_once('"') else {
+            return Err(String::from("Missing matching `\"`"));
+        };
+
+        if args.ends_with('"') {  
+            // ex: .inc "path/to/file".module
+            path = Rc::from(Path::new(path_str));
+            module = Some(module_arg.trim_start_matches('.').to_string());
+        }
+
+        else {
+            // ex: .inc "path/to/file"
+            let args = &args[..args.len()-1];
+            path = Rc::from(Path::new(args));
+            module = None;
+        }
+    }
+
+    else if let Some((libname, module_arg)) = args.split_once('.'){  
+        // ex: .inc lib.module
+        path = Rc::from(ARGS.syslib.join(libname));
+        module = Some(module_arg.trim_start_matches('.').to_string());
+    }
+
+    else {
+        // ex: .inc lib
+        path = Rc::from(ARGS.syslib.join(args));
+        module = None;
+    }
+
+    Ok(Include { path, module })
+}
+
+trait PathBufIteratorExt {
+    fn new_group_all(self, groups: &mut Vec<Group>);
+}
+
+impl<T: Iterator<Item = PathBuf>> PathBufIteratorExt for T {
+    fn new_group_all(self, groups: &mut Vec<Group>){
+        self.for_each(|file| {
             let path = Rc::from(file.as_path());
             let content = utils::reader(file.to_str().unwrap()).basic_process_pass();
 
-            files.push((path, content));
-        }
+            groups.push(new_group(path, content));
+        });
     }
-
-    // parse directives
-    for (i, line) in content.lines().enumerate() {
-        let i = i + 1;
-
-        // check if the line is a directive
-        if !line.starts_with('.') {
-            continue;
-        }
-
-        let Some((directive, args)) = line.split_once(' ') else {
-            logger(Level::Err, At::new(&i, fname), DBG, "Malformed directive");
-            continue;
-        };
-
-        match directive.trim() {
-            "inc" => {
-                todo!("Include directive")
-            },
-
-            // TODO add moar directives
-
-            _ => {
-                logger(Level::Err, At::new(&i, fname), DBG, format!("Invalid directive `{}`", directive));
-                continue;
-            },
-        }
-        
-    }
-
-    // // remove all directives after we're done with it
-    // let content = content.lines()
-    //     .filter(|l| !l.starts_with('.'))
-    //     .collect::<String>();
-
-    todo!();
 }
 
+//
+// FIXME here be dragons
 #[derive(PartialEq)]
 enum State {
     Normal,
@@ -195,7 +314,8 @@ impl FileProcess for String {
                     continue;
                 }
 
-                write!(out, "\n{}", out_line);
+                // FIXME might not wanna unwrap
+                write!(out, "\n{}", out_line).unwrap();
             }
         }
 

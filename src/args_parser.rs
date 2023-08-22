@@ -1,12 +1,18 @@
 use std::process::exit;
-use crate::logger::{logger, Level, Debug};
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+
 use once_cell::sync::Lazy;
+
 use crate::defs::{VERSION, HELP};
+use crate::logger::{logger, Level, Debug};
+use crate::logerr;
 
 #[derive(Debug)]
 pub struct Args {
     pub infile:  String,
     pub outfile: String,
+    pub syslib:  Arc<Path>,
     pub nobin:   bool,
     pub debug:   bool,
     pub noclean: bool,
@@ -36,13 +42,14 @@ fn parse() -> Args {
     // Parse the args
     let mut parsed = Args {
         infile:  args.get(0).unwrap_or_else(|| {
-            logger(Level::Err, None, DBG, "No input file specified");
+            logerr!(DBG, "No input file specified");
             exit(1);
         }).to_string(),
         outfile: String::from("output"),
         debug:   args.iter().any(|a| a == "--debug" || a == "-d"),
         noclean: args.iter().any(|a| a == "--noclean" || a == "-t"),
         nobin:   args.iter().any(|a| a == "--nobin" || a == "-C"),
+        syslib:  Arc::from(PathBuf::from(&std::env::var("ONYX_SYS_LIB").unwrap_or(String::from(""))).as_path()),
     };
 
     // Check for output file
@@ -54,7 +61,7 @@ fn parse() -> Args {
         }
 
         // if not, error
-        logger(Level::Err, None, DBG, "No output file specified");
+        logerr!(DBG, "No output file specified");
         exit(1);
     }
 

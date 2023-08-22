@@ -3,6 +3,26 @@ use crate::args_parser::ARGS;
 use ansi_term::Colour::RGB;
 use crate::trust_me;
 
+#[macro_export]
+macro_rules! log {
+    ($lev:ident, $at:expr, $msg:expr) => {
+        logger($lev, $at, &Debug::None, $msg);
+    };
+    ($lev:ident, $at:expr, $debug:expr, $msg:expr) => {
+        logger($lev, $at, $debug, $msg);
+    };
+}
+
+#[macro_export]
+macro_rules! logerr {
+    ($at:expr, $msg:expr) => {
+        logger(Level::Err, None, $at, $msg);
+    };
+    ($at:expr, $debug:expr, $msg:expr) => {
+        logger(Level::Err, $at, $debug, $msg);
+    };
+}
+
 pub enum Level {
     Ok,
     Warn,

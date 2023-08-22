@@ -1,25 +1,27 @@
 use std::process::exit;
 use std::path::{Path, PathBuf};
 use std::fs;
-use crate::logger::{logger, Level, Debug};
 
-static DBGR: &Debug = &Debug::Reader;
+use crate::logger::{logger, Level, Debug};
+use crate::logerr;
+
+const DBGR: &Debug = &Debug::Reader;
 pub fn reader(filename: &str) -> String {
     // Check if the file exists
     if fs::metadata(filename).is_err() {
-        logger(Level::Err, None, DBGR, format!("File {} does not exist", filename));
+        logerr!(DBGR, format!("File {} does not exist", filename));
         exit(1);
     }
 
     // read the file
     let Ok(file) = fs::read_to_string(filename) else {
-        logger(Level::Err, None, DBGR, format!("Could not read file {}", filename));
+        logerr!(DBGR, format!("Could not read file {}", filename));
         exit(1);
     };
 
     // Check if it's empty
     if file.replace(char::is_whitespace, "").is_empty() {
-        logger(Level::Warn, None, DBGR, format!("File {} is empty", filename));
+        logerr!(DBGR, format!("File {} is empty", filename));
         exit(1);
     }
 
@@ -30,14 +32,14 @@ pub fn rec_reader(path: &Path) -> Vec<PathBuf> {
     let mut files = Vec::new();
 
     let entries = fs::read_dir(path).unwrap_or_else(|_| {
-        logger(Level::Err, None, DBGR, "Could not read Project Directory");
+        logerr!(DBGR, "Could not read Project Directory");
+        dbg!(path);
         exit(1);
     });
 
     for entry in entries {
         // FIXME dont unwrap
-        let entry = entry.unwrap();
-        let path = entry.path();
+        let path = entry.unwrap().path();
 
         if path.is_dir() {
             files.append(&mut rec_reader(&path));
@@ -48,9 +50,19 @@ pub fn rec_reader(path: &Path) -> Vec<PathBuf> {
     }
 
     files
+
 }
 
-static DBGW: &Debug = &Debug::Writer;
+pub fn read_dir(path: &Path) -> Vec<PathBuf> {
+    let entries = fs::read_dir(path).unwrap_or_else(|_| {
+        logger(Level::Err, None, DBGR, format!("Could not Read {}", path.display()));
+        exit(1);
+    });
+
+    entries.map(|e| e.unwrap().path()).collect::<Vec<PathBuf>>()
+}
+
+const DBGW: &Debug = &Debug::Writer;
 pub fn writer(filename: &str, contents: &str) {
     // Write the file
     if let Err(e) = fs::write(filename, contents) {

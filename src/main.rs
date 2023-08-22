@@ -13,7 +13,8 @@ fn main() {
     }
 
     // Preprocess the file
-    let file = preprocessor::process();
+    // TODO actually use this in somethin
+    let _ = preprocessor::process();
 
     // unsafe caue ERRORS is a mutable static, this will only ever be accessed synchronously so it should be fine
     unsafe {
