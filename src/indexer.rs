@@ -1,3 +1,7 @@
+use std::rc::Rc;
+use std::path::Path;
+use crate::preprocessor::Group;
+
 pub type Index = Vec<FileIndex>;
 
 pub struct FileIndex {
