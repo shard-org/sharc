@@ -5,10 +5,10 @@ use crate::trust_me;
 
 #[macro_export]
 macro_rules! log {
-    ($lev:ident, $at:expr, $msg:expr) => {
-        logger($lev, $at, &Debug::None, $msg);
+    ($lev:expr, $at:expr, $msg:expr) => {
+        logger($lev, None, $at, $msg);
     };
-    ($lev:ident, $at:expr, $debug:expr, $msg:expr) => {
+    ($lev:expr, $at:expr, $debug:expr, $msg:expr) => {
         logger($lev, $at, $debug, $msg);
     };
 }
@@ -112,4 +112,14 @@ pub fn logger<T: Display>(
 
     // Print the message
     println!("{lev} \x1b[1m{}:\x1b[0m {}:{}: {msg}", dir, at.file, at.line);
+}
+
+// Check if there are any errors, exit and log it if ye
+pub fn check_err() {
+    trust_me! {
+        if ERRORS > 0 {
+            logerr!(&Debug::ArgParser, format!("Could not Compile, {} Errors emmited", ERRORS));
+            std::process::exit(1);
+        }
+    }
 }

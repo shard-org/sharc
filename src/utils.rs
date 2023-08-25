@@ -23,16 +23,14 @@ pub fn reader(filename: &str) -> String {
     if file.replace(char::is_whitespace, "").is_empty() {
         logerr!(DBGR, format!("File {} is empty", filename));
         exit(1);
-    }
-
-    file
+    } file
 }
 
 pub fn rec_reader(path: &Path) -> Vec<PathBuf> {
     let mut files = Vec::new();
 
     let entries = fs::read_dir(path).unwrap_or_else(|_| {
-        logerr!(DBGR, "Could not read Project Directory");
+        logerr!(DBGR, format!("Could not read Directory {:?}", path));
         dbg!(path);
         exit(1);
     });
@@ -47,15 +45,12 @@ pub fn rec_reader(path: &Path) -> Vec<PathBuf> {
         }
 
         files.push(path);
-    }
-
-    files
-
+    } files
 }
 
 pub fn read_dir(path: &Path) -> Vec<PathBuf> {
     let entries = fs::read_dir(path).unwrap_or_else(|_| {
-        logger(Level::Err, None, DBGR, format!("Could not Read {}", path.display()));
+        logerr!(DBGR, format!("Could not Read {:?}", path));
         exit(1);
     });
 
@@ -66,7 +61,7 @@ const DBGW: &Debug = &Debug::Writer;
 pub fn writer(filename: &str, contents: &str) {
     // Write the file
     if let Err(e) = fs::write(filename, contents) {
-        logger(Level::Err, None, DBGW, format!("Could not write to file {}: {e}", filename));
+        logerr!(DBGW, format!("Could not write to file {}: {e}", filename));
         exit(1);
     }
 }

@@ -3,38 +3,35 @@ use std::fmt::Write;
 use std::rc::Rc;
 
 use crate::args_parser::ARGS;
-use crate::{utils, logerr};
+use crate::{utils, logerr, log};
 use crate::logger::{Level, Debug, logger, At};
 
 const DBG: &Debug = &Debug::PreProcessor;
 
-pub fn process() -> String {
+pub fn process() -> Vec<Group> {
     let infile = &ARGS.infile;
 
     let path: Rc<Path> = Rc::from(PathBuf::from(infile).as_path());
     
-    // trim, clean, handle comments, and backticks
-    let content = utils::reader(infile).basic_process_pass();
-
-    // debug loging
-    if ARGS.debug {
-        logger(Level::Debug, None, DBG, format!("\n{}", &content));
-    }
-
     // add all files within the project dir
     let mut groups = init_project(path);
 
-    parse_includes(&mut groups);
+    // parse them includes into 
+    // Vec<Vec<File>>
+    groups = parse_includes(&mut groups);
+    
+    /*
+     * TODO more directive parsing
+     */
 
-    // thing();
-    todo!()
+    groups 
 }
 
-type Group = Vec<File>;
+pub type Group = Vec<File>;
 
 // these are just for debugging
 #[derive(Debug, Clone)]
-struct File {
+pub struct File {
     path: Rc<Path>,
     content: String,
 }
@@ -43,7 +40,7 @@ fn new_group(path: Rc<Path>, content: String) -> Group {
     vec![File { path, content }]
 }
 
-fn init_project(path: Rc<Path>) -> Vec<Vec<File>> {
+fn init_project(path: Rc<Path>) -> Vec<Group> {
     // if there's no parent just read the current dir
     let files_to_parse = utils::rec_reader( {
         let Some(path) = path.parent() else {
@@ -69,7 +66,9 @@ fn init_project(path: Rc<Path>) -> Vec<Vec<File>> {
     vec![out_files]
 } 
 
-// groups level
+// TODO I dont like this but it works, ideally this wouldn't create a new list but rather just
+// modify the existing. But uh, rust is pain and ye cant modify and read at the same time. Maybe
+// some indexing bs so its only borrowed for a short time? idk
 fn parse_includes(groups: &mut Vec<Group>) -> Vec<Group> {
     let mut out_groups = Vec::new();
 
@@ -91,7 +90,7 @@ fn parse_includes(groups: &mut Vec<Group>) -> Vec<Group> {
                 match parse_mod_lib(args) {
                     // file? real?!
                     Ok(inc) if !inc.path.exists() => {
-                        logger(Level::Err, At::new(&i, fname), DBG, format!("File {} does not exist", inc.path.to_str().unwrap()));
+                        logerr!(At::new(&i, fname), DBG, format!("File {} does not exist", inc.path.to_str().unwrap()));
                         continue;
                     },
 
@@ -121,7 +120,7 @@ fn parse_includes(groups: &mut Vec<Group>) -> Vec<Group> {
                     },
 
                     Err(e) => {
-                        logger(Level::Err, At::new(&i, fname), DBG, e);
+                        logerr!(At::new(&i, fname), DBG, e);
                         continue;
                     }
                 }
@@ -132,7 +131,7 @@ fn parse_includes(groups: &mut Vec<Group>) -> Vec<Group> {
     }
 
     if ARGS.debug {
-        logger(Level::Debug, None, DBG, format!("Groups: {:#?}", out_groups));
+        log!(Level::Debug, DBG, format!("Groups: {:#?}", out_groups));
     }
 
     out_groups

@@ -14,6 +14,10 @@ Options:
 pub const VERSION: &str = "onyx 0.1.0";
 
 //
+// Default Constatnts ===============================
+pub const DEFAULT_SYS_LIB: &str = "/usr/share/onyx/";
+
+//
 // macro definitions ===============================
 #[macro_export]
 macro_rules! trust_me {

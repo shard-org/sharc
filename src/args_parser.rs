@@ -1,10 +1,11 @@
 use std::process::exit;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::env;
 
 use once_cell::sync::Lazy;
 
-use crate::defs::{VERSION, HELP};
+use crate::defs::{VERSION, HELP, DEFAULT_SYS_LIB};
 use crate::logger::{logger, Level, Debug};
 use crate::logerr;
 
@@ -25,7 +26,7 @@ const DBG: &Debug = &Debug::ArgParser;
 
 // parse em!
 fn parse() -> Args {
-    let args = std::env::args().skip(1).collect::<Vec<String>>();
+    let args = env::args().skip(1).collect::<Vec<String>>();
 
     // Check for help
     if args.iter().any(|a| a == "--help" || a == "-h") {
@@ -49,7 +50,7 @@ fn parse() -> Args {
         debug:   args.iter().any(|a| a == "--debug" || a == "-d"),
         noclean: args.iter().any(|a| a == "--noclean" || a == "-t"),
         nobin:   args.iter().any(|a| a == "--nobin" || a == "-C"),
-        syslib:  Arc::from(PathBuf::from(&std::env::var("ONYX_SYS_LIB").unwrap_or(String::from(""))).as_path()),
+        syslib:  Arc::from(PathBuf::from(&env::var("ONYX_LIB_PATH").unwrap_or(String::from(DEFAULT_SYS_LIB)))),
     };
 
     // Check for output file
