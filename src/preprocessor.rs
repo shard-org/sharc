@@ -1,5 +1,4 @@
 use std::path::{Path, PathBuf};
-use std::fmt::Write;
 use std::rc::Rc;
 
 use crate::args_parser::ARGS;
@@ -196,6 +195,9 @@ impl<T: Iterator<Item = PathBuf>> PathBufIteratorExt for T {
     }
 }
 
+//
+// TODO here be dragons
+#[derive(PartialEq)]
 enum State {
     Normal,
     InComment,
@@ -217,19 +219,9 @@ impl FileProcess for String {
      
         let mut state = State::Normal;
         let mut out = String::new();
-        let mut continue_line = false;
 
-        for mut ln in file { 
+        for ln in file { 
             let mut out_line = String::new();
-
-            if State::Normal == state {
-                // check for line continuation
-                if ln.starts_with('`') {
-                    continue_line = true;
-                    ln = ln.trim_start_matches('`');
-                }
-            }
-
             let mut chars = ln.chars().peekable();
 
             while let Some(c) = chars.next() {
@@ -301,20 +293,9 @@ impl FileProcess for String {
 
             if !out_line.is_empty() {
                 // append to the last line if we are continuing
-                if continue_line {
-                    continue_line = false;
-
-                    out.push(' ');
-                    out.push_str(&out_line);
-
-                    continue;
-                }
-
-                // FIXME might not wanna unwrap
-                write!(out, "\n{}", out_line).unwrap();
+                out.push_str(&out_line);
             }
         }
-
-        out.trim_start().to_string()
+        out
     }
 }

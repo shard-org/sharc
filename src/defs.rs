@@ -19,7 +19,7 @@ pub const DEFAULT_SYS_LIB: &str = "/usr/share/onyx/";
 
 //
 // Other Constatnts ===============================
-pub const FILE_EXTENSIONS: &[&str] = ["shd", "shard"];
+pub const FILE_EXTENSIONS: [&str; 2] = ["shd", "shard"];
 
 //
 // macro definitions ===============================

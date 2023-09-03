@@ -4,6 +4,7 @@ use std::fs;
 
 use crate::logger::{logger, Level, Debug};
 use crate::logerr;
+use crate::defs::FILE_EXTENSIONS;
 
 const DBGR: &Debug = &Debug::Reader;
 pub fn reader(filename: &str) -> String {
