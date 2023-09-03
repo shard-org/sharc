@@ -196,9 +196,6 @@ impl<T: Iterator<Item = PathBuf>> PathBufIteratorExt for T {
     }
 }
 
-//
-// FIXME here be dragons
-#[derive(PartialEq)]
 enum State {
     Normal,
     InComment,

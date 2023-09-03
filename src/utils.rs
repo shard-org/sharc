@@ -44,7 +44,12 @@ pub fn rec_reader(path: &Path) -> Vec<PathBuf> {
             continue;
         }
 
-        files.push(path);
+        // make sure it has the right extension
+        if let Some(e) = path.extension() {
+            if FILE_EXTENSIONS.contains(&e.to_str().unwrap()) {
+                files.push(path);
+            }
+        }
     } files
 }
 
