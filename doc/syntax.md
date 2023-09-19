@@ -149,8 +149,6 @@ the `#` operator jumps to a label. This does not push a return adress to the sta
 use `[]` to dereference a ptr
 
 
-
-
 # Variables
 The concept of variables needs no further introduction.  
 Immutable vars are not a thing cause thats not how computers work :v  
@@ -245,7 +243,7 @@ ok the first line was a lie, you *can* allocate unknown size vars to the stack. 
 Let me make this *very* clear, you will need to manually free the memory afterwards, the compiler won't do it for you.   
 if you dont.. well you dont want to find out  
 
-## Heap (WIP)
+## Heap
 there's no allocator implementation for this lang yet... *maybe* later.  
 for now you can just call whatever allocator you like.  
 
@@ -257,69 +255,3 @@ here's an example using the libc malloc and free
 ```
 
 for further detail read the libc docs
-
-
-
-
-
-# Ignore this 
-```
-.ent main       // start exec at @main
-.inc std.io     // include std.io
-
-@main
-!prtl <- r1; !fib 10
-*ext 0                     // syscall exit with code 0
-
-@fib r1 n -> msg 8
-(n = 0) => ret "\0"         // \0 = ascii null
-(n = 1) => ret "0\0"    
-(n = 2) => ret "0 1\0"
-
-;r2 arg1 = 0                 // register 2 = 0
-;r3 arg2 = 1                 // register 3 = 1
-
-@loop
-;r4 temp = (arg1 + arg2)    // register 4 = (arg1 + arg2)
-
-'arg2 = arg1
-'arg1 = temp
-
-!prtl <- r4 !fmt temp           // print stdout <- ascii format
-
-dec n                   // decrement
-(n > 0) => #loop        // loop as long as n > 0
-
-ret "\0"
-```
-
-# Stack  ==========================================================
-```
-.ent main       // start exec at @main
-.inc std.io     // include std.io
-
-@main
-!prtl <- !fib 10
-*ext 0                      // syscall exit with code 0
-
-@fib n 2 -> msg 8
-(n = 0) => ret "\0"         // \0 = ascii null
-(n = 1) => ret "0\0"    
-(n = 2) => ret "0 1\0"
-
-%arg1 2 = 0
-%arg2 2 = 1
-
-@loop
-;temp 2 = ([arg1] + [arg2])    // % adds the stack base ptr to the offset
-
-'arg2 : arg1
-'arg1 : temp
-
-!prtl <- r4 !fmt temp            // print stdout <- ascii format
-
-dec n                   // decrement
-(n > 0) => #loop        // loop as long as n > 0
-
-ret "\0"
-```
