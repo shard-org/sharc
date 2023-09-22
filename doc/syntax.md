@@ -97,6 +97,31 @@ defines a variable-like macro to a literal
 (1 + THIRTEEN) // 14
 ```
 
+## dat - static
+creates a static variable  
+```
+.dat foo 8 = 20
+```
+
+it doesnt need a value, in which case it will be initialized to null  
+```
+.dat foo 8
+```
+
+# Macros
+prefixed with a `&`. Basically a bit of code that expands at compiletime.
+
+as an example this line:
+```
+&prt "hello, world!\n"
+```
+expands to this:
+```
+*stdout 14, "hello, world!\n"
+```
+
+keep in mind the expansion and calculations happen at compiletime, so the `&prt` macro will only work on literals.
+
 
 # Markers
 Markers, Labels, Subroutines, Functions, call em whatever.  
@@ -145,9 +170,25 @@ the `#` operator jumps to a label. This does not push a return adress to the sta
     #main // jump back to main
 ```
 
-# Pointers
+# Pointers and arrays
 use `[]` to dereference a ptr
 
+creating an array gives the pointer to the first element, cannot store them in registers  
+
+to create one, either:
+```
+%foo 1:11 = "hello world"  // 11 element array from ascii, 1 byte each
+
+%bar 2:4 = `1, 2, 4, 5`    // 4 element array from arbitrary data, 2 byte each
+```
+
+```
+[array.0]   // first element
+[array.1]   // second element
+[array.2]   // third element
+```
+
+might make a macro for this later.. maybe
 
 # Variables
 The concept of variables needs no further introduction.  
@@ -165,9 +206,15 @@ the `'` operator is used to mutate vars. It expects the var name after it then t
 'foo : bar   // same as '[foo] = [bar]
 'foo < 20    // shift foo left by 20
 'foo > 20    // shift foo right by 20
-'foo ~       // not foo
-'foo --      // decrement foo
-'foo ++      // increment foo
+'foo ~ bar   // not bar and store in foo
+'foo ++
+'foo --
+```
+
+in most of these operations the second value is optional, in which case it will use the first value as the second as well.  
+```
+'foo + 20    // add 20 to foo
+'foo +       // add foo to foo
 ```
 
 
@@ -210,6 +257,7 @@ to specify the registers used for a function manually
 
 I trust you are fully aware of the implications of using bare registers in your code.  
 when able use the stack and heap and let the compiler handle the register allocation.
+cause the registers are modified by basically every func you call
 
 ## Stack
 variables here must have a known size at compiletime.  
