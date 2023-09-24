@@ -170,6 +170,21 @@ the `#` operator jumps to a label. This does not push a return adress to the sta
     #main // jump back to main
 ```
 
+# Syscalls and Interrupts
+use the `*` operator to call one
+
+### stdout
+```
+*stdout 14, "hello, world!\n"
+```
+1st arg is the len, second a ptr
+
+### stderr
+```
+*stderr 14, "hello, world!\n"
+```
+1st arg is the len, second a ptr
+
 # Pointers and arrays
 use `[]` to dereference a ptr
 
@@ -177,8 +192,7 @@ creating an array gives the pointer to the first element, cannot store them in r
 
 to create one, either:
 ```
-%foo 1:11 = "hello world"  // 11 element array from ascii, 1 byte each
-
+%bar 1:12 = "hello world"   // 12 byte array from string
 %bar 2:4 = `1, 2, 4, 5`    // 4 element array from arbitrary data, 2 byte each
 ```
 
@@ -233,7 +247,7 @@ rbp - r8
 
 create a var called "foo" and have it occupy the r1 register
 ```
-;r1 foo  = 20
+;r1 foo = 20
 ```
 
 the register name may be ommited, in which case the compiler will just choose a one thats availble.  
