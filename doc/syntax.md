@@ -1,13 +1,7 @@
 # Comments
 c style
 ```
-// single line comment
-
-/*
-multi
-line
-comment
-*/
+// this is a comment
 ```
 
 # Math and Logic
@@ -95,17 +89,6 @@ defines a variable-like macro to a literal
 // later
 
 (1 + THIRTEEN) // 14
-```
-
-## dat - static
-creates a static variable  
-```
-.dat foo 8 = 20
-```
-
-it doesnt need a value, in which case it will be initialized to null  
-```
-.dat foo 8
 ```
 
 # Macros
@@ -207,6 +190,17 @@ might make a macro for this later.. maybe
 # Variables
 The concept of variables needs no further introduction.  
 Immutable vars are not a thing cause thats not how computers work :v  
+
+## Statics
+prefixed with /, always global
+```
+/foo 8 = 20
+```
+
+it doesnt need a value, in which case it will be initialized to null  
+```
+/foo 8
+```
 
 ## Mutating
 the `'` operator is used to mutate vars. It expects the var name after it then the operation, and optionally second var

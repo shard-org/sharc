@@ -2,25 +2,19 @@ mod args_parser;
 mod logger;
 mod utils;
 mod defs;
-mod preprocessor;
-mod indexer;
+mod parser;
 
-use logger::{Level, Debug, logger};
+use logger::{Level, logger, DEBUG, OK, WARN, ERR, FATAL, at, At};
 use args_parser::ARGS;
 
 fn main() {
-    if ARGS.debug {
-        log!(Level::Debug, &Debug::ArgParser, format!("{:#?}", *ARGS));
-    }
+    // init args
+    args_parser::parse();
+    log!(DEBUG, "{:#?}", unsafe{&ARGS});
 
-    // Preprocess the file
-    // TODO actually use this in somethin
-    let files = preprocessor::process();
+    let main_file = utils::reader(unsafe{&ARGS.infile});
 
-    logger::check_err();
 
-    let index = indexer::indexer(files);
-    
 
 
     todo!();
