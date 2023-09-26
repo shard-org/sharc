@@ -32,6 +32,7 @@ pub enum Token {
     // Labels
     Label(Name),
     Func(Name, Vec<(Name, Size)>),
+    Jump(Name),
 
     StaticVar(Name, Size),
     StackVar(Name, Size, ),
@@ -43,6 +44,7 @@ pub enum Token {
 
     MutVar(Name, Arg),
     MutReg(u8, RegSize, Arg), 
+    Null,
 }
 
 #[derive(Debug)]
@@ -261,12 +263,30 @@ pub fn parser(input: String) -> (Vec<FatToken>, Metadata) {
             log_at!(FATAL, at, "statics not yet implemented");
         }
 
+        else if let Some(line) = line.strip_prefix('#') {
+            parse_jump(&at, line).map(|tok| add!(t, at, tok));
+        }
+
         // todo!();
 
     }
     log!(DEBUG, "{:?}", &meta);
     log!(DEBUG, "{:?}", &t);
     (t, meta)
+}
+
+// expects no # prefix
+fn parse_jump(at: &At, arg: &str) -> Option<Token> {
+    if arg.is_empty() {
+        log_at!(ERR, at.clone(), "Missing Jump Adress");
+        return None;
+    }
+
+    if !validate_name(&at, arg) {
+        return None;
+    }
+
+    Some(Token::Jump(arg.to_string()))
 }
 
 fn parse_arg(at: &At, arg: &str) -> Arg {
