@@ -1,70 +1,83 @@
-use std::process::exit;
-use std::path::{Path, PathBuf};
-use std::sync::Arc;
-use std::env;
+use super::*;
 
-use once_cell::sync::Lazy;
+pub const HELP: &str = 
+"shdc - Compiler for the Shard Programming Language
+Usage: shdc <input_file> [OPTIONS]
 
-use crate::defs::{VERSION, HELP, DEFAULT_SYS_LIB};
-use crate::logger::{logger, Level, Debug};
-use crate::logerr;
+Options:
+  -h, --help      This Message
+  -v, --version   Version Number
+
+  -o, --output    Specify the Output Binary
+  -d, --debug     Not needed for Mere Mortals :v
+  -q, --quiet     Print only Fatal Errors
+  -a, --arch      Specify the target Architecture
+
+  -t, --noclean   Keep Temp Files
+  -A, --asm       Compile to Assembly Only";
+
+pub const VERSION: &str = "onyx 0.1.0";
 
 #[derive(Debug)]
 pub struct Args {
-    pub infile:  String,
-    pub outfile: String,
-    pub syslib:  Arc<Path>,
-    pub nobin:   bool,
+    pub infile:  &'static str,
+    pub outfile: &'static str,
+    pub asm:   bool,
     pub debug:   bool,
+    pub quiet:   bool,
     pub noclean: bool,
 }
 
 // the actual args
-pub static ARGS: Lazy<Args> = Lazy::new(parse);
+pub static mut ARGS: Args = Args {
+    infile:  "",
+    outfile: "output",
+    asm:   false,
+    debug:   false,
+    quiet:   false,
+    noclean: false,
+};
 
-const DBG: &Debug = &Debug::ArgParser;
+pub fn parse() {
+    let mut args = std::env::args().skip(1);
 
-// parse em!
-fn parse() -> Args {
-    let args = env::args().skip(1).collect::<Vec<String>>();
-
-    // Check for help
-    if args.iter().any(|a| a == "--help" || a == "-h") {
-        println!("{}", HELP);
-        exit(0);
+    match args.nth(0) {
+        Some(arg) => unsafe{ARGS.infile = Box::leak(arg.into_boxed_str())},
+        None => log!(FATAL, "Missing input file!"),
     }
 
-    // Check for version
-    if args.iter().any(|a| a == "--version" || a == "-v") {
-        println!("{}", VERSION);
-        exit(0);
-    }
-
-    // Parse the args
-    let mut parsed = Args {
-        infile:  args.get(0).unwrap_or_else(|| {
-            logerr!(DBG, "No input file specified");
-            exit(1);
-        }).to_string(),
-        outfile: String::from("output"),
-        debug:   args.iter().any(|a| a == "--debug" || a == "-d"),
-        noclean: args.iter().any(|a| a == "--noclean" || a == "-t"),
-        nobin:   args.iter().any(|a| a == "--nobin" || a == "-C"),
-        syslib:  Arc::from(PathBuf::from(&env::var("ONYX_LIB_PATH").unwrap_or(String::from(DEFAULT_SYS_LIB)))),
-    };
-
-    // Check for output file
-    if let Some(index) = args.iter().position(|a| a == "--output" || a == "-o") {
-        // check if its provided
-        if let Some(out) = args.get(index + 1) {
-            parsed.outfile = out.to_string();
-            return parsed;
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            "--help" | "-h" => {
+                println!("{}", HELP);
+                std::process::exit(0);
+            },
+            "--version" | "-v" => {
+                println!("{}", VERSION);
+                std::process::exit(0);
+            },
+            "--debug" | "-d" => unsafe { ARGS.debug = true },
+            "--noclean" | "-t" => unsafe { ARGS.noclean = true },
+            "--asm" | "-A" => unsafe { ARGS.asm = true },
+            "--quiet" | "-q" => unsafe { ARGS.quiet = true },
+            "--output" | "-o" => {
+                if let Some(outfile) = args.next() {
+                    unsafe { ARGS.outfile = Box::leak(outfile.into_boxed_str()) };
+                } else {
+                    log!(FATAL, "Missing output file argument after the output flag");
+                }
+            },
+            "--arch" | "-a" => {
+                if let Some(arch) = args.next() {
+                    match arch.as_str() {
+                        "x86_64" => todo!(),
+                        _ => log!(FATAL, "Invalid Architecture: {}", arch),
+                    }
+                } else {
+                    log!(FATAL, "Missing architecture argument after the arch flag");
+                }
+            },
+            arg => log!(FATAL, "Invalid Argument: {}", arg),
         }
-
-        // if not, error
-        logerr!(DBG, "No output file specified");
-        exit(1);
     }
-
-    parsed
 }

@@ -1,15 +1,11 @@
 [package]
-name = "onyxc"
+name = "shard"
 version = "0.1.0"
 edition = "2021"
-description = "A compiler for the Onyx programming language."
+description = "A compiler for the Shard programming language."
 license = "MIT"
-repository = "https://github.com/anthonysSlab/onyx"
+repository = "https://github.com/anthonysSlab/shard"
 
 
 [dependencies]
-ansi_term = "0.12.1"
-once_cell = "1.18.0"
-# rand = "0.8.5"
 # strp = "1.1.2"
-# inkwell = { version = "0.2.0", features = ["llvm15-0"] }

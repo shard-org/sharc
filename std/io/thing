@@ -1,9 +1,43 @@
-@prtl str
-   ;i = 0
-   @loop
-      ;temp = [out + i]
-      inc i
-   (temp != 0) => #loop
+@prtl ;r3 out          // prtl:  
+                       // mov rcx, [rsp + 8]
+   'r1 = 0             // mov rax, 0
 
-   *stdout i, out
+   @loop               // loop:
+   'r2 = [out + i]     // mov rdi, [rsi + rax]
+   'r1 ++              // inc rax
+   (r2 != 0) => #loop  // cmp rdi, 0  
+                       // jne loop
+
+   '[out + r1] = 10    // mov [rsi + rax], 10
+
+   *stdout r1, out     // mov rdi, 1
+                       // mov rsi, rcx
+                       // mov rdx, rax
+                       // mov rax, 1
+                       // syscall
+   ret                 // ret
+
+
+// rax = i
+// rcx = out
+// rdi = temp
+
+prtl:
+   mov rcx, [rsp + 8]
+   mov rax, 0
+
+loop:
+   mov rdi, [rcx + rax]
+   inc rax
+   cmp rdi, 0
+   jne loop
+
+   mov [rcx + rax], 10
+
+   mov rdi, 1
+   mov rsi, rcx
+   mov rdx, rax
+   mov rax, 1
+   syscall
+
    ret

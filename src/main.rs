@@ -2,29 +2,48 @@ mod args_parser;
 mod logger;
 mod utils;
 mod defs;
-mod preprocessor;
-mod indexer;
+mod parser;
+mod compiler;
 
-use logger::{Level, Debug, logger};
+use logger::{logger, DEBUG, OK, WARN, ERR, FATAL, at, At, WTF};
 use args_parser::ARGS;
+use defs::TEMP_FILE;
 
 fn main() {
-    if ARGS.debug {
-        log!(Level::Debug, &Debug::ArgParser, format!("{:#?}", *ARGS));
+    log!(WARN, "The compiler is still in development, expect FREQUENT bugs, crashes, and missing features.");
+
+    // init args
+    args_parser::parse();
+    log!(DEBUG, "{:#?}", unsafe{&ARGS});
+
+    let main_file = utils::reader(unsafe{&ARGS.infile});
+
+
+    let token_stream = parser::parser(main_file);
+
+    if token_stream.0.is_empty() {
+        log!(WTF, "File not Empty yet token stream has no data ?!??");
     }
 
-    // Preprocess the file
-    // TODO actually use this in somethin
-    let files = preprocessor::process();
+    unsafe{logger::check_err();}
 
-    logger::check_err();
+    let output = compiler::compiler(token_stream);
 
-    let index = indexer::indexer(files);
-    
+    unsafe{logger::check_err();}
 
 
-    todo!();
-    // utils::writer(&ARGS.outfile, file);
 
+
+    log!(DEBUG, "asm output:\n{:?}", &output);
+
+    if unsafe{ARGS.asm} {
+        utils::writer(unsafe{ARGS.outfile}, &output);
+        log!(OK, "Asm output written to `{}`", unsafe{ARGS.outfile});
+        std::process::exit(0);
+    }
+
+    log!(FATAL, "assembler not yet implemented");
+
+    unsafe{logger::check_warn();}
 }
 
