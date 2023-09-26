@@ -1,2 +1,5 @@
 #[derive(Debug, PartialEq, Eq)]
-pub struct Literal {}
+pub enum Literal {
+    String(String),
+    Char(char)
+}

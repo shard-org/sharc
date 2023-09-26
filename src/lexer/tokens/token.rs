@@ -1,15 +1,13 @@
 use crate::literals::literals::Literal;
 
 use super::tokentype::TokenType;
-use std::{path::Path, rc::Rc};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Token {
     token: TokenType,
     lexeme: String,
-    line: i32,
+    line: u32,
     literal: Option<Literal>, // Todo
-    file: Rc<Path>,
     at: usize,
 }
 
@@ -17,8 +15,7 @@ impl Token {
     pub fn new(
         token: TokenType,
         lexeme: String,
-        line: i32,
-        file: Rc<Path>,
+        line: u32,
         at: usize,
         literal: Option<Literal>,
     ) -> Self {
@@ -28,7 +25,16 @@ impl Token {
             literal,
             line,
             at,
-            file,
+        }
+    }
+
+    pub fn eof(line: u32) -> Self {
+        Self {
+            token: TokenType::EOF,
+            lexeme: "".to_string(),
+            line,
+            literal: None,
+            at: line as usize,
         }
     }
 }
