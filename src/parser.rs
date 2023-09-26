@@ -1,7 +1,9 @@
 use super::*;
 
 use std::path::{PathBuf, Path};
+use std::collections::VecDeque;
 
+#[derive(Debug)]
 pub enum Size {
     Byte = 1,
     Word = 2,
@@ -9,63 +11,99 @@ pub enum Size {
     QWord = 8,
 }
 
+#[derive(Debug)]
+pub enum RegSize {
+    ByteHigh,
+    ByteLow,
+    Word,
+    DWord,
+    QWord,
+    Arch,  // architecure dependent
+}
+
 pub type Name = String;
 
+#[derive(Debug)]
 pub enum Token {
     // Directives
     DDefine(Name, String),
-    DInclude(PathBuf),
     DTxt(String),
-    DEntry(Name),
-
 
     // Labels
     Label(Name),
     Func(Name, Vec<(Name, Size)>),
 
     StaticVar(Name, Size),
-    StackVar(Name, Size),
-    RegVar(Name, Register),
+    StackVar(Name, Size, ),
+    RegVar(Name, u8),
 
     Call(Name, Option<Vec<Arg>>),
     ExtCall(Name, Option<Vec<Arg>>),
-    Ret(Arg),
+    Ret(Option<Arg>),
 
+    MutVar(Name, Arg),
+    MutReg(u8, RegSize, Arg), 
 }
 
+#[derive(Debug)]
 pub enum Arg {
     Var(Name),
-    Reg(Register),
+    Reg(u8, RegSize),
     Lit(u64),
     Str(String),
+    Call(Name, Option<Vec<Arg>>),  // TODO idk if we want inline calls, see how difficult that's to parse/compile
+    // Expr(Vec<MLSymbol>),  TODO laterrrrrrrrr
+    None,
 }
 
-pub struct FatToken {
-    pub token: Token,
-    pub at: At,
+pub enum MutMethod {
+    Set,      // 'foo = 20 
+    Add,      // 'foo + 20 
+    Sub,      // 'foo - 20 
+    Xor,      // 'foo ^ bar
+    And,      // 'foo & bar
+    Or,       // 'foo | bar
+    SetDeref, // 'foo : bar
+    ShiftR,   // 'foo > 20 
+    ShiftL,   // 'foo < 20 
+    Not,      // 'foo ~ bar
+    Inc,      // 'foo ++
+    Dec,      // 'foo --
 }
+// pub enum MLSymbol {
+//     Add,
+//     Sub,
+//     Mul,
+//     Div,
+//     Mod,
+//     And,
+//     Or,
+//     Xor,
+//     Not,
+//     Lit(u64),
+//     Var(Name),
+//     Reg(u8, RegSize),
+// }
 
+pub type FatToken = (Token, At);
+
+#[derive(Debug)]
 pub struct Metadata {
     pub entry: Option<Name>,
 }
 
-pub type Register = u8;
-
 macro_rules! add {
     ($stream:ident, $at:expr, $tok:expr) => {
-        $stream.push(FatToken {
-            token: $tok,
-            at: $at.clone(),
-        })
+        $stream.push(($tok, $at.clone()))
     };
 }
 
-pub fn parser(input: String) {
+pub fn parser(input: String) -> (Vec<FatToken>, Metadata) {
     let mut lines = input.lines()
         .map(str::trim)
         .filter(|line| !line.is_empty())
         .map(String::from)
-        .collect::<Vec<String>>();
+        .collect::<VecDeque<String>>();
 
     let mut file_stack: Vec<(usize, PathBuf, usize)> = Vec::new();
     file_stack.push((0, PathBuf::from(unsafe{ARGS.infile}), lines.len()));
@@ -77,11 +115,11 @@ pub fn parser(input: String) {
         entry: None,
     };
 
-    while let Some(line) = lines.pop() {
+    while let Some(line) = lines.pop_front() {
         let last = file_stack.last_mut().unwrap();
         last.0 += 1;
 
-        if last.0 == last.2 {
+        if last.0 > last.2 {
             file_stack.pop();
         }
 
@@ -131,28 +169,24 @@ pub fn parser(input: String) {
                         .map(str::trim)
                         .filter(|line| !line.is_empty())
                         .map(String::from)
-                        .collect::<Vec<String>>();
+                        .collect::<VecDeque<String>>();
 
                     file_stack.push((0, path, file.len()));
-                    file.extend(lines);
-                    lines = file;
-
-                    continue;
+                    lines.append(&mut file);
                 },
 
-                // Text
-                "txt" | "text" 
-                    => add!(t, at, Token::DTxt(arg.to_string())),
+                ".con" | ".const" => {
+                    log_at!(FATAL, at, "constants not yet implemented");
+                },
 
                 // other
                 d => log_at!(ERR, at, "Unknown Directive {}", d),
             }
-            continue;
         }
 
         //
         // Labels
-        if let Some(line) = line.strip_prefix('@') {
+        else if let Some(line) = line.strip_prefix('@') {
             let args = line.split_whitespace().collect::<Vec<&str>>();
             let Some(name) = args.first() else {
                 log_at!(ERR, at, "Missing Name");
@@ -169,96 +203,152 @@ pub fn parser(input: String) {
 
         //
         // Calls
-        if let Some(line) = line.strip_prefix('!') {
+        else if let Some(line) = line.strip_prefix('!') {
+            if line.is_empty() {
+                log_at!(ERR, at, "Missing Function Name");
+                continue;
+            }
 
             match line.find(' ') {
                 Some(i) => {
                     let (name, args) = line.split_at(i);
                     let args = args.split(',')
                         .map(str::trim)
-                        .collect::<Vec<String>>();
+                        .map(|a| parse_arg(&at, a))
+                        .collect::<Vec<Arg>>();
 
-                    add!(t, at, Token::Call(name.to_string(), args));
-                },
-                None => {
-                    if line == "." {
-                        log_at!(ERR, at, "No function name in call");
+                    if args.iter().any(|a| matches!(a, Arg::None)) {
                         continue;
                     }
 
+                    // check for external call
+                    if let Some(name) = name.strip_prefix('$') {
+                        if validate_name(&at, name) {
+                            add!(t, at, Token::ExtCall(name.to_string(), Some(args)));
+                        }
+                        continue;
+                    }
+
+                    add!(t, at, Token::Call(name.to_string(), Some(args)));
+                },
+                None => {
+
                     add!(t, at, Token::Call(line.to_string(), None));
-                    continue;
                 },
             }
         }
 
+        //
+        // Returns
+        else if let Some(line) = line.strip_prefix("ret").and_then(|l| Some(l.trim_start())) {
+            let arg = match parse_arg(&at, line) {
+                Arg::None => None,
+                a => Some(a),
+            };
+
+            add!(t, at, Token::Ret(arg));
+        }
+
+        //
+        // TODO: Mutations
+        else if let Some(line) = line.strip_prefix('\'') {
+            log_at!(FATAL, at, "mutations not yet implemented");
+        }
+
+        //
+        // Statics
+        else if let Some(line) = line.strip_prefix('/') {
+            log_at!(FATAL, at, "statics not yet implemented");
+        }
+
+        // todo!();
+
     }
+    log!(DEBUG, "{:?}", &meta);
+    log!(DEBUG, "{:?}", &t);
+    (t, meta)
 }
 
-fn parse_args(args: Vec<&str>) -> Vec<Arg> {
-    let mut ret = Vec::new();
-    for arg in args {
-        // register
-        if arg.starts_with('r') {
-            let reg = arg[1..].parse::<u8>().unwrap();
-
-            // TODO this assumes x86_64
-            if reg > 15 {
-                log_at!(ERR, at, "Invalid Register r{}", reg);
-                continue;
-            }
-
-            ret.push(Arg::Reg(reg));
-            continue;
+fn parse_arg(at: &At, arg: &str) -> Arg {
+    // register
+    if let Some(arg) = arg.strip_prefix('r') {
+        if arg.is_empty() {
+            log_at!(ERR, at.clone(), "No register specified after `r`");
+            return Arg::None;
         }
 
-        // string
-        if let Some(arg) = arg.strip_prefix('"') {
-            if !arg.ends_with('"') {
-                log_at!(ERR, at, "Invalid String, Missing closing `\"`");
-                continue;
-            }
+        let size = match arg.chars().last().unwrap() {
+            'h' => RegSize::ByteHigh,
+            'l' => RegSize::ByteLow,
+            'w' => RegSize::Word,
+            'd' => RegSize::DWord,
+            'q' => RegSize::QWord,
+            _   => RegSize::Arch,
+        };
 
-            ret.push(Arg::Str(arg[..arg.len()-1].to_string()));
-            continue;
-        }
+        let num = match size {
+            RegSize::Arch => arg,
+            _ => &arg[..arg.len()-1],
+        };
 
-        // decimal literal
-        if let Ok(lit) = arg.parse::<u64>() {
-            ret.push(Arg::Lit(lit));
-            continue;
-        }
-
-        // hex literal
-        if let Some(arg) = arg.strip_prefix("0x") {
-            if let Ok(lit) = u64::from_str_radix(arg, 16) {
-                ret.push(Arg::Lit(lit));
-                continue;
-            }
-        }
-
-        // binary literal
-        if let Some(arg) = arg.strip_prefix("b") {
-            if let Ok(lit) = u64::from_str_radix(arg, 2) {
-                ret.push(Arg::Lit(lit));
-                continue;
-            }
+        match num.parse::<u8>() {
+            Ok(reg) => return Arg::Reg(reg, size),
+            Err(e) => {
+                log_at!(ERR, at.clone(), "Invalid Register: {}", e);
+                return Arg::None;
+            },
         }
     }
+
+    // string
+    if let Some(arg) = arg.strip_prefix('"') {
+        if !arg.ends_with('"') {
+            log_at!(ERR, at.clone(), "Invalid String, Missing closing `\"`");
+            return Arg::None;
+        }
+
+        return Arg::Str(arg[..arg.len()-1].to_string());
+    }
+
+    // decimal literal
+    if let Ok(lit) = arg.parse::<u64>() {
+        return Arg::Lit(lit);
+    }
+
+    // hex literal
+    if let Some(arg) = arg.strip_prefix("0x") {
+        if let Ok(lit) = u64::from_str_radix(arg, 16) {
+            return Arg::Lit(lit);
+        }
+    }
+
+    // binary literal
+    if let Some(arg) = arg.strip_prefix("b") {
+        if let Ok(lit) = u64::from_str_radix(arg, 2) {
+            return Arg::Lit(lit);
+        }
+    }
+
+    // TODO func call, this is gonna be pain
+    
+    // variable
+    if validate_name(&at, arg) {
+        return Arg::Var(arg.to_string());
+    } else { return Arg::None; }
 }
 
-fn validate_name(at: At, name: &str) -> bool {
+fn validate_name(at: &At, name: &str) -> bool {
     if name.is_empty() {
         return false;
     }
 
     if name.contains(|c: char| !c.is_alphabetic() || c != '_') {
-        log_at!(ERR, at, "Name may only contain letters and underscores");
+        log_at!(ERR, at.clone(), "Name may only contain letters and underscores");
         return false;
     }
 
     if name.starts_with('r') {
-        log_at!(ERR, at, "Name may not start with `r`, this is reserved for registers");
+        log_at!(ERR, at.clone(), "Name may not start with `r`, this is reserved for registers");
         return false;
     }
 

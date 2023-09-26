@@ -6,6 +6,8 @@ pub fn reader<T>(filename: T) -> String
 where
     T: AsRef<std::path::Path> + std::fmt::Display + Copy,
 {
+    log!(DEBUG, "Reading file: {}", filename);
+
     // Check if the file exists
     if fs::metadata(filename).is_err() {
         log!(FATAL, "File {} does not exist", filename);
@@ -26,6 +28,8 @@ where
 }
 
 pub fn writer(filename: &str, contents: &str) {
+    log!(DEBUG, "Writing file: {}", filename);
+
     // Write the file
     if let Err(e) = fs::write(filename, contents) {
         log!(FATAL, "Could not write to file {}: {e}", filename);
