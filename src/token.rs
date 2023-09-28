@@ -6,7 +6,6 @@ pub enum TokenKind {
     Ampersand,
     At,
     Backslash,
-    Backtick,
     Bang,
     Caret,
     CharLiteral,
@@ -39,6 +38,7 @@ pub enum TokenKind {
     PlusPlus,
     Pound,
     Question,
+    Register,
     Ret,
     RightBrace,
     RightBracket,
@@ -54,10 +54,22 @@ pub enum TokenKind {
     Underscore,
 }
 
+// pub enum RegSize {
+//     ByteHigh,
+//     ByteLow,
+//     Word,
+//     DoubleWord,
+//     QuadWord,
+//     Arch,  // architecture dependent
+// }
+
+
+
 pub struct Token {
     pub kind: TokenKind,
     pub span: Span,
     pub text: String,
+    pub flag: u8,
 }
 
 impl Token {
@@ -66,6 +78,7 @@ impl Token {
             kind,
             span,
             text,
+            flag: 0,
         }
     }
 
@@ -86,6 +99,7 @@ impl Token {
             },
             span,
             text,
+            flag: 0,
         }
     }
 }
@@ -94,7 +108,11 @@ impl std::fmt::Display for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         write!(f, "{:?}", self.kind)?;
         if !self.text.is_empty() {
-            write!(f, "({:?})", self.text)?;
+            if self.flag != 0 {
+                write!(f, "({:?}, f{})", self.text, self.flag)?;
+            } else {
+                write!(f, "({:?})", self.text)?;
+            }
         }
         Ok(())
     }

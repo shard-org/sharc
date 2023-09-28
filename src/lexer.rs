@@ -45,13 +45,13 @@ impl Lexer {
 
     fn push(&mut self, tokens: &mut Vec<Token>, token: Token) { tokens.push(token); }
 
-    fn push_simple(&mut self, toknes: &mut Vec<Token>, kind: TokenKind, len: usize) {
+    fn push_simple(&mut self, tokens: &mut Vec<Token>, kind: TokenKind, len: usize) {
         let start = self.loc();
         let text = self.input[self.current_index..self.current_index + len].to_string();
         for _ in 0..len {
             self.advance();
         }
-        self.push(toknes, Token::new(kind, Span(start, self.loc()), text));
+        self.push(tokens, Token::new(kind, Span(start, self.loc()), text));
     }
 
     pub fn lex(&mut self) -> Vec<Token> {
@@ -81,31 +81,66 @@ impl Lexer {
                         self.push(&mut tokens, Token::new(TokenKind::IntegerLiteral, Span(start, self.loc()), num));
                     }
                 }
-                '\'' | '"' => {
+                '`' | '"' => {
                     let token = self.lex_quoted_literal();
                     self.push(&mut tokens, token)
                 },
                 'a'..='z' | 'A'..='Z' | '_' => {
-                    let mut ident = String::new();
-                    while let Some(c) = self.cur() {
-                        match c {
-                            'a'..='z' | 'A'..='Z' | '_' | '0'..='9' => {
-                                ident.push(c);
-                                self.advance();
-                            },
-                            _ => break,
+                    match c {
+                        'r' => {
+                            self.advance();
+                            if let Some('0'..='9') = self.cur() {
+                                let mut text = String::new();
+                                self.lex_number(&mut text);
+                                let size: u8 = match self.cur() {
+                                        Some(' ' | '\t' | '\r') | None => 0,
+                                        Some('l') => 1,
+                                        Some('h') => 2,
+                                        Some('w') => 3,
+                                        Some('d') => 4,
+                                        Some('q') => 5,
+                                        _ => {
+                                            // fixme: Error handling
+                                            panic!("Unexpected character: {}", self.cur().unwrap())
+                                        }
+                                };
+                                if size != 0 {
+                                    self.advance();
+                                }
+                                let token = Token {
+                                    kind: TokenKind::Register,
+                                    span: Span(start, self.loc()),
+                                    text,
+                                    flag: size,
+                                };
+                                self.push(&mut tokens, token);
+                            } else {
+                                // fixme: Error handling
+                                panic!("Expected number after r")
+                            }
                         }
-                    }
-                    match ident.as_ref() {
-                        "_" => self.push(&mut tokens, Token::new(TokenKind::Underscore, Span(start, self.loc()), ident)),
-                        _ => self.push(&mut tokens, Token::from_string(Span(start, self.loc()), ident)),
+                        _ => {
+                            let mut ident = String::new();
+                            while let Some(c) = self.cur() {
+                                match c {
+                                    'a'..='z' | 'A'..='Z' | '_' | '0'..='9' => {
+                                        ident.push(c);
+                                        self.advance();
+                                    },
+                                    _ => break,
+                                }
+                            }
+                            match ident.as_ref() {
+                                "_" => self.push(&mut tokens, Token::new(TokenKind::Underscore, Span(start, self.loc()), ident)),
+                                _ => self.push(&mut tokens, Token::from_string(Span(start, self.loc()), ident)),
+                            }
+                        }
                     }
                 }
 
                 '&' => self.push_simple(&mut tokens, TokenKind::Ampersand, 1),
                 '@' => self.push_simple(&mut tokens, TokenKind::At, 1),
                 '\\' => self.push_simple(&mut tokens, TokenKind::Backslash, 1),
-                '`' => self.push_simple(&mut tokens, TokenKind::Backtick, 1),
                 '!' => match self.peek() {
                     Some('=') => self.push_simple(&mut tokens, TokenKind::NotEquals, 2),
                     _ => self.push_simple(&mut tokens, TokenKind::Bang, 1),
@@ -222,7 +257,7 @@ impl Lexer {
             }
         }
         match quote {
-            '\'' => {
+            '`' => {
                 if text.len() != 1 {
                     // fixme: Error handling
                     panic!("Char literal must be one character long")
