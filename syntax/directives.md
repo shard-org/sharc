@@ -10,7 +10,6 @@ the last line evaluates to
 (1 + 13) // 14
 ```
 
-
 # ent - entry
 the entry point of the program, the compiler will start execution at the label specified
 ```
@@ -39,3 +38,35 @@ a read only variable integrated into the final binary, gives a pointer
 
 (1 + [TEN]) // 11
 ```
+
+
+# dat - data
+basically a static var
+```
+.dat FOO 8 = 20
+```
+
+it doesnt need a value, in which case it will be initialized to null  
+```
+.dat foo 8
+```
+
+
+# .str - struct 
+its a struct
+```
+.str Foo {
+    8 bar  // 8 bytes
+    1 baz  // 1 byte 
+    4 fiz  // 4 bytes
+}
+
+main:
+%some_var ? = Foo 
+'[some_var.bar] = 20
+'[some_var.baz] = 1
+'[some_var.fiz] = 10
+```
+
+to access diff fields use `.` like indexing arrays
+

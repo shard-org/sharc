@@ -24,35 +24,36 @@ for **contibuting** check out #2 for the todo list
 ## Hello World
 ```
 @main
-&prt "Hello World!"
-*ext 0
+$puts "Hello World"
+&ext 0
 ```
 
 ## Fibonacci
 ```
 .ent main
 
-@main
-!$puts <- !fib 9
-*ext 0
+#main
+$puts <- !fib 9
+&ext 0
 
-@fib n -> msg
-(n < 1) => ret "Invalid Number of Terms!"
-(n = 1) => ret "0"
-(n = 2) => ret "0 1"
+@fib n -> msg {
+    (n < 1) => ret "Invalid Number of Terms!"
+    (n = 1) => ret "0"
+    (n = 2) => ret "0 1"
 
-%arg1 2 = 1
-%arg2 2 = 0
+    %arg1 2 = 1
+    %arg2 2 = 0
 
-@loop
-;temp = (arg1 + arg2)
+    #loop
+    ;temp = (arg1 + arg2)
 
-'arg2 : arg1
-'arg1 : temp
+    'arg2 : arg1
+    'arg1 : temp
 
-!$printf "%d\n", temp 
-'n --
-(n > 0) => #loop
+    $printf "%d\n", temp 
+    'n --
+    (n > 0) => ~loop
 
-ret "Done!"
+    ret "Done!"
+}
 ```
