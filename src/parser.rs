@@ -13,12 +13,12 @@ pub enum Size {
 
 #[derive(Debug)]
 pub enum RegSize {
-    ByteHigh,
+    Arch,  // architecure dependent
     ByteLow,
+    ByteHigh,
     Word,
     DWord,
     QWord,
-    Arch,  // architecure dependent
 }
 
 pub type Name = String;
@@ -43,7 +43,7 @@ pub enum Token {
     Ret(Option<Arg>),
 
     MutVar(Name, Arg),
-    MutReg(u8, RegSize, Arg), 
+    MutReg(u8, RegSize, Arg),
     Null,
 }
 
@@ -59,15 +59,15 @@ pub enum Arg {
 }
 
 pub enum MutMethod {
-    Set,      // 'foo = 20 
-    Add,      // 'foo + 20 
-    Sub,      // 'foo - 20 
+    Set,      // 'foo = 20
+    Add,      // 'foo + 20
+    Sub,      // 'foo - 20
     Xor,      // 'foo ^ bar
     And,      // 'foo & bar
     Or,       // 'foo | bar
     SetDeref, // 'foo : bar
-    ShiftR,   // 'foo > 20 
-    ShiftL,   // 'foo < 20 
+    ShiftR,   // 'foo > 20
+    ShiftL,   // 'foo < 20
     Not,      // 'foo ~ bar
     Inc,      // 'foo ++
     Dec,      // 'foo --
@@ -133,7 +133,7 @@ pub fn parser(input: String) -> (Vec<FatToken>, Metadata) {
         if line.starts_with("//") {
             continue;
         }
-        
+
         //
         // Directives
         if let Some(line) = line.strip_prefix('.') {
@@ -199,7 +199,7 @@ pub fn parser(input: String) -> (Vec<FatToken>, Metadata) {
                 add!(t, at, Token::Label(name.to_string()));
                 continue;
             }
-            
+
             todo!("parse label args");
         }
 
@@ -350,7 +350,7 @@ fn parse_arg(at: &At, arg: &str) -> Arg {
     }
 
     // TODO func call, this is gonna be pain
-    
+
     // variable
     if validate_name(&at, arg) {
         return Arg::Var(arg.to_string());
