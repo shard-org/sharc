@@ -1,40 +1,40 @@
-use crate::literals::literals::Literal;
+use crate::parser::Arg;
 
 use super::tokentype::TokenType;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug)]
 pub struct Token {
     token: TokenType,
     lexeme: String,
-    line: u32,
-    literal: Option<Literal>, // Todo
-    at: usize,
+    line: usize,
+    column: usize,
+    literal: Option<Arg>,
 }
 
 impl Token {
     pub fn new(
         token: TokenType,
         lexeme: String,
-        line: u32,
-        at: usize,
-        literal: Option<Literal>,
+        line: usize,
+        column: usize,
+        literal: Option<Arg>,
     ) -> Self {
         Self {
             token,
             lexeme,
             literal,
             line,
-            at,
+            column,
         }
     }
 
-    pub fn eof(line: u32) -> Self {
+    pub fn eof(line: usize) -> Self {
         Self {
             token: TokenType::EOF,
             lexeme: "".to_string(),
             line,
             literal: None,
-            at: line as usize,
+            column: 0,
         }
     }
 }

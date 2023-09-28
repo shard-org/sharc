@@ -12,7 +12,7 @@ pub enum TokenType {
     Slash,
     BackSlash,
     Star,
-    Modulus,
+    Percent,
     Pipe,
     Ampersand,
     Tilde,
@@ -29,7 +29,6 @@ pub enum TokenType {
     At,
     Hash,
     Quote,
-    DoubleQuote,
     BackTick,
     Caret,
     Underscore,
@@ -43,14 +42,6 @@ pub enum TokenType {
     LesserEquals,
     And,
     Or,
-    PlusEquals,
-    MinusEquals,
-    StarEquals,
-    SlashEquals,
-    ModEquals,
-    AmpersandEquals,
-    PipeEquals,
-    CaretEquals,
     Increment,
     Decrement,
     RightShift,
@@ -62,19 +53,19 @@ pub enum TokenType {
     Identifier,
     String,
     Char,
-    Int,
-    Float,
+    Int, // Todo
+    Float, // Todo
 
     // Registers
     Register,
-    RegisterNumber(u8),
+    RegisterNumber,
     LowByte,
     HighByte,
     Word,
     DoubleWord,
     QuadWord,
 
-    // Keywords
+    // Keywords/Directive
     Ret,
     Inc,
     Ent,

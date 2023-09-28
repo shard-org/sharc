@@ -19,6 +19,7 @@ pub enum RegSize {
     DWord,
     QWord,
     Arch,  // architecure dependent
+    Unknown // Placeholder
 }
 
 pub type Name = String;
@@ -51,6 +52,7 @@ pub enum Arg {
     Reg(u8, RegSize),
     Lit(u64),
     Str(String),
+    Char(char),
     Call(Name, Option<Vec<Arg>>),  // TODO idk if we want inline calls, see how difficult that's to parse/compile
     // Expr(Vec<MLSymbol>),  TODO laterrrrrrrrr
     None,

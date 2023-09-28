@@ -1,14 +1,20 @@
-use std::{process, rc::Rc, path::Path};
-use crate::{literals::literals::Literal, log, logger::{logger, at}, logger::ERR, log_at, args_parser::ARGS};
-use super::tokens::{token::Token, tokentype::TokenType};
+use super::tokens::{token::*, tokentype::*};
+use crate::{
+    args_parser::ARGS,
+    log_at,
+    logger::ERR,
+    logger::{at, logger, At},
+    parser::{Arg, RegSize},
+};
+use std::{path::Path, process};
 
 pub struct Tokenizer {
     source: Vec<char>,
     tokens: Vec<Token>,
     start: usize,
     curr: usize,
-    line: u32,
-    at: usize,
+    column: usize,
+    at: Box<At>,
 }
 
 impl Tokenizer {
@@ -18,8 +24,8 @@ impl Tokenizer {
             tokens: Vec::new(),
             start: 0,
             curr: 0,
-            line: 1,
-            at: 0
+            at: Box::new(at(1, Path::new(unsafe { ARGS.infile }))),
+            column: 0,
         }
     }
 
@@ -29,7 +35,7 @@ impl Tokenizer {
             self.scan_token();
         }
 
-        self.tokens.push(Token::eof(self.line));
+        self.tokens.push(Token::eof(self.at.line));
         &self.tokens
     }
 
@@ -50,9 +56,7 @@ impl Tokenizer {
             '{' => self.add_token(TokenType::LeftBrace),
             '}' => self.add_token(TokenType::RightBrace),
             '+' => {
-                let token = if self.is_match('=') {
-                    TokenType::PlusEquals
-                } else if self.is_match('+') {
+                let token = if self.is_match('+') {
                     TokenType::Increment
                 } else {
                     TokenType::Plus
@@ -60,9 +64,7 @@ impl Tokenizer {
                 self.add_token(token)
             }
             '-' => {
-                let token = if self.is_match('=') {
-                    TokenType::MinusEquals
-                } else if self.is_match('-') {
+                let token = if self.is_match('-') {
                     TokenType::Decrement
                 } else if self.is_match('>') {
                     TokenType::RightArrow
@@ -71,14 +73,7 @@ impl Tokenizer {
                 };
                 self.add_token(token)
             }
-            '*' => {
-                let token = if self.is_match('=') {
-                    TokenType::StarEquals
-                } else {
-                    TokenType::Star
-                };
-                self.add_token(token)
-            }
+            '*' => self.add_token(TokenType::Star),
             '/' => {
                 if self.is_match('/') {
                     while self.peek() != '\n' && !self.is_at_end() {
@@ -86,25 +81,14 @@ impl Tokenizer {
                     }
                 } else if self.is_match('*') {
                     self.block_comment();
-                } else if self.is_match('=') {
-                    self.add_token(TokenType::SlashEquals);
                 } else {
                     self.add_token(TokenType::Slash);
                 }
             }
             '\\' => self.add_token(TokenType::BackSlash),
-            '%' => {
-                let token = if self.is_match('=') {
-                    TokenType::ModEquals
-                } else {
-                    TokenType::Modulus
-                };
-                self.add_token(token)
-            }
+            '%' => self.add_token(TokenType::Percent),
             '|' => {
-                let token = if self.is_match('=') {
-                    TokenType::PipeEquals
-                } else if self.is_match('|') {
+                let token = if self.is_match('|') {
                     TokenType::Or
                 } else {
                     TokenType::Pipe
@@ -112,9 +96,7 @@ impl Tokenizer {
                 self.add_token(token)
             }
             '&' => {
-                let token = if self.is_match('=') {
-                    TokenType::AmpersandEquals
-                } else if self.is_match('&') {
+                let token = if self.is_match('&') {
                     TokenType::And
                 } else {
                     TokenType::Ampersand
@@ -174,52 +156,31 @@ impl Tokenizer {
             '"' => self.string(),
             '`' => self.add_token(TokenType::BackTick),
             'r' => {
-                self.add_token(TokenType::Register);
                 if !Tokenizer::is_digit(self.peek()) {
-                    log!(ERR, "Expected register number after {}", c);
-                    process::exit(1);
-                }
-                if let Some(reg_num) = self.register_number() {
-                    self.add_token(TokenType::RegisterNumber(reg_num));
-                }
-                self.start = self.curr;
-                match self.advance() {
-                    'l' => self.add_token(TokenType::LowByte),
-                    'h' => self.add_token(TokenType::HighByte),
-                    'w' => self.add_token(TokenType::Word),
-                    'd' => self.add_token(TokenType::DoubleWord),
-                    'q' => self.add_token(TokenType::QuadWord),
-                    _ => {
-                        let c = self.advance();
-                        log!(ERR, "Unexpected character {}", c);
-                    }
-                }
-            }
-            '^' => {
-                let token = if self.is_match('=') {
-                    TokenType::CaretEquals
+                    self.identifier();
                 } else {
-                    TokenType::Caret
-                };
-                self.add_token(token)
+                    self.register();
+                }
             }
+            '^' => self.add_token(TokenType::Caret),
             _ if c.is_ascii_alphabetic() => self.identifier(),
             '_' => self.add_token(TokenType::Underscore),
             '\n' => {
                 self.add_token(TokenType::NewLine);
-                self.line += 1;
-                self.at = 0;
+                self.at.line += 1;
+                self.column = 0;
             }
             '\r' => (),
             '\t' => (),
             ' ' => self.add_token(TokenType::Space),
             _ => {
-                log!(ERR, "Unexpected character '{}'", c);
+                log_at!(ERR, *self.at.clone(), "Unexpected character '{}'", c);
             }
         }
     }
 
-    fn register_number(&mut self) -> Option<u8> {
+    fn register(&mut self) {
+        self.add_token(TokenType::Register);
         while Tokenizer::is_digit(self.peek()) {
             self.advance();
         }
@@ -227,18 +188,48 @@ impl Tokenizer {
         self.start += 1;
         let num: String = self.source[self.start..self.curr].iter().collect();
         let Ok(reg_num) = num.parse::<u8>() else {
-            let at = at(self.at, Path::new(unsafe {ARGS.infile}));
-            log_at!(ERR, at, "Something went wrong while getting register number");
-            return None;
+            log_at!(ERR, *self.at.clone(), "Could not parse register number keep range within 1..=255");
+            return;
         };
-        return Some(reg_num);
+        self.add_literal(
+            TokenType::RegisterNumber,
+            Some(Arg::Reg(reg_num, RegSize::Unknown)),
+        );
+        self.start = self.curr;
+        match self.peek() {
+            'l' => {
+                self.advance();
+                self.add_token(TokenType::LowByte)
+            }
+            'h' => {
+                self.advance();
+                self.add_token(TokenType::HighByte)
+            }
+            'w' => {
+                self.advance();
+                self.add_token(TokenType::Word)
+            }
+            'd' => {
+                self.advance();
+                self.add_token(TokenType::DoubleWord)
+            },
+            'q' => {
+                self.advance();
+                self.add_token(TokenType::QuadWord)
+            },
+            ' ' => (),
+            _ => {
+                let c = self.advance();
+                log_at!(ERR, *self.at.clone(), "Unexpected register width specifier. {}", c);
+            },
+        };
     }
 
     fn mutate(&mut self) {
         if self.peek_next() == '\'' {
             let c = self.advance();
             self.advance();
-            self.add_literal(TokenType::Char, Some(Literal::Char(c)));
+            self.add_literal(TokenType::Char, Some(Arg::Char(c)));
             return;
         }
         self.add_token(TokenType::Quote);
@@ -249,13 +240,13 @@ impl Tokenizer {
     fn string(&mut self) {
         while self.peek() != '"' && !self.is_at_end() {
             if self.peek() == '\n' {
-                self.line += 1;
+                self.at.line += 1;
             }
             self.advance();
         }
 
         if self.is_at_end() {
-            log!(ERR, "String was not terminated");
+            log_at!(ERR, *self.at.clone(), "String was not terminated");
             process::exit(1);
         }
 
@@ -265,7 +256,7 @@ impl Tokenizer {
         let value: String = self.source[(self.start + 1)..(self.curr - 1)]
             .iter()
             .collect();
-        self.add_literal(TokenType::String, Some(Literal::String(value)));
+        self.add_literal(TokenType::String, Some(Arg::Str(value)));
     }
 
     // fn number(&mut self) {
@@ -329,11 +320,11 @@ impl Tokenizer {
                     }
                 }
                 '\n' => {
-                    self.line += 1;
+                    self.at.line += 1;
                     self.advance();
                 }
                 '\0' => {
-                    log!(ERR, "Comment block was not terminated");
+                    log_at!(ERR, *self.at.clone(), "Comment block was not terminated");
                     return;
                 }
                 _ => {
@@ -354,7 +345,7 @@ impl Tokenizer {
         }
 
         self.curr += 1;
-        self.at += 1;
+        self.column += 1;
         true
     }
 
@@ -364,7 +355,7 @@ impl Tokenizer {
         }
 
         *self.source.get(self.curr + 1).unwrap_or_else(|| {
-            log!(ERR, "Could not peek_next");
+            log_at!(ERR, *self.at.clone(), "Could not peek_next");
             process::exit(1);
         })
     }
@@ -375,7 +366,7 @@ impl Tokenizer {
         }
 
         *self.source.get(self.curr).unwrap_or_else(|| {
-            log!(ERR, "Could not peek");
+            log_at!(ERR, *self.at.clone(), "Could not peek");
             process::exit(1);
         })
     }
@@ -384,10 +375,10 @@ impl Tokenizer {
         self.add_literal(token, None);
     }
 
-    fn add_literal(&mut self, token: TokenType, literal: Option<Literal>) {
+    fn add_literal(&mut self, token: TokenType, literal: Option<Arg>) {
         let text: String = self.source[self.start..self.curr].iter().collect();
         self.tokens
-            .push(Token::new(token, text, self.line, self.at, literal))
+            .push(Token::new(token, text, self.at.line, self.column, literal))
     }
 
     fn is_at_end(&self) -> bool {
@@ -395,9 +386,12 @@ impl Tokenizer {
     }
 
     fn advance(&mut self) -> char {
-        let character = self.source.get(self.curr).unwrap();
+        let Some(character) = self.source.get(self.curr) else {
+            log_at!(ERR, *self.at.clone(), "Unexpected end of file!");
+            process::exit(1);
+        };
         self.curr += 1;
-        self.at += 1;
+        self.column += 1;
         *character
     }
 
