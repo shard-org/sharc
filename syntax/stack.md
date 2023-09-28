@@ -3,19 +3,20 @@ variables here must have a known size at compiletime.
 reserve 4 bytes on the stack and move `20` in there
 ```
 %foo 4 = 20
+%foo ? = 20  // same thing, but the size is inferred from the value
 ```
 
 unlike registers, `foo` isn't the actual value but an offset from the stack base pointer.
 you need to dereference it to get the value
 ```
-!$puts [foo]   // 20
+$puts [foo]   // 20
 ```
 
 to just reserve the space without assigning a var:
 ```
 %foo 4       // for 1, 2, 4, 8 byte vars
-%foo :55     // for a non standard size, like for stack arrays
-'rs + 50     // move the stack pointer by 50 bytes
+%foo 2:8     // for arrays, 2 elements, 8 bytes
+'r$ + 50     // move the stack pointer by 50 bytes
 ```
 
 stack operations:
