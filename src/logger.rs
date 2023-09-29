@@ -39,18 +39,11 @@ impl Log {
 
     //
     // general
-    pub fn print(&self) {
-        if &self.level < unsafe{&ARGS.log_level} { return; }
+    pub fn print(self) {
+        let level = self.level.clone();
+        self.print_internal();
 
-        match self.location {
-            Some(loc) => match loc.span{
-                Some(span) => self.print_loc_span(loc, span),
-                None => self.print_loc(loc),
-            },
-            None => println!("{}{}\x1b[0m\x1b[1m: {}\x1b[0m", self.get_level_colour(), self.get_level_prefix(), self.msg),
-        }
-
-        if self.level == Level::Fatal {
+        if level == Level::Fatal {
             Self::handle_fatal();
         }
     }
@@ -63,40 +56,58 @@ impl Log {
             Self::handle_fatal();
         }
     }
-
     //
     // specific
     pub fn print_all() {
         unsafe{
             LOGS.sort_by(|a, b| a.level.partial_cmp(&b.level).unwrap());
-            LOGS.iter().for_each(|log| log.print());
-        }
-        let errors = LOGS.iter().filter(|log| log.level == Level::Err).count();
-        let warns = LOGS.iter().filter(|log| log.level == Level::Warn).count();
+            LOGS.iter().for_each(|log| log.print_internal());
 
-        match warns {
-            0 if errors > 0 => Log::new(Level::Err, None, format!("Could Not Compile, {} Errors Emmited", errors), "").print(),
-            0 => (),
-            _ if errors > 0 => Log::new(Level::Warn, None, format!("Could Not Compile, {} Errors and {} warnings Emmited", errors, warns), "").print(),
-            _ => Log::new(Level::Warn, None, format!("{} Warnings Emmited", warns), "").print(),
-        }
+            let errors = LOGS.iter().filter(|log| log.level == Level::Err).count();
+            let warns = LOGS.iter().filter(|log| log.level == Level::Warn).count();
 
-        if errors > 0 {
-            std::process::exit(1);
+            if !LOGS.iter().any(|log| log.level == Level::Fatal) {
+                match warns {
+                    0 if errors > 0 => Log::new(Level::Err, None, format!("Could Not Compile, {} Errors Emmited", errors), "").print(),
+                    0 => (),
+                    _ if errors > 0 => Log::new(Level::Warn, None, format!("Could Not Compile, {} Errors and {} warnings Emmited", errors, warns), "").print(),
+                    _ => Log::new(Level::Warn, None, format!("{} Warnings Emmited", warns), "").print(),
+                }
+
+                if errors > 0 {
+                    std::process::exit(1);
+                }
+            }
         }
     }
 
     pub fn print_all_checked() {
-        if LOGS.iter().filter(|log| log.level == Level::Err).count() > 0 {
-            Self::print_all();
+        unsafe {
+            if LOGS.iter().filter(|log| log.level == Level::Err).count() > 0 {
+                Self::print_all();
+            }
         }
     }
 
     //
     // internal
+    fn print_internal(&self) {
+        if &self.level < unsafe{&ARGS.log_level} { return; }
+
+        match self.location {
+            Some(loc) => match loc.span{
+                Some(span) => self.print_loc_span(loc, span),
+                None => self.print_loc(loc),
+            },
+            None => match self.notes.is_empty() {
+                false => println!("{}{}\x1b[0m\x1b[1m: {}\x1b[0m: {}", self.get_level_colour(), self.get_level_prefix(), self.msg, self.notes),
+                true => println!("{}{}\x1b[0m\x1b[1m: {}\x1b[0m", self.get_level_colour(), self.get_level_prefix(), self.msg),
+            },
+        }
+    }
     fn handle_fatal() {
         Log::print_all();
-        println!("\x1b[31;1mEXITING!\x1b[0m");
+        println!("\x1b[31;1mEXITING!!!\x1b[0m");
         std::process::exit(1);
     }
     

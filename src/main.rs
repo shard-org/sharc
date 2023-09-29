@@ -27,7 +27,7 @@ fn main() {
 
     let token_stream = Lexer::new(main_file, unsafe{ARGS.infile}).lex();
     for token in &token_stream {
-        log!(DEBUG, "{}", token).print();
+        Log::new(DEBUG, None, "", format!("{}", token)).print();
     }
 
     Log::print_all_checked();
