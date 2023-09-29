@@ -2,7 +2,7 @@ this is still in a REALLY REALLY early stage, like not even usable
 if ye like this concept then PLEASE help out  
 I cant do it all by myself.. :/  
 
-Our Discord: https://discord.gg/TsMxccfym
+Our Discord: https://discord.gg/TsMxccfym  
 for **contributing** ^^^
 
 
@@ -31,12 +31,9 @@ for **contributing** ^^^
 ## Fibonacci
 ```
 @fib n 2 -> [:1] {
-    (n < 1) => 
-        <- "Invalid Number of Terms!\0"
-    (n = 1) => 
-        <- "0\0"
-    (n = 2) => 
-        <- "0 1\0"
+    (n < 1) => end "Invalid Number of Terms!\0"
+    (n = 1) => end "0\0"
+    (n = 2) => end "0 1\0"
 
     %arg1 2 = 1
     %arg2 2 = 0
@@ -51,10 +48,11 @@ for **contributing** ^^^
     'n --
     (n > 0) => jmp loop
 
-    <- "Done!\0"
+    end "Done!\0"
 }
 
 #main
     $puts <- *fib 9
     &ext 0
 ```
+

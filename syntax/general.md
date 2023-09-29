@@ -11,6 +11,7 @@ ret // return label
 *   // call function
 |   // function attribute
 /   // call macro function
+end // return from a function
 
 $   // call external
 
@@ -93,7 +94,9 @@ All ASCII characters, including space, newline, and EOF.
 ```
 ret  // return
 jmp  // jump
+end  // end
 ```
 
 # general rules
 all directives and functions must be defined before any label in the program.
+
