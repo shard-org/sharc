@@ -138,7 +138,6 @@ pub fn parser(input: String) -> (Vec<FatToken>, Metadata) {
         // Directives
         if let Some(line) = line.strip_prefix('.') {
             let Some((dir, arg)) = line.split_once(' ') else {
-                log_at!(ERR, at, "Missing Arg");
                 continue;
             };
 
@@ -146,7 +145,6 @@ pub fn parser(input: String) -> (Vec<FatToken>, Metadata) {
                 // Define
                 "def" | "define" => {
                     let Some((name, value)) = arg.split_once(' ') else {
-                        log_at!(ERR, at, "Missing Arg");
                         continue;
                     };
 
@@ -156,7 +154,6 @@ pub fn parser(input: String) -> (Vec<FatToken>, Metadata) {
                 // Entry
                 "ent" | "entry" => {
                     if meta.entry.is_some() {
-                        log_at!(ERR, at, "Entry already defined");
                         continue;
                     }
 
@@ -178,11 +175,11 @@ pub fn parser(input: String) -> (Vec<FatToken>, Metadata) {
                 },
 
                 ".con" | ".const" => {
-                    log_at!(FATAL, at, "constants not yet implemented");
+                    ()
                 },
 
                 // other
-                d => log_at!(ERR, at, "Unknown Directive {}", d),
+                d => (),
             }
         }
 
@@ -207,7 +204,6 @@ pub fn parser(input: String) -> (Vec<FatToken>, Metadata) {
         // Calls
         else if let Some(line) = line.strip_prefix('!') {
             if line.is_empty() {
-                log_at!(ERR, at, "Missing Function Name");
                 continue;
             }
 
@@ -254,13 +250,11 @@ pub fn parser(input: String) -> (Vec<FatToken>, Metadata) {
         //
         // TODO: Mutations
         else if let Some(line) = line.strip_prefix('\'') {
-            log_at!(FATAL, at, "mutations not yet implemented");
         }
 
         //
         // Statics
         else if let Some(line) = line.strip_prefix('/') {
-            log_at!(FATAL, at, "statics not yet implemented");
         }
 
         else if let Some(line) = line.strip_prefix('#') {
@@ -270,15 +264,14 @@ pub fn parser(input: String) -> (Vec<FatToken>, Metadata) {
         // todo!();
 
     }
-    log!(DEBUG, "{:?}", &meta);
-    log!(DEBUG, "{:?}", &t);
+    log!(DEBUG, format!("{:?}", &meta));
+    log!(DEBUG, format!("{:?}", &t));
     (t, meta)
 }
 
 // expects no # prefix
 fn parse_jump(at: &At, arg: &str) -> Option<Token> {
     if arg.is_empty() {
-        log_at!(ERR, at.clone(), "Missing Jump Adress");
         return None;
     }
 
@@ -293,7 +286,6 @@ fn parse_arg(at: &At, arg: &str) -> Arg {
     // register
     if let Some(arg) = arg.strip_prefix('r') {
         if arg.is_empty() {
-            log_at!(ERR, at.clone(), "No register specified after `r`");
             return Arg::None;
         }
 
@@ -314,7 +306,6 @@ fn parse_arg(at: &At, arg: &str) -> Arg {
         match num.parse::<u8>() {
             Ok(reg) => return Arg::Reg(reg, size),
             Err(e) => {
-                log_at!(ERR, at.clone(), "Invalid Register: {}", e);
                 return Arg::None;
             },
         }
@@ -323,7 +314,6 @@ fn parse_arg(at: &At, arg: &str) -> Arg {
     // string
     if let Some(arg) = arg.strip_prefix('"') {
         if !arg.ends_with('"') {
-            log_at!(ERR, at.clone(), "Invalid String, Missing closing `\"`");
             return Arg::None;
         }
 

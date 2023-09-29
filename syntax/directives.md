@@ -70,3 +70,19 @@ main:
 
 to access diff fields use `.` like indexing arrays
 
+
+# .txt - text
+inserts text into the binary. This is done through creating a constant but ignoring the pointer to it.
+```
+.txt "Hello World!"
+```
+
+# .mac - macro
+evaluated at compiletime
+```
+.mac add x, y {
+    (x + y)
+}
+
+/add 1, 2   // 3
+```

@@ -6,11 +6,15 @@ Usage: shdc <input_file> [OPTIONS]
 
 Options:
   -h, --help      This Message
-  -v, --version   Version Number
+  -V, --version   Version Number
 
   -o, --output    Specify the Output Binary
-  -d, --debug     Not needed for Mere Mortals :v
-  -q, --quiet     Print only Fatal Errors
+
+  -l, --log={opt} Specify the Log Level {none, fatal, err, warn, info, debug}
+  -q, --quiet     log level = err
+  -v, --verbose   log level = info
+  -d, --debug     log level = debug
+
   -a, --arch      Specify the target Architecture
 
   -t, --noclean   Keep Temp Files
@@ -23,8 +27,7 @@ pub struct Args {
     pub infile:  &'static str,
     pub outfile: &'static str,
     pub asm:   bool,
-    pub debug:   bool,
-    pub quiet:   bool,
+    pub log_level: Level,
     pub noclean: bool,
 }
 
@@ -33,8 +36,7 @@ pub static mut ARGS: Args = Args {
     infile:  "",
     outfile: "output",
     asm:   false,
-    debug:   false,
-    quiet:   false,
+    log_level: Level::Fatal,
     noclean: false,
 };
 
@@ -52,14 +54,30 @@ pub fn parse() {
                 println!("{}", HELP);
                 std::process::exit(0);
             },
-            "--version" | "-v" => {
+            "--version" | "-V" => {
                 println!("{}", VERSION);
                 std::process::exit(0);
             },
-            "--debug" | "-d" => unsafe { ARGS.debug = true },
+            c if c.starts_with("-l") || c.starts_with("--log") => {
+                if let Some((_, lev)) = arg.split_once('=') {
+                    match lev.as_str() {
+                        "none" => unsafe { ARGS.log_level = Level::None },
+                        "fatal" => unsafe { ARGS.log_level = Level::Fatal },
+                        "err" => unsafe { ARGS.log_level = Level::Err },
+                        "warn" => unsafe { ARGS.log_level = Level::Warn },
+                        "info" => unsafe { ARGS.log_level = Level::Info },
+                        "debug" => unsafe { ARGS.log_level = Level::Debug },
+                        _ => log!(FATAL, "Invalid Log Level: {}", level),
+                    }
+                } else {
+                    log!(FATAL, "expected `=` after the {} flag", arg);
+                }
+            },
+            "--debug" | "-d" => unsafe { ARGS.log_level = Level::Debug },
+            "--quiet" | "-q" => unsafe { ARGS.log_level = Level::Err },
+            "--verbose" | "-v" => unsafe { ARGS.log_level = Level::Info },
             "--noclean" | "-t" => unsafe { ARGS.noclean = true },
             "--asm" | "-A" => unsafe { ARGS.asm = true },
-            "--quiet" | "-q" => unsafe { ARGS.quiet = true },
             "--output" | "-o" => {
                 if let Some(outfile) = args.next() {
                     unsafe { ARGS.outfile = Box::leak(outfile.into_boxed_str()) };

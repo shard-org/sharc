@@ -5,7 +5,7 @@ mod defs;
 mod parser;
 mod compiler;
 
-use logger::{logger, DEBUG, OK, WARN, ERR, FATAL, at, At, WTF};
+use logger::{Log, DEBUG, OK, WARN, ERR,};
 use args_parser::ARGS;
 use defs::TEMP_FILE;
 
@@ -34,11 +34,11 @@ fn main() {
 
 
 
-    log!(DEBUG, "asm output:\n{:?}", &output);
+    log!(DEBUG, format!("asm output:\n{:?}", &output));
 
     if unsafe{ARGS.asm} {
         utils::writer(unsafe{ARGS.outfile}, &output);
-        log!(OK, "Asm output written to `{}`", unsafe{ARGS.outfile});
+        log!(OK, format!("Asm output written to `{}`", unsafe{ARGS.outfile}));
         std::process::exit(0);
     }
 

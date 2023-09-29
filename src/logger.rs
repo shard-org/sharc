@@ -1,111 +1,209 @@
 use super::*;
 use std::fmt::Display;
-use std::rc::Rc;
-use std::path::Path;
 
-
-#[macro_export]
-macro_rules! log {
-    ($lev:expr, $($fmt:tt)*) => {
-        logger($lev, None, format!($($fmt)*))
-    };
+// FIXME: remove this, this is just a placeholder
+#[derive(Clone, Copy, Debug)]
+pub struct Location {
+    span: Option<(usize, usize)>,
+    file: &'static str,
+    line: usize,
 }
-
-#[macro_export]
-macro_rules! log_at {
-    ($lev:expr, $at:expr, $($fmt:tt)*) => {
-        logger($lev, $at, format!($($fmt)*))
-    };
-}
-
-
-
-#[derive(Debug, Clone)]
-pub struct At {
-    pub file: Rc<Path>,
-    pub line: usize,
-}
-
-impl Display for At {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}:{}", self.file, self.line)
-    }
-}
-
-pub struct Exceptions {
-    errors: usize,
-    warns: usize,
-}
-
-#[derive(PartialEq)]
-pub enum Level {
-    Debug, // cyan
-    Ok,    // green
-    Warn,  // yellow
-    Err,   // red
-    Fatal, // red, bold
-    WTF,   // purple, bold
-}
-
 
 
 pub const DEBUG: Level = Level::Debug;
 pub const OK: Level = Level::Ok;
 pub const WARN: Level = Level::Warn;
 pub const ERR: Level = Level::Err;
-pub const FATAL: Level = Level::Fatal;
-pub const WTF: Level = Level::WTF;
 
-
-static mut EXC: Exceptions = Exceptions {
-    errors: 0,
-    warns: 0,
-};
-
-
-pub fn at(line: usize, file: &Path) -> At {
-    At { file: file.into(), line, }
+#[derive(Debug, PartialEq, PartialOrd)]
+pub enum Level {
+    Debug, // cyan
+    Ok,    // green
+    Warn,  // yellow
+    Err,   // red
+    Fatal, // red, bold
 }
 
+#[derive(Debug)]
+pub struct Log {
+    level:    Level,            // Level::Err
+    location: Option<Location>, // Some(Location { span: Some((4, 4)), file: "main.shd", line: 5 })
+    msg:      &'static str,     // "Missmatched Parenthesis"
+    notes:    &'static str,     // "Expected ')' but found '}'"
+}
 
-pub fn logger<T: Display, A: Into<Option<At>>>(lev: Level, at: A, msg: T) {
-    unsafe{
-        if lev == Level::Debug && !ARGS.debug { return; }
-        if (lev != Level::Fatal || lev != Level::WTF) && ARGS.quiet { return; }
+static mut LOGS: Vec<Log> = Vec::new();
+
+impl Log {
+    pub fn new<T: Into<Option<Location>>, M: Display, W: Display>(level: Level, location: T, msg: M, notes: W) -> Self{
+        Self {
+            level,
+            location: location.into(),
+            msg: Box::leak(msg.to_string().into_boxed_str()),
+            notes: Box::leak(notes.to_string().into_boxed_str()),
+        }
     }
 
-    let lev_str = match lev {
-        Level::Debug => "\x1b[36m[DEBUG]\x1b[0m",
-        Level::Ok    => "\x1b[32m[OK]\x1b[0m",
-        Level::Warn  => {unsafe{EXC.warns += 1}; "\x1b[33m[WARN]\x1b[0m" },
-        Level::Err   => {unsafe{EXC.errors += 1}; "\x1b[31m[ERR]\x1b[0m" },
-        Level::Fatal => "\x1b[31;1m[FATAL]\x1b[0m",
-        Level::WTF   => "\x1b[35;1m[WTF]\x1b[0m",
+    pub fn print(&self) {
+        if &self.level < unsafe{ARGS.log_level} { return; }
+
+        match self.location {
+            Some(loc) => match loc.span{
+                Some(span) => self.print_loc_span(loc, span),
+                None => self.print_loc(loc),
+            },
+            None => println!("{}{}\x1b[0m\x1b[1m: {}\x1b[0m", self.get_level_colour(), self.get_level_prefix(), self.msg),
+        }
+    }
+
+    pub fn print_all() {
+        unsafe{
+            LOGS.sort_by(|a, b| a.level.partial_cmp(&b.level).unwrap());
+            LOGS.iter().for_each(|log| log.print());
+        }
+        let errors = LOGS.iter().filter(|log| log.level == Level::Err).count();
+        let warns = LOGS.iter().filter(|log| log.level == Level::Warn).count();
+
+        match warns {
+            0 if errors > 0 => Log::new(Level::Err, None, format!("Could Not Compile, {} Errors Emmited", errors), "").print(),
+            0 => (),
+            _ if errors > 0 => Log::new(Level::Warn, None, format!("Could Not Compile, {} Errors and {} warnings Emmited", errors, warns), "").print(),
+            _ => Log::new(Level::Warn, None, format!("{} Warnings Emmited", warns), "").print(),
+        }
+
+        if errors > 0 {
+            std::process::exit(1);
+        }
+    }
+
+    fn print_loc(&self, loc: Location) {
+        let mut form = format!("{}{}\x1b[0m\x1b[1m: {}\x1b[0m\n- <{}>:{}\n\x1b[36m{} | \x1b[0m", self.get_level_colour(), self.get_level_prefix(), self.msg, loc.file, loc.line, loc.line);
+
+        let Some(line) = get_file_line(loc.file, &loc.line) else {
+            form.push_str("\x1b[31;1mNo source code available\x1b[0m");
+            println!("{}", form);
+            return;
+        };
+
+        form.push_str(line.trim());
+        form.push_str("\n\x1b[36m  | \x1b[0m");
+
+        form.push_str(self.get_level_colour().as_str());
+        (0..line.len()).for_each(|_| form.push('^'));
+        form.push(' ');
+        form.push_str(self.notes);
+        form.push_str("\x1b[0m");
+
+        println!("{}", form);
+    }
+
+    fn print_loc_span(&self, loc: Location, span: (usize, usize)) {
+        let mut form = format!("{}{}\x1b[0m\x1b[1m: {}\x1b[0m\n- <{}>:{}:{}\n\x1b[36m{} | \x1b[0m", self.get_level_colour(), self.get_level_prefix(), self.msg, loc.file, loc.line, span.0, loc.line);
+
+        let Some(line) = get_file_line(loc.file, &loc.line) else {
+            form.push_str("\x1b[31;1mNo source code available\x1b[0m");
+            println!("{}", form);
+            return;
+        };
+
+        form.push_str(line.trim());
+        form.push_str("\n\x1b[36m  | \x1b[0m");
+
+        form.push_str(self.get_level_colour().as_str());
+        (0..span.0).for_each(|_| form.push(' '));
+        (span.0..span.1).for_each(|_| form.push('^'));
+        form.push(' ');
+        form.push_str(self.notes);
+        form.push_str("\x1b[0m");
+
+        println!("{}", form);
+    }
+
+    fn get_level_prefix(&self) -> String {
+        match self.level {
+            Level::Debug => "[DEBUG]",
+            Level::Ok    => "[OK]",
+            Level::Warn  => "[WARN]",
+            Level::Err   => "[ERR]",
+            Level::Fatal => "[FATAL]",
+        }.to_string()
+    }
+
+    fn get_level_colour(&self) -> String {
+        match self.level {
+            Level::Debug => "\x1b[34m",
+            Level::Ok    => "\x1b[32m",
+            Level::Warn  => "\x1b[33m",
+            Level::Err   => "\x1b[31m",
+            Level::Fatal => "\x1b[31;1m",
+        }.to_string()
+    }
+}
+
+fn get_file_line(file: &str, line: &usize) -> Option<String> {
+    let Ok(cont) = std::fs::read_to_string(file) else {
+        return None;
     };
 
-    match at.into() {
-        Some(at) => println!("{lev_str} {at}: {msg}"),
-        None     => println!("{lev_str} {msg}"),
-    }
-
-    match lev {
-        Level::Fatal => std::process::exit(1),
-        Level::WTF   => log!(FATAL, "If you see this message something went TERRIBLY wrong, please report this"),
-        _            => (),
-    }
+    cont.lines().nth(line - 1).map(String::from)
 }
 
-pub unsafe fn check_err() {
-    if EXC.errors > 0 {
-        if EXC.warns > 0 {
-            log!(FATAL, "Could not Compile, {} Errors and {} Warnings emmited", EXC.errors, EXC.warns);
+#[macro_export]
+macro_rules! log {
+    (IMMEDIATE: $level:ident, $location:expr, $msg:expr, $notes:expr) => {
+        Log::new($level, $location, $msg, $notes).print();
+    };
+    (IMMEDIATE: $level:ident, $msg:expr, $notes:expr) => {
+        Log::new($level, None, $msg, $notes).print();
+    };
+    (IMMEDIATE: $level:ident, $msg:expr) => {
+        Log::new($level, None, $msg, "").print();
+    };
+    (IMMEDIATE: $msg:expr) => {
+        Log::new(Level::Ok, None, $msg, "").print();
+    };
+
+    (FATAL, $location:expr, $msg:expr, $notes:expr) => {
+        unsafe{
+            LOGS.push(Log::new(Level::Fatal, $location, $msg, $notes));
+            Log::print_all();
+            std::process::exit(1);
         }
-        log!(FATAL, "Could not Compile, {} Errors emmited", EXC.errors);
-    }
-}
+    };
+    (FATAL, $msg:expr, $notes:expr) => {
+        unsafe{
+            LOGS.push(Log::new(Level::Fatal, None, $msg, $notes));
+            Log::print_all();
+            std::process::exit(1);
+        }
+    };
+    (FATAL, $msg:expr) => {
+        unsafe{
+            LOGS.push(Log::new(Level::Fatal, None, $msg, ""));
+            Log::print_all();
+            std::process::exit(1);
+        }
+    };
 
-pub unsafe fn check_warn() {
-    if EXC.warns > 0 {
-        log!(WARN, "{} Warnings emmited", EXC.warns);
-    }
+
+    ($level:ident, $location:expr, $msg:expr, $notes:expr) => {
+        unsafe{LOGS.push(Log::new($level, $location, $msg, $notes))};
+    };
+    ($level:ident, $msg:expr, $notes:expr) => {
+        unsafe{LOGS.push(Log::new($level, None, $msg, $notes))};
+    };
+    ($level:ident, $msg:expr) => {
+        unsafe{LOGS.push(Log::new($level, None, $msg, ""))};
+    };
+    ($msg:expr) => {
+        unsafe{LOGS.push(Log::new(Level::Ok, None, $msg, ""))};
+    };
+
+
+    ($level:ident, fmt: $($fmt:tt)*) => {
+        unsafe{LOGS.push(Log::new($level, None, format!($($fmt)*, "")))};
+    };
+    (fmt: $($fmt:tt)*) => {
+        unsafe{LOGS.push(Log::new(Level::Ok, None, format!($($fmt)*, "")))};
+    };
 }

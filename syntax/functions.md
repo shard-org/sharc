@@ -1,5 +1,7 @@
 A function is an abstract self-contained block of code with a defined scope, name, beginning, and end.  
-DEVNOTE: This is an EXCEPTION to one of the core pillars (one that still doesnt sit right with me), do not use this as a precedent for other things.
+to preserve the sequential execution core pillar functions must be defined before any label in the program.
+
+this also means that you can have a "function file" akin to C's header files but just for functions
 
 to define one use:
 ```
@@ -24,3 +26,22 @@ to call one use:
 // or
 *add 1, 2
 ```
+
+additionally functions may have attributes:
+```
+|inline, ignore|
+@add x 2, y 2 -> 2 {
+    <- x + y
+}
+```
+
+## attributes
+
+### inline
+the inline attribute will cause the compiler to replace the function call with the function body, this is useful for small functions that are called often.
+
+### macro
+converts the function into a compiletime macro, making it vitrually the same as the `.mac` directive
+
+### ignore 
+ignores that it's unused

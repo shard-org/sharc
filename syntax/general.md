@@ -9,6 +9,7 @@ ret // return label
 @   // define function
 <-  // return function
 *   // call function
+|   // function attribute
 
 $   // call external
 
