@@ -41,7 +41,7 @@ additionally functions may have attributes:
 the inline attribute will cause the compiler to replace the function call with the function body, this is useful for small functions that are called often.
 
 ### macro
-converts the function into a compiletime macro, making it vitrually the same as the `.mac` directive
+converts the function into a compiletime macro. use `/` to call it
 
 ### ignore 
 ignores that it's unused

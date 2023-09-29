@@ -10,6 +10,7 @@ ret // return label
 <-  // return function
 *   // call function
 |   // function attribute
+/   // call macro function
 
 $   // call external
 
@@ -25,6 +26,7 @@ $   // call external
 
 =>  // conditional
 
+~   // negation
 ```
 
 # literals
@@ -85,7 +87,6 @@ All ASCII characters, including space, newline, and EOF.
 !=   // not_equal
 ->   // arrow_right
 <-   // arrow_left
-[]   // null_ptr
 ```
 
 ### keywords
@@ -94,3 +95,5 @@ ret  // return
 jmp  // jump
 ```
 
+# general rules
+all directives and functions must be defined before any label in the program.

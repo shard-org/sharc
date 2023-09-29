@@ -84,5 +84,5 @@ evaluated at compiletime
     (x + y)
 }
 
-/add 1, 2   // 3
+/add 1, 2   // (1 + 2)
 ```
