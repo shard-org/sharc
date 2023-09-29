@@ -10,7 +10,7 @@ macro_rules! add {
 }
 
 // TODO create an instruction enum thats architecture based and impl Display for it
-
+// FIXME this doesnt work with the current lexer/parser
 pub fn compiler((tokens, meta): (Vec<FatToken>, Metadata)) -> String {
     let mut o_ro = String::new();   // section .rodata
     let mut o_d = String::new();    // section .data
@@ -29,14 +29,15 @@ pub fn compiler((tokens, meta): (Vec<FatToken>, Metadata)) -> String {
         match token {
             Token::Label(name) => {
                 if labels.contains(&name) {
-                    log_at!(ERR, at, "Label `{}` already defined", name);
+                    // FIXME: Error Handling
+                    panic!("Label `{}` already defined", name);
                 }
                 labels.insert(name.clone());
                 add!(o_t, "{}:\n", name);
             },
 
             Token::Ret(r) => match r{
-                Some(r) => log_at!(FATAL, at, "returning with value not yet implemented"),
+                Some(r) => todo!("returning with value not yet implemented"),
                 None => add!(o_t, "ret\n"),
             },
 

@@ -10,7 +10,7 @@ Options:
 
   -o, --output    Specify the Output Binary
 
-  -l, --log={opt} Specify the Log Level {none, fatal, err, warn, info, debug}
+  -l, --log={opt} Specify the Log Level {fatal, err, warn, info, debug}
   -q, --quiet     log level = err
   -v, --verbose   log level = info
   -d, --debug     log level = debug
@@ -26,7 +26,7 @@ pub const VERSION: &str = "onyx 0.1.0";
 pub struct Args {
     pub infile:  &'static str,
     pub outfile: &'static str,
-    pub asm:   bool,
+    pub asm:     bool,
     pub log_level: Level,
     pub noclean: bool,
 }
@@ -35,7 +35,7 @@ pub struct Args {
 pub static mut ARGS: Args = Args {
     infile:  "",
     outfile: "output",
-    asm:   false,
+    asm:     false,
     log_level: Level::Fatal,
     noclean: false,
 };
@@ -45,7 +45,7 @@ pub fn parse() {
 
     match args.nth(0) {
         Some(arg) => unsafe{ARGS.infile = Box::leak(arg.into_boxed_str())},
-        None => log!(FATAL, "Missing input file!"),
+        None => log!(FATAL, "Missing input file!").push(),
     }
 
     while let Some(arg) = args.next() {
@@ -59,43 +59,42 @@ pub fn parse() {
                 std::process::exit(0);
             },
             c if c.starts_with("-l") || c.starts_with("--log") => {
-                if let Some((_, lev)) = arg.split_once('=') {
-                    match lev.as_str() {
+                if let Some((_, level)) = arg.split_once('=') {
+                    match level {
                         "none" => unsafe { ARGS.log_level = Level::None },
-                        "fatal" => unsafe { ARGS.log_level = Level::Fatal },
                         "err" => unsafe { ARGS.log_level = Level::Err },
                         "warn" => unsafe { ARGS.log_level = Level::Warn },
-                        "info" => unsafe { ARGS.log_level = Level::Info },
+                        "info" => unsafe { ARGS.log_level = Level::Ok },
                         "debug" => unsafe { ARGS.log_level = Level::Debug },
-                        _ => log!(FATAL, "Invalid Log Level: {}", level),
+                        _ => log!(FATAL, "Invalid Log Level: {}", level).push(),
                     }
                 } else {
-                    log!(FATAL, "expected `=` after the {} flag", arg);
+                    log!(FATAL, "expected `=` after the {} flag", arg).push();
                 }
             },
             "--debug" | "-d" => unsafe { ARGS.log_level = Level::Debug },
             "--quiet" | "-q" => unsafe { ARGS.log_level = Level::Err },
-            "--verbose" | "-v" => unsafe { ARGS.log_level = Level::Info },
+            "--verbose" | "-v" => unsafe { ARGS.log_level = Level::Ok },
             "--noclean" | "-t" => unsafe { ARGS.noclean = true },
             "--asm" | "-A" => unsafe { ARGS.asm = true },
             "--output" | "-o" => {
                 if let Some(outfile) = args.next() {
                     unsafe { ARGS.outfile = Box::leak(outfile.into_boxed_str()) };
                 } else {
-                    log!(FATAL, "Missing output file argument after the output flag");
+                    log!(FATAL, "Missing output file argument after the output flag").push();
                 }
             },
             "--arch" | "-a" => {
                 if let Some(arch) = args.next() {
                     match arch.as_str() {
                         "x86_64" => todo!(),
-                        _ => log!(FATAL, "Invalid Architecture: {}", arch),
+                        _ => log!(FATAL, "Invalid Architecture: {}", arch).push(),
                     }
                 } else {
-                    log!(FATAL, "Missing architecture argument after the arch flag");
+                    log!(FATAL, "Missing architecture argument after the arch flag").push();
                 }
             },
-            arg => log!(FATAL, "Invalid Argument: {}", arg),
+            arg => log!(FATAL, "Invalid Argument: {}", arg).push(),
         }
     }
 }

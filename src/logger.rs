@@ -1,27 +1,20 @@
 use super::*;
 use std::fmt::Display;
 
-// FIXME: remove this, this is just a placeholder
-#[derive(Clone, Copy, Debug)]
-pub struct Location {
-    span: Option<(usize, usize)>,
-    file: &'static str,
-    line: usize,
-}
-
-
 pub const DEBUG: Level = Level::Debug;
 pub const OK: Level = Level::Ok;
 pub const WARN: Level = Level::Warn;
 pub const ERR: Level = Level::Err;
+pub const FATAL: Level = Level::Fatal;
 
-#[derive(Debug, PartialEq, PartialOrd)]
+#[derive(Debug, PartialEq, PartialOrd, Clone)]
 pub enum Level {
     Debug, // cyan
     Ok,    // green
     Warn,  // yellow
     Err,   // red
     Fatal, // red, bold
+    None,  // reserved by the args parser
 }
 
 #[derive(Debug)]
@@ -44,8 +37,10 @@ impl Log {
         }
     }
 
+    //
+    // general
     pub fn print(&self) {
-        if &self.level < unsafe{ARGS.log_level} { return; }
+        if &self.level < unsafe{&ARGS.log_level} { return; }
 
         match self.location {
             Some(loc) => match loc.span{
@@ -54,8 +49,23 @@ impl Log {
             },
             None => println!("{}{}\x1b[0m\x1b[1m: {}\x1b[0m", self.get_level_colour(), self.get_level_prefix(), self.msg),
         }
+
+        if self.level == Level::Fatal {
+            Self::handle_fatal();
+        }
     }
 
+    pub fn push(self) {
+        let level = self.level.clone();
+        unsafe{ LOGS.push(self); }
+
+        if level == Level::Fatal {
+            Self::handle_fatal();
+        }
+    }
+
+    //
+    // specific
     pub fn print_all() {
         unsafe{
             LOGS.sort_by(|a, b| a.level.partial_cmp(&b.level).unwrap());
@@ -76,6 +86,20 @@ impl Log {
         }
     }
 
+    pub fn print_all_checked() {
+        if LOGS.iter().filter(|log| log.level == Level::Err).count() > 0 {
+            Self::print_all();
+        }
+    }
+
+    //
+    // internal
+    fn handle_fatal() {
+        Log::print_all();
+        println!("\x1b[31;1mEXITING!\x1b[0m");
+        std::process::exit(1);
+    }
+    
     fn print_loc(&self, loc: Location) {
         let mut form = format!("{}{}\x1b[0m\x1b[1m: {}\x1b[0m\n- <{}>:{}\n\x1b[36m{} | \x1b[0m", self.get_level_colour(), self.get_level_prefix(), self.msg, loc.file, loc.line, loc.line);
 
@@ -126,6 +150,7 @@ impl Log {
             Level::Warn  => "[WARN]",
             Level::Err   => "[ERR]",
             Level::Fatal => "[FATAL]",
+            _ => unreachable!(),
         }.to_string()
     }
 
@@ -136,6 +161,7 @@ impl Log {
             Level::Warn  => "\x1b[33m",
             Level::Err   => "\x1b[31m",
             Level::Fatal => "\x1b[31;1m",
+            _ => unreachable!(),
         }.to_string()
     }
 }
@@ -150,60 +176,10 @@ fn get_file_line(file: &str, line: &usize) -> Option<String> {
 
 #[macro_export]
 macro_rules! log {
-    (IMMEDIATE: $level:ident, $location:expr, $msg:expr, $notes:expr) => {
-        Log::new($level, $location, $msg, $notes).print();
+    ($level:ident, $($fmt:tt)*) => {
+        Log::new($level, None, format!($($fmt)*), "")
     };
-    (IMMEDIATE: $level:ident, $msg:expr, $notes:expr) => {
-        Log::new($level, None, $msg, $notes).print();
-    };
-    (IMMEDIATE: $level:ident, $msg:expr) => {
-        Log::new($level, None, $msg, "").print();
-    };
-    (IMMEDIATE: $msg:expr) => {
-        Log::new(Level::Ok, None, $msg, "").print();
-    };
-
-    (FATAL, $location:expr, $msg:expr, $notes:expr) => {
-        unsafe{
-            LOGS.push(Log::new(Level::Fatal, $location, $msg, $notes));
-            Log::print_all();
-            std::process::exit(1);
-        }
-    };
-    (FATAL, $msg:expr, $notes:expr) => {
-        unsafe{
-            LOGS.push(Log::new(Level::Fatal, None, $msg, $notes));
-            Log::print_all();
-            std::process::exit(1);
-        }
-    };
-    (FATAL, $msg:expr) => {
-        unsafe{
-            LOGS.push(Log::new(Level::Fatal, None, $msg, ""));
-            Log::print_all();
-            std::process::exit(1);
-        }
-    };
-
-
-    ($level:ident, $location:expr, $msg:expr, $notes:expr) => {
-        unsafe{LOGS.push(Log::new($level, $location, $msg, $notes))};
-    };
-    ($level:ident, $msg:expr, $notes:expr) => {
-        unsafe{LOGS.push(Log::new($level, None, $msg, $notes))};
-    };
-    ($level:ident, $msg:expr) => {
-        unsafe{LOGS.push(Log::new($level, None, $msg, ""))};
-    };
-    ($msg:expr) => {
-        unsafe{LOGS.push(Log::new(Level::Ok, None, $msg, ""))};
-    };
-
-
-    ($level:ident, fmt: $($fmt:tt)*) => {
-        unsafe{LOGS.push(Log::new($level, None, format!($($fmt)*, "")))};
-    };
-    (fmt: $($fmt:tt)*) => {
-        unsafe{LOGS.push(Log::new(Level::Ok, None, format!($($fmt)*, "")))};
+    ($($fmt:tt)*) => {
+        Log::new(Level::Ok, None, format!($($fmt)*), "")
     };
 }
