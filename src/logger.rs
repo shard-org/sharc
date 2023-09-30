@@ -1,4 +1,5 @@
 use super::*;
+use crate::location::{Location, Span};
 use std::fmt::Display;
 
 pub const DEBUG: Level = Level::Debug;
@@ -19,19 +20,19 @@ pub enum Level {
 
 #[derive(Debug)]
 pub struct Log {
-    level:    Level,        // Level::Err
-    location: Option<Span>, // Some(Location { span: Some((4, 4)), file: "main.shd", line: 5 })
-    msg:      &'static str, // "Missmatched Parenthesis"
-    notes:    &'static str, // "Expected ')' but found '}'"
+    level: Level,        // Level::Err
+    span:  Option<Span>, // Some(Location { span: Some((4, 4)), file: "main.shd", line: 5 })
+    msg:   &'static str, // "Missmatched Parenthesis"
+    notes: &'static str, // "Expected ')' but found '}'"
 }
 
 static mut LOGS: Vec<Log> = Vec::new();
 
 impl Log {
-    pub fn new<T: Into<Option<Span>>, M: Display, W: Display>(level: Level, location: T, msg: M, notes: W) -> Self{
+    pub fn new<T: Into<Option<Span>>, M: Display, W: Display>(level: Level, span: T, msg: M, notes: W) -> Self{
         Self {
             level,
-            location: location.into(),
+            span: span.into(),
             msg: Box::leak(msg.to_string().into_boxed_str()),
             notes: Box::leak(notes.to_string().into_boxed_str()),
         }
@@ -73,18 +74,12 @@ impl Log {
                     _ if errors > 0 => Log::new(Level::Warn, None, format!("Could Not Compile, {} Errors and {} warnings Emmited", errors, warns), "").print(),
                     _ => Log::new(Level::Warn, None, format!("{} Warnings Emmited", warns), "").print(),
                 }
-
-                if errors > 0 {
-                    std::process::exit(1);
-                }
             }
-        }
-    }
 
-    pub fn print_all_checked() {
-        unsafe {
-            if LOGS.iter().filter(|log| log.level == Level::Err).count() > 0 {
-                Self::print_all();
+            LOGS.clear();
+
+            if errors > 0 {
+                std::process::exit(1);
             }
         }
     }
@@ -92,10 +87,10 @@ impl Log {
     //
     // internal
     fn print_internal(&self) {
-        if &self.level < unsafe{ARGS.log_level} { return; }
+        if &self.level < unsafe{&ARGS.log_level} { return; }
 
-        match self.location {
-            Some(loc) => self.print_highlighted(loc),
+        match self.span {
+            Some(span) => self.print_highlighted(span),
             None => match self.notes.is_empty() {
                 false => println!("{}{}\x1b[0m\x1b[1m: {}\x1b[0m: {}", 
                     self.get_level_colour(),
@@ -118,19 +113,19 @@ impl Log {
         std::process::exit(1);
     }
     
-    fn print_highlighted(&self, loc: Span) {
-        let mut form = format!("{}{}\x1b[0m\x1b[1m: {}\x1b[0m\n- <{}>:{}:{}\n\x1b[36m{} | \x1b[0m", 
+    fn print_highlighted(&self, span: Span) {
+        let mut form = format!("{}{}\x1b[0m\x1b[1m: {}\x1b[0m\n- <{}>{}:{}\n\x1b[36m{} | \x1b[0m", 
             self.get_level_colour(),
             self.get_level_prefix(),
             self.msg,
-            loc.0,
-            loc.1.line,
-            loc.1.column,
-            loc.1.line
+            span.0,
+            span.1.line,
+            span.1.column,
+            span.1.line
         );
 
         // gets only one line
-        let Some(line) = get_file_line(loc.0, &loc.1.line) else {
+        let Some(line) = get_file_line(span.0, &span.1.line) else {
             form.push_str("\x1b[31;1mNo source code available\x1b[0m");
             println!("{}", form);
             return;
@@ -140,8 +135,8 @@ impl Log {
         form.push_str("\n\x1b[36m  | \x1b[0m");
 
         form.push_str(self.get_level_colour().as_str());
-        (0..loc.1.column).for_each(|_| form.push(' '));
-        (loc.1.column..loc.2.column).for_each(|_| form.push('^'));
+        (1..span.1.column).for_each(|_| form.push(' '));
+        (span.1.column..span.2.column).for_each(|_| form.push('^'));
         form.push(' ');
         form.push_str(self.notes);
         form.push_str("\x1b[0m");
