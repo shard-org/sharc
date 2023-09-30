@@ -21,7 +21,7 @@ pub enum Level {
 #[derive(Debug)]
 pub struct Log {
     level: Level,        // Level::Err
-    span:  Option<Span>, // Some(Location { span: Some((4, 4)), file: "main.shd", line: 5 })
+    span:  Option<Span>, // Some(Span { span: Some((4, 4)), file: "main.shd", line: 5 })
     msg:   &'static str, // "Missmatched Parenthesis"
     notes: &'static str, // "Expected ')' but found '}'"
 }
@@ -136,7 +136,7 @@ impl Log {
 
         form.push_str(self.get_level_colour().as_str());
         (1..span.1.column).for_each(|_| form.push(' '));
-        (span.1.column..span.2.column).for_each(|_| form.push('^'));
+        (span.1.column..=span.2.column).for_each(|_| form.push('^'));
         form.push(' ');
         form.push_str(self.notes);
         form.push_str("\x1b[0m");
