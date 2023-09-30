@@ -61,11 +61,11 @@ its a struct
     4 fiz  // 4 bytes
 }
 
-main:
-%some_var ? = Foo 
-'[some_var.bar] = 20
-'[some_var.baz] = 1
-'[some_var.fiz] = 10
+#main
+    %some_var Foo = { 20, 1, 10 }
+    '[some_var.bar] = 20
+    '[some_var.baz] = 1
+    '[some_var.fiz] = 10
 ```
 
 to access diff fields use `.` like indexing arrays

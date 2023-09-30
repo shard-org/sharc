@@ -3,8 +3,16 @@ creating an array gives the pointer to the first element, cannot store them in r
 to create one, either:
 ```
 %bar 1:12 = "hello world"   // 12 byte array from string
-%bar 2:4 = {1, 2, 4, 5}    // 4 element array from arbitrary data, 2 byte each
+%bar 4:2 = {1, 2, 4, 5}    // 4 element array from arbitrary data, 2 byte each
 ```
+
+the first number is the num of elements, the second is the size of each element
+the num of elements may be ommited to represent arbitrary continous data
+```
+// like this:
+%bar :68 = 0*     // 4 element array from arbitrary data, 1 byte each
+```
+the 0 suffxed with * means to fill the entire array with 0s
 
 ```
 [array.0]   // first element

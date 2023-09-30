@@ -19,16 +19,16 @@ pub enum Level {
 
 #[derive(Debug)]
 pub struct Log {
-    level:    Level,            // Level::Err
-    location: Option<Location>, // Some(Location { span: Some((4, 4)), file: "main.shd", line: 5 })
-    msg:      &'static str,     // "Missmatched Parenthesis"
-    notes:    &'static str,     // "Expected ')' but found '}'"
+    level:    Level,        // Level::Err
+    location: Option<Span>, // Some(Location { span: Some((4, 4)), file: "main.shd", line: 5 })
+    msg:      &'static str, // "Missmatched Parenthesis"
+    notes:    &'static str, // "Expected ')' but found '}'"
 }
 
 static mut LOGS: Vec<Log> = Vec::new();
 
 impl Log {
-    pub fn new<T: Into<Option<Location>>, M: Display, W: Display>(level: Level, location: T, msg: M, notes: W) -> Self{
+    pub fn new<T: Into<Option<Span>>, M: Display, W: Display>(level: Level, location: T, msg: M, notes: W) -> Self{
         Self {
             level,
             location: location.into(),
@@ -92,29 +92,45 @@ impl Log {
     //
     // internal
     fn print_internal(&self) {
-        if &self.level < unsafe{&ARGS.log_level} { return; }
+        if &self.level < unsafe{ARGS.log_level} { return; }
 
         match self.location {
-            Some(loc) => match loc.span{
-                Some(span) => self.print_loc_span(loc, span),
-                None => self.print_loc(loc),
-            },
+            Some(loc) => self.print_highlighted(loc),
             None => match self.notes.is_empty() {
-                false => println!("{}{}\x1b[0m\x1b[1m: {}\x1b[0m: {}", self.get_level_colour(), self.get_level_prefix(), self.msg, self.notes),
-                true => println!("{}{}\x1b[0m\x1b[1m: {}\x1b[0m", self.get_level_colour(), self.get_level_prefix(), self.msg),
+                false => println!("{}{}\x1b[0m\x1b[1m: {}\x1b[0m: {}", 
+                    self.get_level_colour(),
+                    self.get_level_prefix(),
+                    self.msg,
+                    self.notes
+                ),
+                true => println!("{}{}\x1b[0m\x1b[1m: {}\x1b[0m",
+                    self.get_level_colour(),
+                    self.get_level_prefix(),
+                    self.msg
+                ),
             },
         }
     }
+
     fn handle_fatal() {
         Log::print_all();
         println!("\x1b[31;1mEXITING!!!\x1b[0m");
         std::process::exit(1);
     }
     
-    fn print_loc(&self, loc: Location) {
-        let mut form = format!("{}{}\x1b[0m\x1b[1m: {}\x1b[0m\n- <{}>:{}\n\x1b[36m{} | \x1b[0m", self.get_level_colour(), self.get_level_prefix(), self.msg, loc.file, loc.line, loc.line);
+    fn print_highlighted(&self, loc: Span) {
+        let mut form = format!("{}{}\x1b[0m\x1b[1m: {}\x1b[0m\n- <{}>:{}:{}\n\x1b[36m{} | \x1b[0m", 
+            self.get_level_colour(),
+            self.get_level_prefix(),
+            self.msg,
+            loc.0,
+            loc.1.line,
+            loc.1.column,
+            loc.1.line
+        );
 
-        let Some(line) = get_file_line(loc.file, &loc.line) else {
+        // gets only one line
+        let Some(line) = get_file_line(loc.0, &loc.1.line) else {
             form.push_str("\x1b[31;1mNo source code available\x1b[0m");
             println!("{}", form);
             return;
@@ -124,29 +140,8 @@ impl Log {
         form.push_str("\n\x1b[36m  | \x1b[0m");
 
         form.push_str(self.get_level_colour().as_str());
-        (0..line.len()).for_each(|_| form.push('^'));
-        form.push(' ');
-        form.push_str(self.notes);
-        form.push_str("\x1b[0m");
-
-        println!("{}", form);
-    }
-
-    fn print_loc_span(&self, loc: Location, span: (usize, usize)) {
-        let mut form = format!("{}{}\x1b[0m\x1b[1m: {}\x1b[0m\n- <{}>:{}:{}\n\x1b[36m{} | \x1b[0m", self.get_level_colour(), self.get_level_prefix(), self.msg, loc.file, loc.line, span.0, loc.line);
-
-        let Some(line) = get_file_line(loc.file, &loc.line) else {
-            form.push_str("\x1b[31;1mNo source code available\x1b[0m");
-            println!("{}", form);
-            return;
-        };
-
-        form.push_str(line.trim());
-        form.push_str("\n\x1b[36m  | \x1b[0m");
-
-        form.push_str(self.get_level_colour().as_str());
-        (0..span.0).for_each(|_| form.push(' '));
-        (span.0..span.1).for_each(|_| form.push('^'));
+        (0..loc.1.column).for_each(|_| form.push(' '));
+        (loc.1.column..loc.2.column).for_each(|_| form.push('^'));
         form.push(' ');
         form.push_str(self.notes);
         form.push_str("\x1b[0m");
