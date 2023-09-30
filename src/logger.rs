@@ -141,7 +141,7 @@ impl Log {
         form.push_str(self.notes);
         form.push_str("\x1b[0m");
 
-        println!("{}", form);
+        println!("{}\n", form);
     }
 
     fn get_level_prefix(&self) -> String {
