@@ -32,23 +32,44 @@ include a file or a library.
 
 
 # con - constant
-a read only variable integrated into the final binary, gives a pointer
+a block for read only data, labels within allowed, gives a pointer
 ```
-.con TEN 4 = 10 
-
-(1 + [TEN]) // 11
+.con {
+    8   FOO = 10
+#test
+    3:8 BAR = { 1, 2, 3 }
+}
 ```
 
-
-# dat - data
-basically a static var
+in a case when only one variable is needed it can be done inline:
 ```
-.dat FOO 8 = 20
+.con FOO 8 = 10
 ```
 
 it doesnt need a value, in which case it will be initialized to null  
 ```
-.dat foo 8
+.con FOO 8
+```
+
+
+# dat - data
+a block for static data, labels within allowed, gives a pointer
+```
+.dat {
+    8   FOO = 10
+#test
+    3:8 BAR = { 1, 2, 3 }
+}
+```
+
+in a case when only one variable is needed it can be done inline:
+```
+.dat FOO 8 = 10
+```
+
+it doesnt need a value, in which case it will be initialized to null  
+```
+.dat FOO 8
 ```
 
 
@@ -62,13 +83,15 @@ its a struct
 }
 
 #main
+// use the struct name in place of the type
     %some_var Foo = { 20, 1, 10 }
+
+// to access fields use `.` like indexing arrays
     '[some_var.bar] = 20
     '[some_var.baz] = 1
     '[some_var.fiz] = 10
 ```
 
-to access diff fields use `.` like indexing arrays
 
 
 # .txt - text

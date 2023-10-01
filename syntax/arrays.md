@@ -12,7 +12,6 @@ the num of elements may be ommited to represent arbitrary continous data
 // like this:
 %bar :68 = 0*     // 4 element array from arbitrary data, 1 byte each
 ```
-the 0 suffxed with * means to fill the entire array with 0s
 
 ```
 [array.0]   // first element
