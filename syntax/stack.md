@@ -16,7 +16,7 @@ to just reserve the space without assigning a var:
 ```
 %foo 4       // for 1, 2, 4, 8 byte vars
 %foo 2:8     // for arrays, 2 elements, 8 bytes
-'r$ + 50     // move the stack pointer by 50 bytes
+'rsb + 50     // move the stack pointer by 50 bytes
 ```
 
 stack operations:

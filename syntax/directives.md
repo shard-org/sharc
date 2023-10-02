@@ -36,7 +36,7 @@ a block for read only data, labels within allowed, gives a pointer
 ```
 .con {
     8   FOO = 10
-#test
+test:
     3:8 BAR = { 1, 2, 3 }
 }
 ```
@@ -57,7 +57,7 @@ a block for static data, labels within allowed, gives a pointer
 ```
 .dat {
     8   FOO = 10
-#test
+test:
     3:8 BAR = { 1, 2, 3 }
 }
 ```
@@ -82,16 +82,15 @@ its a struct
     4 fiz  // 4 bytes
 }
 
-#main
+main:
 // use the struct name in place of the type
     %some_var Foo = { 20, 1, 10 }
 
-// to access fields use `.` like indexing arrays
-    '[some_var.bar] = 20
-    '[some_var.baz] = 1
-    '[some_var.fiz] = 10
+// to access fields use `#` after the variable name
+    '[some_var#bar] = 20
+    '[some_var#baz] = 1
+    '[some_var#fiz] = 10
 ```
-
 
 
 # .txt - text

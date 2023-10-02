@@ -23,9 +23,9 @@ keep in mind this is the ONLY exception to the rule of sequential execution, the
 
 to call one use:
 ```
-*hello
+#hello
 // or
-*add 1, 2
+#add 1, 2
 ```
 
 additionally functions may have attributes:

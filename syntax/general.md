@@ -1,19 +1,17 @@
 ```
-.   // directive
+.   // directive, indexing arrays
 
-#   // define label
+:   // define label, arrays sizing
 jmp // jump label
 !   // call label
 ret // return label
 
 @   // define function
-<-  // return function
-*   // call function
-|   // function attribute
-/   // call macro function
 end // return from a function
-
-$   // call external
+#   // call function, indexing structs
+|   // function attribute, or
+/   // call macro function
+$   // call external function
 
 '   // mutations
 ;   // register assignment
