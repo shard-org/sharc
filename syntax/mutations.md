@@ -10,7 +10,7 @@ changes the 1st arg (foo), optionally using the 2nd arg (bar) as a value
 'foo : bar   // same as '[foo] = [bar]
 'foo < 20    // shift foo left by 20
 'foo > 20    // shift foo right by 20
-'foo ! bar   // not bar and store in foo
+'foo ~ bar   // not bar and store in foo
 'foo ++      // increment foo
 'foo --      // decrement foo
 'foo _       // pop stack into foo
