@@ -1,8 +1,8 @@
 use super::*;
 
 pub const HELP: &str = 
-"shdc - Compiler for the Shard Programming Language
-Usage: shdc <input_file> [OPTIONS]
+"shard - Compiler for the Shard Programming Language
+Usage: shard <input_file> [OPTIONS]
 
 Options:
   -h, --help      This Message
@@ -19,8 +19,6 @@ Options:
 
   -t, --noclean   Keep Temp Files
   -A, --asm       Compile to Assembly Only";
-
-pub const VERSION: &str = "onyx 0.1.0";
 
 #[derive(Debug)]
 pub struct Args {
@@ -55,7 +53,7 @@ pub fn parse() {
                 std::process::exit(0);
             },
             "--version" | "-V" => {
-                println!("{}", VERSION);
+                println!("{}", env!("CARGO_PKG_VERSION"));
                 std::process::exit(0);
             },
             c if c.starts_with("-l") || c.starts_with("--log") => {

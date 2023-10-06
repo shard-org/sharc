@@ -13,6 +13,8 @@ the num of elements may be ommited to represent arbitrary continous data
 %bar :68 = 0*     // 4 element array from arbitrary data, 1 byte each
 ```
 
+`0*` means "fill with zeros", so each byte will be set to 0
+
 ```
 [array.0]   // first element
 [array.1]   // second element

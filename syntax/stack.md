@@ -28,4 +28,3 @@ stack operations:
 
 ok the first line was a lie, you *can* allocate unknown size vars to the stack. Not saying you *should* but you *can*.   
 Let me make this *very* clear, you will need to manually free the memory afterwards, the compiler won't do it for you.   
-if you dont.. well you dont want to find out  

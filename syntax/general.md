@@ -17,7 +17,7 @@ $   // call external function
 ;   // register assignment
 %   // stack assignment
 
-&   // syscall
+*   // syscall
 
 ()  // math and logic expression
 []  // dereference, may do math and logic within
@@ -30,9 +30,9 @@ $   // call external function
 
 # literals
 ```
-"hello"   // string ptr
+"hello"   // string
 `c`       // char
-{1, 3, 4} // array ptr
+{1, 3, 4} // array, or struct
 20        // int
 b1010     // binary
 0x0a      // hex
