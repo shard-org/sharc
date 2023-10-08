@@ -30,6 +30,10 @@ include a file or a library.
 .inc std.io.prtl     // the prtl function from the io module from the std library
 ```
 
+# ginc - global include
+include a file or library globally, meaning it will be included for all files in the project.
+this directive may only be used in the root file.
+
 
 # con - constant
 a block for read only data, labels within allowed, gives a pointer
