@@ -23,23 +23,24 @@ for **contributing** ^^^
 
 ## Hello World
 ```
-#main
+main:
     $puts "Hello World"
-    &ext 0
+    *exit 0
 ```
 
 ## Fibonacci
 ```
-@fib n 2 -> [:1] {
-    (n < 1) => end "Invalid Number of Terms!\0"
-    (n = 1) => end "0\0"
-    (n = 2) => end "0 1\0"
+main:
+    %n 2 = 9
+    (n < 1) => $puts "Invalid Number of Terms!\0"
+    (n = 1) => $puts "0\0"
+    (n = 2) => $puts "0 1\0"
 
     %arg1 2 = 1
     %arg2 2 = 0
 
-#loop
-    ;temp = ([arg1] + [arg2])
+loop:
+    ;temp r3 = ([arg1] + [arg2])
 
     'arg2 : arg1
     'arg1 : temp
@@ -48,11 +49,7 @@ for **contributing** ^^^
     'n --
     (n > 0) => jmp loop
 
-    end "Done!\0"
-}
-
-#main
-    $puts <- *fib 9
-    &ext 0
+    $puts "Done!\0"
+    ret
 ```
 
