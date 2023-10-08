@@ -35,9 +35,8 @@ include a file or a library.
 a block for read only data, labels within allowed, gives a pointer
 ```
 .con {
-    8   FOO = 10
-test:
-    3:8 BAR = { 1, 2, 3 }
+    FOO: 8 = 10
+    BAR: 3:8 = { 1, 2, 3 }
 }
 ```
 
@@ -53,12 +52,11 @@ it doesnt need a value, in which case it will be initialized to null
 
 
 # dat - data
-a block for static data, labels within allowed, gives a pointer
+a block for static data
 ```
 .dat {
-    8   FOO = 10
-test:
-    3:8 BAR = { 1, 2, 3 }
+    FOO: 8 = 10
+    BAR: 3:8 = { 1, 2, 3 }
 }
 ```
 
@@ -77,9 +75,9 @@ it doesnt need a value, in which case it will be initialized to null
 its a struct
 ```
 .str Foo {
-    8 bar  // 8 bytes
-    1 baz  // 1 byte 
-    4 fiz  // 4 bytes
+    bar: 8  // 8 bytes
+    baz: 1  // 1 byte 
+    fiz: 4 // 4 bytes
 }
 
 main:
@@ -97,14 +95,4 @@ main:
 inserts text into the binary. This is done through creating a constant but ignoring the pointer to it.
 ```
 .txt "Hello World!"
-```
-
-# .mac - macro
-evaluated at compiletime
-```
-.mac add x, y {
-    (x + y)
-}
-
-/add 1, 2   // (1 + 2)
 ```
