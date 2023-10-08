@@ -27,7 +27,7 @@ STMT := Mutation | Label | Jmp | End | Ret | FnCall | ExternFnCall | MacroCall |
 EXPR := FnCall | ExternFnCall | MacroCall | SysCall | IDENT | Deref | ArrIndex | StrucIndex | MathBlock | LIT | Fill
 LIT := INT | STR | CHAR | ARR
 
-DATBLOCK := '{' WS? NL (Label Type ('=' IDENT)? NL)* '}'
+DATABLOCK := '{' WS? NL (Label? Type ('=' IDENT)? NL)* '}'
 BLOCK := '{' WS? NL STMT* NL '}'
 BODY := (EXPR? (WS? ',' WS? EXPR)?)
 
@@ -56,7 +56,7 @@ SysCall := '*' IDENT BODY
 Type := SIZE | (DECNUM? ':' DECNUM) | IDENT | ('[' SIZE | (DECNUM? ':' DECNUM) ']')
 Fill := (INT | CHAR) '*'
 
-Directive := '.' DIRNAME IDENT? (WS? ',' WS? IDENT)? DATBLOCK?
+Directive := '.' DIRNAME IDENT? (WS? ',' WS? IDENT)? DATABLOCK?
 
 RegAssign := ';' IDENT WS REGISTER WS? = WS? EXPR
 StackAssign := '%' IDENT WS Type WS? = WS? EXPR
