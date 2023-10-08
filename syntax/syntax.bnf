@@ -19,7 +19,7 @@ DIRNAME := 'def' | 'ent' | 'inc' | 'con' | 'dat' | 'str' | 'txt'
 ATTRNAME := 'ignore' | 'macro' | 'inline'
 
 
-IDENT := (ALPHABETIC | _) (ALPHANUMERIC | _ )*
+IDENT := (ALPHABETIC | '_') (ALPHANUMERIC | '_')*
 
 HEADERSTMT := Directive | Fn
 STMT := Mutation | Label | Jmp | End | Ret | FnCall | ExternFnCall | MacroCall | RegAssign | StackAssign | Conditional

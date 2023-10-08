@@ -40,8 +40,5 @@ create a var called "foo" and have it occupy the r1 register
 ;r1 foo = 20
 ```
 
-the register name may be ommited, in which case the compiler will just choose a one thats availble. ( for syscall returns this will always be r1 )
-This is not recommended as if all registers are full the compiler will throw an error, and it may lead to undefined behaviour  
-
 trust you are fully aware of the implications of using bare registers in your code.  
 when able use the stack and heap and let the compiler handle the register allocation.
