@@ -25,7 +25,7 @@ for **contributing** ^^^
 ```
 main:
     $puts "Hello World"
-    *exit 0
+    ret
 ```
 
 ## Fibonacci
