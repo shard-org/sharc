@@ -3,7 +3,7 @@ name = "shard"
 version = "0.1.0"
 edition = "2021"
 description = "A compiler for the Shard programming language."
-license = "MIT"
+license = "GPL-3"
 repository = "https://github.com/anthonysSlab/shard"
 
 
