@@ -1,0 +1,88 @@
+// comments have been ommited from this document, they follow the general "c style" ("//" & "/*" "*/")
+// 0..9  means "any number from 0 to 9"
+// 0..9^7 means "any number from 0 to 9 except 7
+// assume statements are preceded by `WS?` and end with `WS? NL`
+
+// ESCASCIICHAR is any ascii character + escape sequences for some like newline
+
+// newline
+NL := (\n | \r\n)+
+
+// whitespace
+WS := (' ' | \t)+
+
+
+// defs
+SIZE := '1' | '2' | '4' | '8'
+REGSIZE := 'l' | 'h' | 'w' | 'd' | 'q'
+ATTRNAME := 'ignore' | 'macro' | 'inline'
+
+IDENT := (ALPHANUMERIC | '_')*
+
+STMT := Mutation | Label | Jmp | End | Ret | FnCall | ExternFnCall | MacroCall | RegAssign | StackAssign | Conditional | Directive
+
+EXPR := FnCall | ExternFnCall | MacroCall | SysCall | IDENT | Deref | ArrIndex | StrucIndex | MathBlock | LIT | Fill
+LIT := INT | STR | CHAR | ARR
+
+DATABLOCK := '{' WS? NL (Label? Type ('=' IDENT)? NL)* '}'
+BLOCK := '{' WS? NL STMT* NL '}'
+BODY := (EXPR? (WS? ',' WS? EXPR)?)
+
+Deref := '[' MathExpr ']'
+MathBlock '~'? '(' MathExpr ')'
+
+MathExpr := (MathExpr | EXPR) WS? (BinaryOp WS? (MathExpr | EXPR))?
+
+BinaryOp := '+' | '-' | '*' | '/' | '~' | '|' | '&' | '&&' | '||' | '^^' | '^' | '>' | '<' | '=' | '~=' | ':' | '%'
+
+MutateOp := '+' | '-' | '*' | '/' | '~' | '|' | '&' | '^' | '>' | '<' | '=' | ':' | '%' | '++' | '--' | '?' | '_'
+
+Label := IDENT ':'
+Jmp := 'jmp' WS EXPR
+End := 'end' WS EXPR
+ret := 'ret'
+
+FnAttr := '|' WS? ATTRNAME (',' ATTRNAME)* WS? '|'
+FnDefArg := IDENT WS Type WS
+Fn := FnAttr NL '@' IDENT WS FnDefArg (',' FnDefArg)* '->' Type BLOCK
+
+FnCall := '#' IDENT BODY | ('<-' EXPR)
+ExternFnCall := '$' IDENT BODY | ('<-' EXPR)
+MacroCall := '/' IDENT IDENT? (WS? ',' WS? IDENT)?
+SysCall := '*' IDENT BODY
+
+Type := SIZE | (DECNUM? ':' DECNUM) | IDENT | ('[' SIZE | (DECNUM? ':' DECNUM) ']')
+Fill := (INT | CHAR) '*'
+
+Directive := '.' IDENT (IDENT (WS? ',' WS? IDENT)?) | DATABLOCK
+
+RegAssign := ';' IDENT WS REGISTER WS? = WS? EXPR
+StackAssign := '%' IDENT WS Type WS? = WS? EXPR
+StackPush := '^' EXPR WS Type
+
+Mutation := "'" IDENT (UnaryOp | MutateOp) EXPR
+Conditional := EXPR WS? '=>' WS? STMT ('|' STMT)?
+
+//
+// arrays and structs
+ARR := '{' EXPR WS? (',' WS? EXPR WS?)* '}'
+ArrIndex := IDENT '.' (DECNUM | MathBlock)
+StrucIndex := IDENT '#' ( IDENT | DECNUM )
+
+// 
+// registers
+REGISTER := 'r' 0..255 REGSIZE?
+
+
+//
+// chars and strings
+STR := '"' ..^('"' | \n | \r) '"'
+CHAR := '`' (ALPHANUMERIC | ESCASCIICHAR) '`'
+
+
+//
+// numbers
+INT := DECNUM | HEXNUM | BINNUM
+DECNUM := 0..9+
+HEXNUM := '0x' (a..f | A..F | 0..9)+
+BINNUM := 'b' ('0' | '1')+
