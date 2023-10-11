@@ -1,0 +1,3 @@
+main:
+   /prt "Hello, World!"
+   ret

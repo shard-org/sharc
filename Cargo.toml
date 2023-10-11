@@ -1,0 +1,11 @@
+[package]
+name = "shard"
+version = "0.1.0"
+edition = "2021"
+description = "A compiler for the Shard programming language."
+license = "MIT"
+repository = "https://github.com/anthonysSlab/shard"
+
+
+[dependencies]
+# strp = "1.1.2"
