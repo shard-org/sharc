@@ -19,9 +19,9 @@ ATTRNAME := 'ignore' | 'macro' | 'inline'
 
 IDENT := (ALPHANUMERIC | '_')*
 
-STMT := Mutation | Label | Jmp | End | Ret | FnCall | ExternFnCall | MacroCall | RegAssign | StackAssign | Conditional | Directive
+STMT := EXPR | Mutation | Label | Jmp | End | Ret | FnCall | ExternFnCall | MacroCall | RegAssign | StackAssign | Conditional | Directive | StackPush
 
-EXPR := FnCall | ExternFnCall | MacroCall | SysCall | IDENT | Deref | ArrIndex | StrucIndex | MathBlock | LIT | Fill
+EXPR := FnCall | ExternFnCall | MacroCall | SysCall | IDENT | Deref | ArrIndex | StrucIndex | MathBlock | LIT | Fill | StackPop
 LIT := INT | STR | CHAR | ARR
 
 DATABLOCK := '{' WS? NL (Label? Type ('=' IDENT)? NL)* '}'
@@ -31,7 +31,7 @@ BODY := (EXPR? (WS? ',' WS? EXPR)?)
 Deref := '[' MathExpr ']'
 MathBlock '~'? '(' MathExpr ')'
 
-MathExpr := (MathExpr | EXPR) WS? (BinaryOp WS? (MathExpr | EXPR))?
+MathExpr := (MathExpr | EXPR) WS? (MathExpr | EXPR)?
 
 BinaryOp := '+' | '-' | '*' | '/' | '~' | '|' | '&' | '&&' | '||' | '^^' | '^' | '>' | '<' | '=' | '~=' | ':' | '%'
 
@@ -58,7 +58,8 @@ Directive := '.' IDENT (IDENT (WS? ',' WS? IDENT)?) | DATABLOCK
 
 RegAssign := ';' IDENT WS REGISTER WS? = WS? EXPR
 StackAssign := '%' IDENT WS Type WS? = WS? EXPR
-StackPush := '^' EXPR WS Type
+StackPush := '^' (LIT | IDENT) WS Type
+StackPop := '&' (IDENT | Type)
 
 Mutation := "'" IDENT (UnaryOp | MutateOp) EXPR
 Conditional := EXPR WS? '=>' WS? STMT ('|' STMT)?

@@ -1,0 +1,32 @@
+.inc std.{net, io}
+
+main:
+   // create socket
+   %socket 4 = *socket AF_INET, SOCK_STREAM
+   !check_err
+
+   // bind socket to port 8080 (0x1f90 in big endian)
+   %addr SocketAddrIn = { AF_INET, 0x901f, INADDR_ANY, 0 }
+   *bind socket, addr
+   !check_err
+
+   *listen socket, 5
+   !check_err
+
+   
+
+loop:
+   %client = *accept socket, 0, 0
+   !check_err
+
+   *write client, "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n<!DOCTYPE html><html lang=\"en\"><head><title>Hello!</title></head><body><h1>Hello!</h1><p>Hi from Shard</p></body></html>\r\n", 166
+   !check_err
+
+   jmp loop
+/* infinite loop */
+
+check_err:
+   (r1 >= 0) => ret
+
+   #prt <- #fmt "ERROR: {#}\n", r1
+   ret
