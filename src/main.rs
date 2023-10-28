@@ -7,6 +7,7 @@ mod defs;
 mod location;
 mod token;
 mod lexer;
+mod cli;
 
 
 pub use logger::{Log, Level, WARN, DEBUG, OK, ERR, FATAL};
@@ -19,7 +20,7 @@ fn main() {
     log!(WARN, "The compiler is still in development, expect FREQUENT bugs, crashes, and missing features.").print();
 
     // init args
-    args_parser::parse();
+    let args = args_parser::parse();
     log!(DEBUG, "{:#?}", unsafe{&ARGS}).print();
 
     let main_file = utils::reader(unsafe{&ARGS.infile});

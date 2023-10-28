@@ -8,4 +8,11 @@ repository = "https://github.com/anthonysSlab/shard"
 
 
 [dependencies]
+clap = { version = "4.4.6", features = ["derive"] }
+clap_complete = "4.4.3"
+libc = "0.2.149"
+log = "0.4.20"
 # strp = "1.1.2"
+
+[build-dependencies]
+cc = "1.0.83"

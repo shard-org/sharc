@@ -1,0 +1,3 @@
+[submodule "external/qbe"]
+	path = external/qbe
+	url = git://c9x.me/qbe.git

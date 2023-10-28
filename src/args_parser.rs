@@ -1,7 +1,6 @@
 use super::*;
 
-pub const HELP: &str = 
-"shdc - Compiler for the Shard Programming Language
+pub const HELP: &str = "shdc - Compiler for the Shard Programming Language
 Usage: shdc <input_file> [OPTIONS]
 
 Options:
@@ -24,27 +23,31 @@ pub const VERSION: &str = "onyx 0.1.0";
 
 #[derive(Debug)]
 pub struct Args {
-    pub infile:  &'static str,
+    pub infile: Vec<&'static str>,
     pub outfile: &'static str,
-    pub asm:     bool,
+    pub asm: bool,
     pub log_level: Level,
     pub noclean: bool,
 }
 
-// the actual args
-pub static mut ARGS: Args = Args {
-    infile:  "",
-    outfile: "output",
-    asm:     false,
-    log_level: Level::Fatal,
-    noclean: false,
-};
+impl Args {
+    pub fn default() -> Self {
+        Args {
+            infile: vec![],
+            outfile: "output",
+            asm: false,
+            log_level: Level::Fatal,
+            noclean: false,
+        }
+    }
+}
 
-pub fn parse() {
-    let mut args = std::env::args().skip(1);
+pub fn parse() -> Args {
+    let defaults = Args::default();
+    let args = std::env::args();
 
     match args.nth(0) {
-        Some(arg) => unsafe{ARGS.infile = Box::leak(arg.into_boxed_str())},
+        Some(arg) => ARGS.infile = Box::leak(arg.into_boxed_str()),
         None => log!(FATAL, "Missing input file!").push(),
     }
 
@@ -61,25 +64,27 @@ pub fn parse() {
             c if c.starts_with("-l") || c.starts_with("--log") => {
                 if let Some((_, level)) = arg.split_once('=') {
                     match level {
-                        "none" => unsafe { ARGS.log_level = Level::None },
-                        "err" => unsafe { ARGS.log_level = Level::Err },
-                        "warn" => unsafe { ARGS.log_level = Level::Warn },
-                        "info" => unsafe { ARGS.log_level = Level::Ok },
-                        "debug" => unsafe { ARGS.log_level = Level::Debug },
+                        "none" => ARGS.log_level = Level::None,
+                        "err" => ARGS.log_level = Level::Err,
+                        "warn" => ARGS.log_level = Level::Warn,
+                        "info" => ARGS.log_level = Level::Ok,
+                        "debug" => ARGS.log_level = Level::Debug,
                         _ => log!(FATAL, "Invalid Log Level: {}", level).push(),
                     }
                 } else {
                     log!(FATAL, "expected `=` after the {} flag", arg).push();
                 }
             },
-            "--debug" | "-d" => unsafe { ARGS.log_level = Level::Debug },
-            "--quiet" | "-q" => unsafe { ARGS.log_level = Level::Err },
-            "--verbose" | "-v" => unsafe { ARGS.log_level = Level::Ok },
-            "--noclean" | "-t" => unsafe { ARGS.noclean = true },
-            "--asm" | "-A" => unsafe { ARGS.asm = true },
+            "--debug" | "-d" => ARGS.log_level = Level::Debug,
+            "--quiet" | "-q" => ARGS.log_level = Level::Err,
+            "--verbose" | "-v" => ARGS.log_level = Level::Ok,
+            "--noclean" | "-t" => ARGS.noclean = true,
+            "--asm" | "-A" => ARGS.asm = true,
             "--output" | "-o" => {
                 if let Some(outfile) = args.next() {
-                    unsafe { ARGS.outfile = Box::leak(outfile.into_boxed_str()) };
+                    {
+                        ARGS.outfile = Box::leak(outfile.into_boxed_str())
+                    };
                 } else {
                     log!(FATAL, "Missing output file argument after the output flag").push();
                 }
