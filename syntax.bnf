@@ -41,6 +41,7 @@ Label := IDENT ':'
 Jmp := 'jmp' WS EXPR
 End := 'end' WS EXPR
 ret := 'ret'
+LabelCall := '!' IDENT
 
 FnAttr := '|' WS? ATTRNAME (',' ATTRNAME)* WS? '|'
 FnDefArg := IDENT WS Type WS
