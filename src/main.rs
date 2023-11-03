@@ -1,19 +1,19 @@
 mod args_parser;
-mod logger;
-mod utils;
-mod defs;
-// mod parser;
-// mod compiler;
-mod location;
-mod token;
-mod lexer;
 mod cli;
+mod compiler;
+mod defs;
+mod lexer;
+mod location;
+mod logger;
+mod parser;
+mod qbe;
+mod token;
+mod utils;
 
-
-pub use logger::{Log, Level, WARN, DEBUG, OK, ERR, FATAL};
-pub use location::Location;
-use lexer::Lexer;
 use args_parser::ARGS;
+use lexer::Lexer;
+pub use location::Location;
+pub use logger::{Level, Log, DEBUG, ERR, FATAL, OK, WARN};
 // use defs::TEMP_FILE;
 
 fn main() {
@@ -21,13 +21,12 @@ fn main() {
 
     // init args
     let args = args_parser::parse();
-    log!(DEBUG, "{:#?}", unsafe{&ARGS}).print();
+    log!(DEBUG, "{:#?}", unsafe { &ARGS }).print();
 
-    let main_file = utils::reader(unsafe{&ARGS.infile});
+    let main_file = utils::reader(unsafe { &ARGS.infile });
 
-
-    let token_stream = Lexer::new(main_file, unsafe{ARGS.infile}).lex();
-    Log::print_all();  // Exits if errors are found
+    let token_stream = Lexer::new(main_file, unsafe { ARGS.infile }).lex();
+    Log::print_all(); // Exits if errors are found
     for token in &token_stream {
         Log::new(DEBUG, None, "", format!("{}", token)).print();
     }
@@ -35,9 +34,6 @@ fn main() {
     // let output = compiler::compiler(token_stream);
     //
     // unsafe{logger::check_err();}
-
-
-
 
     // log!(DEBUG, "asm output:\n{:?}", &output);
     //
@@ -52,4 +48,3 @@ fn main() {
 
     Log::print_all();
 }
-

@@ -61,20 +61,15 @@ pub struct Token {
     pub text: String,
     pub flag: u8,
     /*
-        1-3: Register size
-        7: whitespace after
-        8: newline before
-     */
+       1-3: Register size
+       7: whitespace after
+       8: newline before
+    */
 }
 
 impl Token {
     pub fn new(kind: TokenKind, span: Span, text: String) -> Token {
-        Token {
-            kind,
-            span,
-            text,
-            flag: 0,
-        }
+        Token { kind, span, text, flag: 0 }
     }
 
     pub fn new_simple(kind: TokenKind, span: Span) -> Token {
@@ -102,7 +97,9 @@ impl Token {
         self.flag & 0b0000_0111
     }
 
-    pub fn whitespace_after(&self) -> bool { self.flag & 0b0100_0000 != 0 }
+    pub fn whitespace_after(&self) -> bool {
+        self.flag & 0b0100_0000 != 0
+    }
 
     pub fn set_register_size(&mut self, size: u8) {
         self.flag &= 0b1111_1000;

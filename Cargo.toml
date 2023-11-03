@@ -8,11 +8,14 @@ repository = "https://github.com/anthonysSlab/shard"
 
 
 [dependencies]
+cc = { version = "1.0.83", features = ["parallel"] }
 clap = { version = "4.4.6", features = ["derive"] }
 clap_complete = "4.4.3"
 libc = "0.2.149"
 log = "0.4.20"
 # strp = "1.1.2"
+
+qbe-sys = { path = "./compat/qbe-sys" }
 
 [build-dependencies]
 cc = "1.0.83"

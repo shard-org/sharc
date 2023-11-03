@@ -12,17 +12,14 @@ impl std::fmt::Display for Location {
     }
 }
 
-
 impl std::fmt::Debug for Location {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         write!(f, "{}", self)
     }
 }
 
-
 #[derive(Clone, Copy)]
 pub struct Span(pub &'static str, pub Location, pub Location);
-
 
 impl std::fmt::Display for Span {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {

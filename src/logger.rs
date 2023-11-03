@@ -1,6 +1,6 @@
-use std::fmt::Display;
-use crate::location::Span;
 use crate::args_parser::ARGS;
+use crate::location::Span;
+use std::fmt::Display;
 
 pub const DEBUG: Level = Level::Debug;
 pub const OK: Level = Level::Ok;
@@ -21,15 +21,20 @@ pub enum Level {
 #[derive(Debug)]
 pub struct Log {
     level: Level,        // Level::Err
-    span:  Option<Span>, // Some(Span { span: Some((4, 4)), file: "main.shd", line: 5 })
-    msg:   &'static str, // "Mismatched Parenthesis"
+    span: Option<Span>,  // Some(Span { span: Some((4, 4)), file: "main.shd", line: 5 })
+    msg: &'static str,   // "Mismatched Parenthesis"
     notes: &'static str, // "Expected ')' but found '}'"
 }
 
 static mut LOGS: Vec<Log> = Vec::new();
 
 impl Log {
-    pub fn new<T: Into<Option<Span>>, M: Display, W: Display>(level: Level, span: T, msg: M, notes: W) -> Self{
+    pub fn new<T: Into<Option<Span>>, M: Display, W: Display>(
+        level: Level,
+        span: T,
+        msg: M,
+        notes: W,
+    ) -> Self {
         Self {
             level,
             span: span.into(),
@@ -51,7 +56,9 @@ impl Log {
 
     pub fn push(self) {
         let level = self.level.clone();
-        unsafe{ LOGS.push(self); }
+        unsafe {
+            LOGS.push(self);
+        }
 
         if level == Level::Fatal {
             Self::handle_fatal();
@@ -60,7 +67,7 @@ impl Log {
     //
     // specific
     pub fn print_all() {
-        unsafe{
+        unsafe {
             LOGS.sort_by(|a, b| a.level.partial_cmp(&b.level).unwrap());
             LOGS.iter().for_each(|log| log.print_internal());
 
@@ -69,10 +76,26 @@ impl Log {
 
             if !LOGS.iter().any(|log| log.level == Level::Fatal) {
                 match warns {
-                    0 if errors > 0 => Log::new(Level::Err, None, format!("Could Not Compile, {} Errors Emmited", errors), "").print(),
+                    0 if errors > 0 => Log::new(
+                        Level::Err,
+                        None,
+                        format!("Could Not Compile, {} Errors Emmited", errors),
+                        "",
+                    )
+                    .print(),
                     0 => (),
-                    _ if errors > 0 => Log::new(Level::Warn, None, format!("Could Not Compile, {} Errors and {} warnings Emmited", errors, warns), "").print(),
-                    _ => Log::new(Level::Warn, None, format!("{} Warnings Emmited", warns), "").print(),
+                    _ if errors > 0 => Log::new(
+                        Level::Warn,
+                        None,
+                        format!(
+                            "Could Not Compile, {} Errors and {} warnings Emmited",
+                            errors, warns
+                        ),
+                        "",
+                    )
+                    .print(),
+                    _ => Log::new(Level::Warn, None, format!("{} Warnings Emmited", warns), "")
+                        .print(),
                 }
             }
 
@@ -87,18 +110,22 @@ impl Log {
     //
     // internal
     fn print_internal(&self) {
-        if &self.level < unsafe{&ARGS.log_level} { return; }
+        if &self.level < unsafe { &ARGS.log_level } {
+            return;
+        }
 
         match self.span {
             Some(span) => self.print_highlighted(span),
             None => match self.notes.is_empty() {
-                false => println!("{}{}\x1b[0m\x1b[1m: {}\x1b[0m: {}", 
+                false => println!(
+                    "{}{}\x1b[0m\x1b[1m: {}\x1b[0m: {}",
                     self.get_level_colour(),
                     self.get_level_prefix(),
                     self.msg,
                     self.notes
                 ),
-                true => println!("{}{}\x1b[0m\x1b[1m: {}\x1b[0m",
+                true => println!(
+                    "{}{}\x1b[0m\x1b[1m: {}\x1b[0m",
                     self.get_level_colour(),
                     self.get_level_prefix(),
                     self.msg
@@ -112,9 +139,10 @@ impl Log {
         println!("\x1b[31;1mEXITING!!!\x1b[0m");
         std::process::exit(1);
     }
-    
+
     fn print_highlighted(&self, span: Span) {
-        let mut form = format!("{}{}\x1b[0m\x1b[1m: {}\x1b[0m\n- <{}>{}:{}\n\x1b[36m{} | \x1b[0m", 
+        let mut form = format!(
+            "{}{}\x1b[0m\x1b[1m: {}\x1b[0m\n- <{}>{}:{}\n\x1b[36m{} | \x1b[0m",
             self.get_level_colour(),
             self.get_level_prefix(),
             self.msg,
@@ -147,23 +175,25 @@ impl Log {
     fn get_level_prefix(&self) -> String {
         match self.level {
             Level::Debug => "[DEBUG]",
-            Level::Ok    => "[OK]",
-            Level::Warn  => "[WARN]",
-            Level::Err   => "[ERR]",
+            Level::Ok => "[OK]",
+            Level::Warn => "[WARN]",
+            Level::Err => "[ERR]",
             Level::Fatal => "[FATAL]",
             _ => unreachable!(),
-        }.to_string()
+        }
+        .to_string()
     }
 
     fn get_level_colour(&self) -> String {
         match self.level {
             Level::Debug => "\x1b[34m",
-            Level::Ok    => "\x1b[32m",
-            Level::Warn  => "\x1b[33m",
-            Level::Err   => "\x1b[31m",
+            Level::Ok => "\x1b[32m",
+            Level::Warn => "\x1b[33m",
+            Level::Err => "\x1b[31m",
             Level::Fatal => "\x1b[31;1m",
             _ => unreachable!(),
-        }.to_string()
+        }
+        .to_string()
     }
 }
 

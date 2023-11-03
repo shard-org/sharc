@@ -12,10 +12,6 @@ struct Args {
     #[arg(short, long)]
     name: String,
 
-    /// Number of times to greet
-    #[arg(short, long, default_value_t = 1)]
-    count: u8,
-
     /// Specify the target Architecture
     #[arg(short, long)]
     arch: String,
@@ -66,7 +62,5 @@ pub fn main_cmd() {
     let macthes = Command::new("shdc")
         .about("an assembly inspired sequential programming language")
         .subcommand_required(true)
-        .arg_required_else_help(true)
-    ;
-
+        .arg_required_else_help(true);
 }

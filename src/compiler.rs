@@ -12,11 +12,11 @@ macro_rules! add {
 // TODO create an instruction enum thats architecture based and impl Display for it
 // FIXME this doesnt work with the current lexer/parser
 pub fn compiler((tokens, meta): (Vec<FatToken>, Metadata)) -> String {
-    let mut o_ro = String::new();   // section .rodata
-    let mut o_d = String::new();    // section .data
-    let mut o_t = String::from(".text\n");    // section .text
-    let mut o_b = String::new();    // section .bss
-	
+    let mut o_ro = String::new(); // section .rodata
+    let mut o_d = String::new(); // section .data
+    let mut o_t = String::from(".text\n"); // section .text
+    let mut o_b = String::new(); // section .bss
+
     // add entry point
     o_t.push_str(&match meta.entry {
         Some(name) => format!(".globl {}\n", name),
@@ -36,7 +36,7 @@ pub fn compiler((tokens, meta): (Vec<FatToken>, Metadata)) -> String {
                 add!(o_t, "{}:\n", name);
             },
 
-            Token::Ret(r) => match r{
+            Token::Ret(r) => match r {
                 Some(r) => todo!("returning with value not yet implemented"),
                 None => add!(o_t, "ret\n"),
             },

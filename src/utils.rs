@@ -2,7 +2,7 @@ use super::*;
 
 use std::fs;
 
-pub fn reader<T>(filename: T) -> String 
+pub fn reader<T>(filename: T) -> String
 where
     T: AsRef<std::path::Path> + std::fmt::Display + Copy,
 {
@@ -24,7 +24,8 @@ where
     if file.replace(char::is_whitespace, "").is_empty() {
         log!(FATAL, "File {} is empty", filename);
         unreachable!();
-    } file
+    }
+    file
 }
 
 pub fn writer(filename: &str, contents: &str) {
