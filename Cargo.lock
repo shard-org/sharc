@@ -152,6 +152,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "qbe"
+version = "2.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4c3efb76986096e19177e4e4a1c0c0aa6c313439286ebf3762dcc1526522f2a1"
+
+[[package]]
 name = "qbe-sys"
 version = "0.1.0"
 
@@ -173,6 +179,7 @@ dependencies = [
  "clap_complete",
  "libc",
  "log",
+ "qbe",
  "qbe-sys",
 ]
 
