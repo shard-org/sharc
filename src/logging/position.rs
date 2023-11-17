@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::fmt::{Display, Debug};
 use std::cmp::{min, max};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
@@ -79,6 +79,12 @@ impl Display for Position {
 pub struct Span {
     start: Position,
     end: Position
+}
+
+impl Debug for Span {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "({}):({})", self.start, self.end)
+    }
 }
 
 impl Span {

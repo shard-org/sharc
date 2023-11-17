@@ -1,18 +1,66 @@
-use crate::location::Span;
+use std::fmt::Display;
+
+use crate::position::Span;
+
+#[derive(Debug)]
+pub enum RegSize {
+    Arch,  // architecure dependent
+    ByteLow,
+    ByteHigh,
+    Word,
+    DWord,
+    QWord,
+}
+
+impl From<Option<char>> for RegSize {
+    fn from(value: Option<char>) -> Self {
+        match value {
+            Some('l') => Self::ByteLow,
+            Some('h') => Self::ByteHigh,
+            Some('w') => Self::Word,
+            Some('d') => Self::DWord,
+            Some('q') => Self::QWord,
+            None => Self::Arch
+        }
+    }
+}
+
+impl Display for RegSize {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", match self {
+            Self::ByteLow  => "l",
+            Self::ByteHigh => "h",
+            Self::Word     => "w",
+            Self::DWord    => "d",
+            Self::QWord    => "q",
+            Self::Arch     => ""
+        })
+    }
+}
+
+#[derive(Debug)]
+pub enum IntLiteralRadix {
+    Bin,
+    Dec,
+    Hex
+}
 
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Debug)]
-pub enum TokenKind {
+pub enum TokenKind<'a> {
+    Register(u8, RegSize),
+    Intager(&'a str, IntLiteralRadix),
+    StringLiteral(&'a str),
+    Identifier(&'a str),
+    CharLiteral(&'a str),
+
     Ampersand,
     At,
     Backslash,
     Bang,
-    BinLiteral,
     Caret,
-    CharLiteral,
     Colon,
     Comma,
-    DecLiteral,
     Dollar,
     Dot,
     EOF,
@@ -21,8 +69,6 @@ pub enum TokenKind {
     FloatLiteral,
     GreaterThan,
     GreaterThanEquals,
-    HexLiteral,
-    Identifier,
     Jmp,
     LeftBrace,
     LeftBracket,
@@ -33,14 +79,12 @@ pub enum TokenKind {
     MinusMinus,
     Newline,
     NotEquals,
-    OctLiteral,
     Percent,
     Pipe,
     Plus,
     PlusPlus,
     Pound,
     Question,
-    Register,
     Ret,
     RightBrace,
     RightBracket,
@@ -48,88 +92,27 @@ pub enum TokenKind {
     Semicolon,
     Slash,
     Star,
-    StringLiteral,
     Tilde,
     TinyArrowLeft,
     TinyArrowRight,
     Underscore,
 }
 
-pub struct Token {
-    pub kind: TokenKind,
+pub struct Token<'a> {
+    pub kind: TokenKind<'a>,
     pub span: Span,
-    pub text: String,
-    pub flag: u8,
-    /*
-        1-3: Register size
-        7: whitespace after
-        8: newline before
-     */
 }
 
-impl Token {
-    pub fn new(kind: TokenKind, span: Span, text: String) -> Token {
-        Token {
-            kind,
-            span,
-            text,
-            flag: 0,
-        }
-    }
-
-    pub fn new_simple(kind: TokenKind, span: Span) -> Token {
-        Token::new(kind, span, String::new())
-    }
-
-    pub fn new_eof(span: Span) -> Token {
-        Token::new_simple(TokenKind::EOF, span)
-    }
-
-    pub fn from_string(span: Span, text: String) -> Token {
-        Token {
-            kind: match text.as_ref() {
-                "ret" => TokenKind::Ret,
-                "jmp" => TokenKind::Jmp,
-                _ => TokenKind::Identifier,
-            },
-            span,
-            text,
-            flag: 0,
-        }
-    }
-
-    pub fn register_size(&self) -> u8 {
-        self.flag & 0b0000_0111
-    }
-
-    pub fn whitespace_after(&self) -> bool { self.flag & 0b0100_0000 != 0 }
-
-    pub fn set_register_size(&mut self, size: u8) {
-        self.flag &= 0b1111_1000;
-        self.flag |= size & 0b0000_0111;
-    }
-
-    pub fn set_flag_bit(&mut self, bit: u8, val: bool) {
-        if val {
-            self.flag |= 1 << bit;
-        } else {
-            self.flag &= !(1 << bit);
-        }
-    }
-}
-
-impl std::fmt::Display for Token {
+impl<'a> std::fmt::Display for Token<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         write!(f, "{:?}", self.kind)?;
-        if !self.text.is_empty() {
-            let register_size = self.register_size();
-            let whitespace_after = self.whitespace_after();
-            write!(f, "({:?}", self.text)?;
-            if register_size != 0 {
-                write!(f, ", size={}", register_size)?;
-            }
-            write!(f, ", ws={}", whitespace_after)?;
-            write!(f, ")")?;
+        match self.kind {
+            TokenKind::Register(n, size) => write!(f, "Register r{}{}", n, size)?,
+            TokenKind::Intager(n, rdx) => write!(f, "Intager {} (base {:?})", n, rdx)?,
+            TokenKind::StringLiteral(s) => write!(f, "String \"{s}\"")?,
+            TokenKind::Identifier(s) => write!(f, "Identifier {s}")?,
+            TokenKind::CharLiteral(c) => write!(f, "Char \'{c}\'")?,
+            _ => ()
         }
         Ok(())
     }
