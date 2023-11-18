@@ -84,7 +84,8 @@ CHAR := '`' (ALPHANUMERIC | ESCASCIICHAR) '`'
 
 //
 // numbers
-INT := DECNUM | HEXNUM | BINNUM
+INT := DECNUM | HEXNUM | BINNUM | SDECNUM
 DECNUM := 0..9+
+SDECNUM := ('-' | '+') 0..9+
 HEXNUM := '0x' (a..f | A..F | 0..9)+
 BINNUM := 'b' ('0' | '1')+
