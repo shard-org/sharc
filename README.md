@@ -2,7 +2,7 @@ this is still in a REALLY REALLY early stage, like not even usable
 if ye like this concept then PLEASE help out  
 I cant do it all by myself.. :/  
 
-Our Discord: https://discord.gg/z3Qnr87e7c
+Our Discord: https://discord.gg/z3Qnr87e7c  
 for **contributing** ^^^   
 
 We've also got a website now! https://shardlang.org/
