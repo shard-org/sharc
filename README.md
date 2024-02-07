@@ -5,7 +5,8 @@ I cant do it all by myself.. :/
 Our Discord: https://discord.gg/z3Qnr87e7c  
 for **contributing** ^^^   
 
-We've also got a website now! https://shardlang.org/
+We've also got a website now! (outdated, unused, needs rework)
+https://shardlang.org/ 
 
 
 # Concept
@@ -34,26 +35,20 @@ main:
 ## Fibonacci
 (with libc)
 ```
+entry main
+fibonacci n 2 -> 2 {
+    (n <= 1) end n
+    end @fibonacci (n - 1) + @fibonacci (n - 2)
+}
+
 main:
-    %n 2 = 9
-    (n < 1) => $puts "Invalid Number of Terms!\0"
-    (n = 1) => $puts "0\0"
-    (n = 2) => $puts "0 1\0"
+    %n 2 = 9  // num of terms to print
 
-    %arg1 2 = 1
-    %arg2 2 = 0
+    %i 2 = 0
+    loop (i < n) {
+        $printf "%d ", (@fibonacci i)
+    } then 'i ++
 
-loop:
-    ;temp r3 = ([arg1] + [arg2])
-
-    'arg2 : arg1
-    'arg1 : temp
-
-    $printf "%d\n\0", temp 
-    'n --
-    (n > 0) => jmp loop
-
-    $puts "Done!\0"
     ret
 ```
 
