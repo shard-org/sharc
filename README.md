@@ -1,59 +1,108 @@
-this is still in a REALLY REALLY early stage, like not even usable  
-if ye like this concept then PLEASE help out  
+shard is still in a VERY EARLY STAGE, like not even usable yet
+If you like this concept then PLEASE help out  
 I cant do it all by myself.. :/  
 
 Our Discord: https://discord.gg/z3Qnr87e7c  
 for **contributing** ^^^   
 
-We've also got a website now! https://shardlang.org/
+We've also got a website now! https://shardlang.org/  
+Although it does need full rework.. Hey any frontend devs?  
 
+# Features
+- Fine grained low level access to hardware features, like registers, syscalls, interrupts
+- No "safety features" preventing you from doing what you want
+- Keep the syntax and language terse, yet clear and concise
+- Simple macro system allowing for functions as well as "search and replace"
+- Customizable compiler verbs and build scripts, all in-language
 
-# Concept
-- keeps the overall feel and spirit of asm with some additional higher level syntax and features 
-- jump anywhere, anytime. Making spaghetti code easier than ever
-- Nothing Stopping you from doing what you want, no safety nets
-- barren type system featuring the bare necessities
-- a simple std lib for abstracting away the tediousness
-- DENSE operator oriented syntax (or "operator soup" for fans and lovers)
-
-# Disclaimers
-- This lang isn't meant to be used for serious projects, it's primarly hobby and fun
-- there's gonna be drastic changes throughout the development process
-- It's AWFULY unsafe. Registers, Stack, and Syscalls are all directly exposed.
+# Non-Features
+- Do not strife for cross-platform compatibility. As hardware features are exposed to the user code becomes inherently incompatible
+- No complex standard library, used mostly for architecture-specific definitions and fixes
+- No types beyond byte sizes, pointers, and structs
 
 # Code Examples
-(just theoritical for now)
+(just theoretical for now)
 
 ## Hello World
+We're using the linux `write` syscall directly here
 ```
-main:
-    $puts "Hello World"
-    ret
+:arch x86_64 linux
+
+main entry:
+   *write 1, "Hello, World!", 13
+   ret
 ```
 
 ## Fibonacci
-(with libc)
 ```
-main:
-    %n 2 = 9
-    (n < 1) => $puts "Invalid Number of Terms!\0"
-    (n = 1) => $puts "0\0"
-    (n = 2) => $puts "0 1\0"
+:arch x86_64 linux
+:link -lc
 
-    %arg1 2 = 1
-    %arg2 2 = 0
+fibonacci n 2 -> 2 {
+   n <= 1: end n
+   end @fibonacci (n - 1) + @fibonacci (n - 2)
+}
 
-loop:
-    ;temp r3 = ([arg1] + [arg2])
+main entry:
+   %terms 2 = 9
 
-    'arg2 : arg1
-    'arg1 : temp
+   %i 2 = 0
+   loop i < terms {
+      $printf "%d ", @fibonacci i
+      'i ++
+   }
 
-    $printf "%d\n\0", temp 
-    'n --
-    (n > 0) => jmp loop
-
-    $puts "Done!\0"
-    ret
+   ret
 ```
 
+## Bubble Sort
+The script will run after running `sharc run`.
+Values starting with `#` are macro invocations referring to the current project.
+```
+:name bubble_sort
+:arch x86_64 linux
+:link -lc
+
+:verb run /bin/sh {
+   sharc #FILE
+   chmod +x #NAME
+   ./#NAME
+}
+
+main entry:
+   %array [2] = { 7, 5, 1, 4, 9, 8, 2, 6, 3 }
+   %length 2 = 9
+
+   bubble_sort array, length
+
+   loop length > 0 {
+      'length --
+      $printf "%d", array.length
+   }
+
+   ret
+
+bubble_sort [2] array, 2 n {
+   %i 2 = 0
+   loop i < n {
+      %j 2 = 0
+      loop j < n-i-1 {
+         array.j > array.(j+1):
+            '[array.j] : [array.(j+1)]
+         'j ++
+      } 
+      'i ++
+   }
+}
+```
+
+## Python?!
+I've realised this system technically lets you run python (or any other language) from `sharc`.
+```
+:verb py /bin/sh {
+    tail +4 #FILE | python
+}
+
+print("Hello, World!")
+```
+Additionally the interpreter could also be set to `/usr/bin/python` for unlimited crazyness

@@ -1,0 +1,26 @@
+:name bubble_sort
+:arch x86_64 linux
+
+main entry:
+   %array [2] = /* whatever */
+   %n 2 = !length array
+
+   bubble_sort array, n
+   ret
+
+bubble_sort [2] array, 2 n {
+   %i 2 = 0
+   loop (i < n) {
+
+      %j 2 = 0
+      loop (j < n-i-1) {
+         (array.j > array.(j+1)) 
+            '[array.j] : [array.(j+1)]
+         'j ++
+      } 
+
+      'i ++
+   }
+
+   ret
+}

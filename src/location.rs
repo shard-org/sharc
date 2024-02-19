@@ -1,46 +1,39 @@
-// Copied from havenselph/rattlescript
-// https://github.com/HavenSelph/rattlescript/blob/main/src/common.rs
-#[derive(Clone, Copy)]
-pub struct Location {
-    pub line: usize,
-    pub column: usize,
-}
+use crate::logger::Log;
 
-impl std::fmt::Display for Location {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        write!(f, "{}:{}", self.line, self.column)
-    }
-}
-
-
-impl std::fmt::Debug for Location {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        write!(f, "{}", self)
-    }
-}
-
-
-#[derive(Clone, Copy)]
-pub struct Span(pub &'static str, pub Location, pub Location);
-
-
-impl std::fmt::Display for Span {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        write!(f, "{}: {}-{}", self.0, self.1, self.2)
-    }
-}
-
-impl std::fmt::Debug for Span {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        write!(f, "{}", self)
-    }
+#[derive(Debug, Default)]
+pub struct Span {
+    pub file:   Box<str>,
+    // both line and col are counted from 1
+    pub line:   usize,
+    pub col:    usize,
+    pub length: Option<usize>,
 }
 
 impl Span {
-    pub fn new(file: &'static str, start: Location, end: Location) -> Span {
-        Span(file, start, end)
+    pub fn new<T: std::fmt::Display>(file: T, line: usize, col: usize) -> Self {
+        Self {
+            file: file.to_string().into_boxed_str(),
+            line,
+            col,
+            length: None,
+        }
     }
-    pub fn extend(&self, other: &Span) -> Span {
-        Span(self.0, self.1, other.2)
+
+    pub fn to_log(self) -> Log {
+        Log::new().span(self)
+    }
+
+    pub fn length(mut self, length: usize) -> Self {
+        self.length = Some(length); self
+    }
+
+    pub fn advance(&mut self, c: char) {
+        if c == '\n' {
+            self.line += 1;
+            self.col = 0;
+            return;
+        } 
+
+        self.col += 1;
     }
 }

@@ -1,0 +1,14 @@
+:name hello_world
+:arch x86_64 linux
+
+:verb run /bin/sh {
+   sharc main.shd
+   chmod +x hello_world
+   ./hello_world
+}
+
+:entry main
+
+main:
+   $puts "Hello, World!"
+   ret
