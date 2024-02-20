@@ -76,7 +76,7 @@ impl Display for Log {
                 };
 
                 form.push_str(line.trim());
-                form.push_str("\n\x1b[36m  | \x1b[0m");
+                form.push_str(&format!("\n\x1b[36m{} | \x1b[0m", " ".repeat(span.line.to_string().len())));
 
                 form.push_str(self.get_level_colour().as_str());
                 (1..span.col).for_each(|_| form.push(' '));
@@ -176,15 +176,16 @@ impl Log {
 }
 
 pub trait Logs {
-    fn print(&self);
+    fn print(&mut self);
     fn sort(self) -> Self;
     fn summary(&self);
 }
 
 use std::process::exit;
 impl Logs for Vec<Log> {
-    fn print(&self) {
+    fn print(&mut self) {
         self.iter().for_each(Log::print);
+        self.clear();
     }
 
     fn sort(mut self) -> Self {
@@ -193,22 +194,24 @@ impl Logs for Vec<Log> {
     }
 
     fn summary(&self) {
+        self.iter().for_each(Log::print);
+
         let errors = self.iter().filter(|log| log.level == Level::Err).count();
         let warns = self.iter().filter(|log| log.level == Level::Warn).count();
 
-        // if self.iter().any(|log| log.level == Level::Fatal) { return; }
+        // if self.iter().any(|log| log.level == Level::Fatal) { exit(1); }
 
         if warns != 0 && errors == 0 {
-            warn!("{} Warnings Emmited", warns);
+            warn!("{} Warning(s) Emmited", warns);
         }
         else 
         if warns == 0 && errors != 0 {
-            err!("Could Not Compile, {} Errors Emmited", errors);
+            err!("Could Not Compile, {} Error(s) Emmited", errors);
             exit(1);
         }
         else 
         if warns != 0 && errors != 0 {
-            err!("Could Not Compile, {} Errors and {} warnings Emmited", errors, warns);
+            err!("Could Not Compile, {} Error(s) and {} warning(s) Emmited", errors, warns);
             exit(1);
         }
     }

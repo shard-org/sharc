@@ -4,12 +4,15 @@ mod utils;
 mod location;
 mod verbs;
 mod macros;
+mod project_config;
 
 use logger::{Log, Logs};
-use location::Span;
 use args::Args;
 use macros::Macro;
+use project_config::Configs;
+use verbs::ParsedVerb;
 
+use std::process::exit;
 
 lazy_static::lazy_static! {
     // init args
@@ -22,6 +25,7 @@ fn main() {
 
     warn!("sharc is still deep in development :p");
     warn!("Please report any bugs, crashes, as well as feature suggestions.");
+    print!("\n");
 
     debug!("{:#?}", *ARGS);
 
@@ -30,14 +34,48 @@ fn main() {
     let main_file = ARGS.file.unwrap_or_else(get_main_file);
     let mut main_file_contents = utils::reader(main_file);
 
-    let macros = Macro::parse(&main_file_contents, &mut logs, main_file);
+
+
+
+    let mut macros = Macro::parse(&main_file_contents, &mut logs, main_file);
     debug!("{:#?}", macros);
-
-    Macro::apply(macros, &mut main_file_contents);
-
     logs.print();
 
-    todo!();
+
+    let configs = Configs::parse(&main_file_contents, &mut logs, main_file);
+    debug!("{:#?}", configs);
+    logs.print();
+
+    macros.push(Macro::Def(String::from("NAME"), configs.name));
+
+    if !configs.version.is_empty() {
+        macros.push(Macro::Def(String::from("VERSION"), configs.version));
+    }
+
+
+    Macro::apply(macros, &mut main_file_contents);
+    debug!("AFTER MACRO:\n{}\n##### END #####", main_file_contents);
+
+
+    let verbs = ParsedVerb::parse(&main_file_contents, &mut logs, main_file);
+    debug!("{:#?}", verbs);
+    logs.print();
+
+    if let Some(verb) = &ARGS.verb {
+        match verbs.iter().find(|v| v.name == verb.verb) {
+            Some(verb_def) => {
+                verb_def.execute(verb);
+                exit(0);
+            },
+            None => {
+                fatal!("Undefined verb `{}`", verb.verb);
+                exit(1);
+            },
+        }
+    }
+
+
+    todo!()
 
 
     // let token_stream = Lexer::new(main_file, unsafe{ARGS.infile}).lex();
@@ -63,9 +101,6 @@ fn main() {
     // }
     //
     // log!(FATAL, "assembler not yet implemented");
-
-    logs.print();
-    logs.summary();
 }
 
 fn get_main_file() -> &'static str {

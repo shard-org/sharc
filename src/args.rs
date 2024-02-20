@@ -1,7 +1,6 @@
 use super::*;
 use std::process::exit;
 use crate::logger::Level;
-use crate::verbs::Verb;
 
 const USAGE: &str = "Usage: sharc [-AhV] [-l level] [-f file] [verbs...]";
 const HELP_MESSAGE: &str = 
@@ -26,6 +25,11 @@ const HELP_MESSAGE: &str =
         info  - Generic info thrown by the compiler
         debug - Info for us, the compiler developers. Probably not useful to mere mortals";
 
+#[derive(Debug)]
+pub struct Verb {
+    pub verb: &'static str, 
+    pub args: Vec<&'static str>,
+}
 
 #[derive(Debug)]
 pub struct Args {
@@ -46,9 +50,9 @@ impl Args {
     }
 
     pub fn parse(args: Vec<String>) -> Self {
-        if args.is_empty() {
-            fatal!("Missing arguments\x1b[0m\n{}\n\n{}", USAGE, HELP_MESSAGE);
-            exit(1);
+        if args.contains(&String::from("--help")) {
+            println!("{}\n\n{}", USAGE, HELP_MESSAGE);
+            exit(0);
         }
 
         let mut out = Self::default();
@@ -104,6 +108,11 @@ impl Args {
                 continue;
             }
 
+            if arg == "shark" {
+                println!("\x1b[34m{}\x1b[0m", SHARK_ASCII);
+                exit(1);
+            }
+
             out.verb = Some(Verb {
                 verb: Box::leak(arg.into_boxed_str()), 
                 args: args.clone().fold(Vec::new(), |mut acc, a| {
@@ -116,3 +125,20 @@ impl Args {
         out
     }
 }
+
+
+const SHARK_ASCII: &str = 
+r#"                                 ,-
+                               ,'::|
+                              /::::|
+                            ,'::::o\                                      _..
+         ____........-------,..::?88b                                  ,-' /
+ _.--"""". . . .      .   .  .  .  ""`-._                           ,-' .;'
+<. - :::::o......  ...   . . .. . .  .  .""--._                  ,-'. .;'
+ `-._  ` `":`:`:`::||||:::::::::::::::::.:. .  ""--._ ,'|     ,-'.  .;'
+     """_=--       //'doo.. ````:`:`::::::::::.:.:.:. .`-`._-'.   .;'
+         ""--.__     P(       \               ` ``:`:``:::: .   .;'
+                "\""--.:-.     `.                             .:/
+                  \. /    `-._   `.""-----.,-..::(--"".\""`.  `:\
+                   `P         `-._ \          `-:\          `. `:\
+                                   ""            "            `-._)"#;

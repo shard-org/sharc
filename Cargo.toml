@@ -2,11 +2,10 @@
 name = "sharc"
 version = "0.1.0"
 edition = "2021"
-# description = "A compiler for the Shard programming language."
+description = "A compiler for the Shard programming language."
 license = "MIT"
 repository = "https://github.com/anthonysSlab/shard"
 
 
 [dependencies]
 lazy_static = "1.4"
-# strp = "1.1.2"
