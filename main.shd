@@ -1,3 +1,14 @@
-:verb hello /usr/bin/node {
-   console.log("Hello, World!");
+
+:name hello_world `c`
+
+:verb run /bin/sh {
+   sharc #FILE
+   ./#NAME
 }
+
+/HELLO = "Hello, World"
+
+main entry:
+   $puts #HELLO
+   ret 0
+

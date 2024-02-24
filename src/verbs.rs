@@ -6,7 +6,6 @@ use crate::{
     logger::{Log, Level},
     location::Span,
     macros::IterExt,
-    args::Verb,
     fatal,
 };
 
@@ -20,7 +19,7 @@ pub struct ParsedVerb {
 }
 
 impl ParsedVerb {
-    pub fn parse(input: &str, logs: &mut Vec<Log>, filename: &str) -> Vec<Self> {
+    pub fn parse(input: &str, logs: &mut Vec<Log>, filename: &'static str) -> Vec<Self> {
         let mut verbs: Vec<Self> = Vec::new();
         let mut lines = input.lines().enumerate();
 
@@ -90,18 +89,15 @@ impl ParsedVerb {
         verbs
     }
 
-    pub fn execute(&self, verb: &Verb) {
-        let args = &self.args.clone()
-            .into_iter()
+    pub fn execute(&self, args: &[&str]) {
+        let args = &self.args.iter()
             .flat_map(|a| {
                 if a == "*" {
-                    verb.args.clone().into_iter()
-                        .map(String::from)
-                        .collect::<Vec<String>>()
+                    args.to_vec()
                 } else { 
-                    vec![a] 
+                    vec![a.as_str()] 
                 }
-            }).collect::<Vec<String>>();
+            }).collect::<Vec<&str>>();
 
 
         let Ok(mut exec) = Command::new(&self.exec)

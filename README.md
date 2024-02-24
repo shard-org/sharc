@@ -39,7 +39,7 @@ main entry:
 :link -lc
 
 fibonacci n 2 -> 2 {
-   n <= 1: end n
+   n <= 1 -> end n
    end @fibonacci (n - 1) + @fibonacci (n - 2)
 }
 
@@ -87,7 +87,7 @@ bubble_sort [2] array, 2 n {
    loop i < n {
       %j 2 = 0
       loop j < n-i-1 {
-         array.j > array.(j+1):
+         array.j > array.(j+1) ->
             '[array.j] : [array.(j+1)]
          'j ++
       } 

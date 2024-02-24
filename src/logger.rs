@@ -1,7 +1,7 @@
 #[macro_export]
 macro_rules! debug {
     ($($fmt:tt)*) => {
-        Log::new().msg(format!($($fmt)*)).print()
+        Log::new().level($crate::logger::Level::Debug).msg(format!($($fmt)*)).print()
     };
 }
 
@@ -109,7 +109,7 @@ use crate::ARGS;
 impl Log {
     pub fn new() -> Self {
         Self {
-            level: Level::Debug,
+            level: Level::Err,
             span:  None,
             msg:   Box::default(),
             notes: Box::default(),

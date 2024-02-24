@@ -8,7 +8,7 @@ pub enum Macro {
 }
 
 impl Macro {
-    pub fn parse(input: &str, logs: &mut Vec<Log>, filename: &str) -> Vec<Macro> {
+    pub fn parse(input: &str, logs: &mut Vec<Log>, filename: &'static str) -> Vec<Macro> {
         let mut macros: Vec<Macro> = Vec::new();
         macros.push(Macro::Def(String::from("FILE"), filename.to_string()));
 

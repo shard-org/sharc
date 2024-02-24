@@ -31,7 +31,7 @@ impl Configs {
         }
     }
 
-    pub fn parse(input: &str, logs: &mut Vec<Log>, filename: &str) -> Self {
+    pub fn parse(input: &str, logs: &mut Vec<Log>, filename: &'static str) -> Self {
         let mut configs = Configs::default();
         let mut lines = input.lines().enumerate();
 

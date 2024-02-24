@@ -1,7 +1,12 @@
 mod args;
 mod logger;
 mod utils;
+
 mod location;
+mod token;
+
+mod lexer;
+
 mod verbs;
 mod macros;
 mod project_config;
@@ -11,6 +16,7 @@ use args::Args;
 use macros::Macro;
 use project_config::Configs;
 use verbs::ParsedVerb;
+use lexer::Lexer;
 
 use std::process::exit;
 
@@ -33,9 +39,6 @@ fn main() {
 
     let main_file = ARGS.file.unwrap_or_else(get_main_file);
     let mut main_file_contents = utils::reader(main_file);
-
-
-
 
     let mut macros = Macro::parse(&main_file_contents, &mut logs, main_file);
     debug!("{:#?}", macros);
@@ -61,10 +64,11 @@ fn main() {
     debug!("{:#?}", verbs);
     logs.print();
 
+    // if there's a verb being called
     if let Some(verb) = &ARGS.verb {
         match verbs.iter().find(|v| v.name == verb.verb) {
             Some(verb_def) => {
-                verb_def.execute(verb);
+                verb_def.execute(&verb.args);
                 exit(0);
             },
             None => {
@@ -73,6 +77,25 @@ fn main() {
             },
         }
     }
+
+    // if default verb is defined, and we arent bypassing
+    if !ARGS.no_default {
+        if let Some(verb) = verbs.iter().find(|v| v.name == "_") {
+            verb.execute(&[]);
+            exit(0);
+        }
+    }
+
+
+
+    let tokens = Lexer::new(&main_file_contents, &mut logs, main_file).lex();
+    logs.print();
+
+    let kinds = tokens.iter().fold(Vec::new(), |mut acc, t| {
+        acc.push(t.kind.clone()); acc
+    });
+
+    debug!("{:?}", kinds);
 
 
     todo!()

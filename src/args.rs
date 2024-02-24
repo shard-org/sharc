@@ -2,17 +2,17 @@ use super::*;
 use std::process::exit;
 use crate::logger::Level;
 
-const USAGE: &str = "Usage: sharc [-AhV] [-l level] [-f file] [verbs...]";
+const USAGE: &str = "Usage: sharc [-hNV] [-l level] [-f file] [verbs...]";
 const HELP_MESSAGE: &str = 
 "\x1b[1mDESCRIPTION\x1b[0m
 \x1b[1msharc\x1b[0m is a compiler for the Shard Programming Language. 
-!!!add more description!!!
+\x1b[1mTODO:\x1b[0m expand description
 
 \x1b[1mOPTIONS\x1b[0m
     -h  Print this message
     -V  Print the version number
 
-    -A  compile to assembly without outputing a binary
+    -N  Bypass the `default` verb, instead compiling the file directly
 
     -f FILE
         File to start compiling from. (default is `main.shd` or `src/main.shd`)
@@ -33,19 +33,19 @@ pub struct Verb {
 
 #[derive(Debug)]
 pub struct Args {
-    pub file:    Option<&'static str>,
-    pub asm:     bool,
-    pub log_lvl: logger::Level,
-    pub verb:    Option<Verb>,
+    pub file:       Option<&'static str>,
+    pub no_default: bool,
+    pub log_lvl:    logger::Level,
+    pub verb:       Option<Verb>,
 }
 
 impl Args {
     fn default() -> Self {
         Args {
-            file:    None,
-            asm:     false,
-            log_lvl: Level::Info,
-            verb:    None,
+            file:       None,
+            no_default: false,
+            log_lvl:    Level::Info,
+            verb:       None,
         }
     }
 
@@ -72,9 +72,12 @@ impl Args {
                             exit(0);
                         },
 
+                        'N' => out.no_default = true,
+
                         /* log level */
                         'l' => out.log_lvl = match args.next() {
                             Some(a) => match a.as_str() {
+                                "f" | "fatal" => Level::Fatal,
                                 "e" | "err"   => Level::Err,
                                 "w" | "warn"  => Level::Warn,
                                 "i" | "info"  => Level::Info,
