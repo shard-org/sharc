@@ -1,9 +1,8 @@
 
-:name hello_world `c`
+:name hello_world
 
-:verb run /bin/sh {
-   sharc #FILE
-   ./#NAME
+:verb hello /bin/sh {
+   echo #HELLO
 }
 
 /HELLO = "Hello, World"
