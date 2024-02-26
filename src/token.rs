@@ -74,9 +74,10 @@ pub enum TokenKind {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum RegSize {
-    QWord,
-    DWord,
-    Word,
+//  Word,   // this will depend on architecture
+    Double, // double as in double long.. not a double precision float
+    Long,
+    Short,
     HighByte,
     Byte,
 }
@@ -85,11 +86,11 @@ impl Into<usize> for RegSize {
     fn into(self) -> usize {
         use RegSize::*;
         match self {
-            QWord => 8,
-            DWord => 4,
-            Word => 2,
+            Double   => 8,
+            Long     => 4,
+            Short    => 2,
             HighByte => 1,
-            Byte => 1,
+            Byte     => 1,
         }
     }
 }

@@ -245,9 +245,9 @@ impl Lexer<'_> {
     fn parse_register(&mut self, mut reg: String) -> Option<TokenKind> {
         use RegSize::*;
         let size = match reg.pop().unwrap() {
-            'q' => QWord,
-            'd' => DWord,
-            'w' => Word,
+            'd' => Double,
+            'l' => Long,
+            's' => Short,
             'h' => HighByte, // high byte represented as 0... prob better idea to have some kind of enum
                       // for register size but it is what it is. This is a legacy feature of x86
                       // anyway so we might end up removing it as no compiler actually takes it
