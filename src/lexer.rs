@@ -1,6 +1,7 @@
 use std::{
     io::{BufRead, BufReader},
     fs::File,
+    collections::VecDeque,
 };
 
 use crate::{
@@ -20,7 +21,7 @@ pub struct Lexer {
     li:       usize, // line counter
     nl:       usize, // advanced without returning tokens //??!?
 
-    chars:    Vec<char>, // chars of the current line
+    chars:    VecDeque<char>, // chars of the current line
     ci:       usize, // char counter
 }
 
@@ -35,7 +36,7 @@ impl Iterator for Lexer {
                 '&' => Ampersand,
                 '@' => At,
                 '`' => {
-                    let Some(mut c) = self.next() else {
+                    let Some(mut c) = self.next_char() else {
                         return self.to_span()
                             .to_log()
                             .msg("Invalid end of char literal")
@@ -44,7 +45,7 @@ impl Iterator for Lexer {
                     };
 
                     if c == '\\' {
-                        let Some(cha) = self.next() else {
+                        let Some(cha) = self.next_char() else {
                             return self.to_span()
                                 .to_log()
                                 .msg("Invalid end of char literal")
@@ -58,7 +59,7 @@ impl Iterator for Lexer {
                         };
                     }
 
-                    if self.next() != Some('`') {
+                    if self.next_char() != Some('`') {
                         return self.to_span()
                             .to_log()
                             .msg("Invalid end of char literal")
@@ -77,7 +78,7 @@ impl Iterator for Lexer {
                 '.' => Dot,
                 '"' => {
                     let mut lit = String::new();
-                    while let Some(c) = self.next() {
+                    while let Some(c) = self.next_char() {
                         match c {
                             '\\' => {
                                 if let Result::Err(e) = self.esc_to_char(c).map(|c| lit.push(c)) {
@@ -137,7 +138,7 @@ impl Iterator for Lexer {
                     /* block comments */
                     if self.test_next('*') { 
                         let mut last: char = '\0';
-                        while let Some(c) = self.next() {
+                        while let Some(c) = self.next_char() {
                             if last == '*' && c == '/' { break }
                             last = c;
                         } continue;
@@ -225,7 +226,7 @@ impl Lexer {
             file: BufReader::new(file), 
             li: 1, 
             nl: 0, 
-            chars: Vec::new(),
+            chars: VecDeque::new(),
             ci: 1
         }
     }
@@ -235,17 +236,17 @@ impl Lexer {
     }
 
     fn advance(&mut self) -> Option<char> {
-        self.next().or_else(|| self.next_line().map_or(None, |_| self.advance()))
+        self.next_char().or_else(|| self.next_line().map_or(None, |_| self.advance()))
     }
 
-    fn next(&mut self) -> Option<char> {
-        self.chars.pop().map(|c| {
+    fn next_char(&mut self) -> Option<char> {
+        self.chars.pop_front().map(|c| {
             self.ci += 1; c
         })
     }
 
     fn peek(&mut self) -> Option<char> {
-        self.chars.get(1).copied()
+        self.chars.front().copied()
     }
 
     fn esc_to_char(&mut self, c: char) -> Result<char, Log> {
@@ -278,7 +279,7 @@ impl Lexer {
             'Y' =>       25,  // EM  | End of Medium
             'Z' =>       26,  // SUB | Substitute ||| EOF | End of File
             '[' | 'e' => 27,  // ESC | Escape
-            '\\'=>       28,  // FS  | File Separator
+            // '\\'=>       28,  // FS  | File Separator  // ??????
             ']' =>       29,  // GS  | Group Selector
             '^' =>       30,  // RS  | Record Separator
             '_' =>       31,  // US  | Unit Separator
@@ -300,37 +301,53 @@ impl Lexer {
         while let Some(c) = self.peek() {
             if !(c.is_ascii_alphanumeric() || c == '_'){ break; }
 
-            let _ = self.next();
+            let _ = self.next_char();
             word.push(c);
         } word
     }
 
-    fn next_line(&mut self) -> Result<(), Log> {
+    fn next_line(&mut self) -> Option<()> {
         let mut line = Vec::new();
-        if let Err(e) = self.file.read_until(b'\n', &mut line) {
-            return Err(self.to_span()
-                .to_log()
-                .msg(format!("End of file or err: {}", e))
-                .level(Level::Debug));
+        match self.file.read_until(b'\n', &mut line) {
+            Ok(b) if b == 0 => {
+                self.to_span()
+                    .line(|x| x-1)
+                    .to_log()
+                    .msg(format!("EOF: {:?}", self.filename))
+                    .level(Level::Debug)
+                    .print();
+                return None
+            },
+            Ok(_) => (),
+            Err(e) => {
+                self.to_span()
+                    .to_log()
+                    .msg(format!("line get err: {}", e))
+                    .print();
+                return None;
+            },
         }
     
         match String::from_utf8(line) {
             Ok(l) => {
                 self.li += 1;
                 self.nl += 1;
-                self.chars = l.chars().collect::<Vec<char>>();
-                Ok(())
+                self.ci = 0;
+                self.chars = l.chars().collect::<VecDeque<char>>();
+                Some(())
             },
             Err(e) => {
-                return Err(self.to_span()
+                self.to_span()
                     .to_log()
                     .msg("Invalid utf8 in file")
-                    .notes(e))
+                    .notes(e)
+                    .print();
+                None
             }
         }
     }
 
     fn to_span(&self) -> Span {
-        Span::new(self.filename, self.li - self.nl, self.ci + 1)
+        Span::new(self.filename, self.li - self.nl, self.ci)
     }
 }

@@ -1,13 +1,14 @@
-
 :name hello_world
+:arch x86_64 linux 
 
-:verb hello /bin/sh {
-   echo #HELLO
+:verb run /bin/sh {
+   sharc main.shd
+   chmod +x hello_world
+   ./hello_world
 }
 
-/HELLO = "Hello, World"
+:entry main
 
-main entry:
-   $puts #HELLO
-   ret 0
-
+main:
+   $puts "Hello, World!"
+   ret

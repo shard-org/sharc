@@ -33,7 +33,17 @@ fn main() {
 
 
     let tokens = Lexer::new(main_file, main_file_name);
-    // logs.print()
+    // logs.print();
+
+    let file = std::fs::File::open(main_file_name).unwrap();
+    let lexer = Lexer::new(file, main_file_name);
+
+    for tok in lexer {
+        match tok.kind {
+            crate::token::TokenKind::Err(e) => e.print(),
+            k => println!("{:?}", k),
+        }
+    }
 
     // let kinds = tokens.iter().fold(Vec::new(), |mut acc, t| {
     //     acc.push(t.kind.clone()); acc
