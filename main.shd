@@ -2,13 +2,11 @@
 :arch x86_64 linux 
 
 :verb run /bin/sh {
-   sharc main.shd
-   chmod +x hello_world
-   ./hello_world
+   sharc #FILE
+   chmod +x #NAME 
+   ./#NAME
 }
 
-:entry main
-
-main:
+main entry:
    $puts "Hello, World!"
    ret
