@@ -16,7 +16,6 @@ pub enum TokenKind {
     Dot,
     // DoubleQuote,   // error or StrLit
     Equals,
-    FatArrow,
     GreaterThan,
     GreaterThanEquals,
     LeftBrace,

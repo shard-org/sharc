@@ -54,9 +54,7 @@ impl Iterator for Lexer {
 
                         c = match self.esc_to_char(cha) {
                             Ok(c) => c,
-                            Err(e) => {
-                                return e.to_token().some()
-                            },
+                            Result::Err(e) => return e.to_token().some(),
                         };
                     }
 
@@ -82,7 +80,7 @@ impl Iterator for Lexer {
                     while let Some(c) = self.next() {
                         match c {
                             '\\' => {
-                                if let Err(e) = self.esc_to_char(c).map(|c| lit.push(c)) {
+                                if let Result::Err(e) = self.esc_to_char(c).map(|c| lit.push(c)) {
                                     return e.to_token().some();
                                 }
                                 continue;
