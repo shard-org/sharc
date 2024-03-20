@@ -37,6 +37,7 @@ pub struct Args {
     pub no_default: bool,
     pub log_lvl:    logger::Level,
     pub verb:       Option<Verb>,
+    // pub parser_strict: bool,
 }
 
 impl Args {
@@ -46,6 +47,7 @@ impl Args {
             no_default: false,
             log_lvl:    Level::Info,
             verb:       None,
+            // parser_strict: false,
         }
     }
 

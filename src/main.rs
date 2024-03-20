@@ -7,18 +7,9 @@ mod token;
 
 mod lexer;
 
-mod verbs;
-mod macros;
-mod project_config;
-
 use logger::{Log, Logs};
 use args::Args;
-use macros::Macro;
-use project_config::Configs;
-use verbs::ParsedVerb;
 use lexer::Lexer;
-
-use std::process::exit;
 
 lazy_static::lazy_static! {
     // init args
@@ -27,7 +18,7 @@ lazy_static::lazy_static! {
 
 
 fn main() {
-    let mut logs: Vec<Log> = Vec::new();
+    // let mut logs: Vec<Log> = Vec::new();
 
     warn!("sharc is still deep in development :p");
     warn!("Please report any bugs, crashes, as well as feature suggestions.");
@@ -37,65 +28,18 @@ fn main() {
 
 
 
-    let main_file = ARGS.file.unwrap_or_else(get_main_file);
-    let mut main_file_contents = utils::reader(main_file);
-
-    let mut macros = Macro::parse(&main_file_contents, &mut logs, main_file);
-    debug!("{:#?}", macros);
-    logs.print();
+    let main_file_name = ARGS.file.unwrap_or_else(get_main_file);
+    let main_file = utils::open(main_file_name);
 
 
-    let configs = Configs::parse(&main_file_contents, &mut logs, main_file);
-    debug!("{:#?}", configs);
-    logs.print();
+    let tokens = Lexer::new(main_file, main_file_name);
+    // logs.print()
 
-    macros.push(Macro::Def(String::from("NAME"), configs.name));
-
-    if !configs.version.is_empty() {
-        macros.push(Macro::Def(String::from("VERSION"), configs.version));
-    }
-
-
-    Macro::apply(macros, &mut main_file_contents);
-    debug!("AFTER MACRO:\n{}\n##### END #####", main_file_contents);
-
-
-    let verbs = ParsedVerb::parse(&main_file_contents, &mut logs, main_file);
-    debug!("{:#?}", verbs);
-    logs.print();
-
-    // if there's a verb being called
-    if let Some(verb) = &ARGS.verb {
-        match verbs.iter().find(|v| v.name == verb.verb) {
-            Some(verb_def) => {
-                verb_def.execute(&verb.args);
-                exit(0);
-            },
-            None => {
-                fatal!("Undefined verb `{}`", verb.verb);
-                exit(1);
-            },
-        }
-    }
-
-    // if default verb is defined, and we arent bypassing
-    if !ARGS.no_default {
-        if let Some(verb) = verbs.iter().find(|v| v.name == "_") {
-            verb.execute(&[]);
-            exit(0);
-        }
-    }
-
-
-
-    let tokens = Lexer::new(&main_file_contents, &mut logs, main_file).lex();
-    logs.print();
-
-    let kinds = tokens.iter().fold(Vec::new(), |mut acc, t| {
-        acc.push(t.kind.clone()); acc
-    });
-
-    debug!("{:?}", kinds);
+    // let kinds = tokens.iter().fold(Vec::new(), |mut acc, t| {
+    //     acc.push(t.kind.clone()); acc
+    // });
+    //
+    // debug!("{:?}", kinds);
 
 
     todo!()

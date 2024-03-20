@@ -1,77 +1,71 @@
-use std::iter::{Enumerate, Peekable};
-use std::str::{Chars, Lines};
+use std::{
+    io::{BufRead, BufReader},
+    fs::File,
+};
+
+use crate::{
+    token::{Token, TokenKind},
+    location::Span,
+    logger::{Log, Level},
+
+    debug,
+    utils,
+};
 
 
-use crate::token::{Token, TokenKind, RegSize};
-use crate::location::Span;
-use crate::logger::{Log, Logs, Level};
-
-use crate::debug;
-
-pub struct Lexer<'a> {
-    logger:   &'a mut Vec<Log>,
+pub struct Lexer {
     filename: &'static str,
 
-    lines:    Lines<'a>, // first element is always the next line
+    file:     BufReader<File>,
     li:       usize, // line counter
-    nl:       usize, // advanced without returning tokens
+    nl:       usize, // advanced without returning tokens //??!?
 
-    chars:    Peekable<Enumerate<Chars<'a>>>, // chars of the current line
+    chars:    Vec<char>, // chars of the current line
     ci:       usize, // char counter
-
-    tokens:   Vec<Token>,
 }
 
-impl Lexer<'_> {
-    pub fn new<'a>(input: &'a str, logger: &'a mut Vec<Log>, filename: &'static str) -> Lexer<'a> {
-        let mut lines = input.lines();
+impl Iterator for Lexer {
+    type Item = Token;
 
-        let Some(line) = lines.next() else {
-            panic!("file cannot be empty... the reader should filter this");
-        };
-
-        let chars = line.chars().enumerate().peekable();
-
-        Lexer{ logger, filename, lines, li: 1, nl: 0, chars, ci: 1, tokens: Vec::new()}
-    }
-
-    pub fn lex(mut self) -> Vec<Token> {
-        'main: while let Some(c) = self.advance() {
+    fn next(&mut self) -> Option<Self::Item> {
+        while let Some(c) = self.advance() {
             use TokenKind::*;
             let token = match c {
+                '\n' => NL,
                 '&' => Ampersand,
                 '@' => At,
                 '`' => {
                     let Some(mut c) = self.next() else {
-                        self.to_span()
+                        return self.to_span()
                             .to_log()
                             .msg("Invalid end of char literal")
-                            .push(self.logger);
-                        continue;
+                            .to_token()
+                            .some();
                     };
 
                     if c == '\\' {
                         let Some(cha) = self.next() else {
-                            self.to_span()
+                            return self.to_span()
                                 .to_log()
                                 .msg("Invalid end of char literal")
-                                .push(self.logger);
-                            continue;
+                                .to_token()
+                                .some();
                         };
 
                         c = match self.esc_to_char(cha) {
-                            Some(c) => c,
-                            None => continue,
+                            Ok(c) => c,
+                            Err(e) => {
+                                return e.to_token().some()
+                            },
                         };
                     }
 
                     if self.next() != Some('`') {
-                        self.to_span()
+                        return self.to_span()
                             .to_log()
                             .msg("Invalid end of char literal")
-                            .print();
-                            // .push(self.logger);
-                        continue;
+                            .to_token()
+                            .some();
                     }
 
                     CharLit(c)
@@ -88,28 +82,25 @@ impl Lexer<'_> {
                     while let Some(c) = self.next() {
                         match c {
                             '\\' => {
-                                self.esc_to_char(c).map(|c| lit.push(c));
+                                if let Err(e) = self.esc_to_char(c).map(|c| lit.push(c)) {
+                                    return e.to_token().some();
+                                }
                                 continue;
                             },
-                            '"' => {
-                                let token = StrLit(lit);
-                                self.tokens.push(self.to_span().to_token(token));
-                                continue 'main;
-                            },
+                            '"' => return self.to_span()
+                                .to_token(StrLit(lit))
+                                .some(),
                             _ => lit.push(c),
                         }
                     }
 
-                    self.to_span()
+                    return self.to_span()
                         .to_log()
                         .msg("Invalid end of string literal")
-                        .push(self.logger);
-                    continue;
+                        .to_token()
+                        .some();
                 },
-                '=' => {
-                    if self.test_next('>') { FatArrow }
-                    else { Equals }
-                },
+                '=' => Equals,
                 '>' => {
                     if self.test_next('=') { GreaterThanEquals }
                     else { GreaterThan }
@@ -119,11 +110,12 @@ impl Lexer<'_> {
                 '(' => LeftParen,
                 '<' => {
                     if self.test_next('=') { LessThanEquals }
+                    else if self.test_next('-') { SmallArrowLeft }
                     else { LessThan }
                 },
                 '-' => {
                     if self.test_next('-') { MinusMinus }
-                    else if self.test_next('>') { TinyArrowRight }
+                    else if self.test_next('>') { SmallArrowRight }
                     else { Minus }
                 },
                 '~' => {
@@ -143,13 +135,27 @@ impl Lexer<'_> {
                 ')' => RightParen,
                 ';' => Semicolon,
                 '\''=> SingleQuote,
-                '/' => Slash,
-                '*' => Star,
-                ' ' | '\t' => {
-                    // prevent doubled whitespace
-                    if self.tokens.last().is_some_and(|t| t.kind == WS) { continue; }
-                    WS
+                '/' => {
+                    /* block comments */
+                    if self.test_next('*') { 
+                        let mut last: char = '\0';
+                        while let Some(c) = self.next() {
+                            if last == '*' && c == '/' { break }
+                            last = c;
+                        } continue;
+                    }
+
+                    // line comments
+                    if self.test_next('/') { 
+                        while self.next().is_some() {}
+                        continue;
+                    }
+
+                    Slash
                 },
+                '*' => Star,
+
+                ' ' | '\t' => continue,
 
                 c if c.is_ascii_alphabetic() || c == '_' => {
                     let word = self.word();
@@ -160,28 +166,12 @@ impl Lexer<'_> {
                     }
 
                     else {
-                        let mut word = format!("{}{}", c, word);
-
-                        // registers
-                        if let Some(word) = word.strip_prefix('r') {
-                            if word.chars().next().unwrap().is_numeric() { 
-                                let Some(token) = self.parse_register(word.to_string()) else {
-                                    continue;
-                                };
-
-                                self.tokens.push(self.to_span().to_token(token));
-                                continue;
-                            }
-                        }
-
+                        let word = format!("{}{}", c, word);
                         match word.as_str() {
                             // keywords
                             "jmp" => Jmp,
                             "ret" => Ret,
                             "end" => End,
-                            "init" => Init,
-                            "static" => Static,
-                            "const" => Const, 
                             "entry" => Entry,
                             "inline" => Inline,
 
@@ -190,89 +180,56 @@ impl Lexer<'_> {
                     }
                 },
 
-                '0' => if let Some(c) = self.next() { 
-                    let word = self.word();
-                    match c {
-                        'b' => BinLit(self.num(word, 2).unwrap()),
-                        'o' => OctLit(self.num(word, 8).unwrap()),
-                        'x' => HexLit(self.num(word, 16).unwrap()),
-
-                        n if n.is_numeric() => {
-                            let word = format!("{}{}", n, word);
-                            DecLit(self.num(word, 10).unwrap())
-                        },
-
-                        _ => {
-                            self.to_span()
-                                .to_log()
-                                .msg("Unexpected token in integer literal")
-                                .push(self.logger);
-                            continue;
-                        },
-                    }
-                } 
-                else { DecLit(0) },
-
-
                 c if c.is_numeric() => {
                     let word = format!("{}{}", c, self.word());
 
                     if word.contains('.') {
                         FloatLit(word.parse::<f64>().unwrap())
                     }
+
+                    else if word.starts_with('-') || word.starts_with('+') {
+                        SIntLit(word.parse::<isize>().unwrap())
+                    }
+
                     else {
-                        DecLit(self.num(word, 10).unwrap()) 
+                        let Ok(n) = utils::parse_int(word.clone()) else {
+                            return self.to_span()
+                                .col(|x| x - word.len())
+                                .length(word.len())
+                                .to_log()
+                                .msg("Invalid integer literal")
+                                // .notes(e)
+                                .to_token()
+                                .some();
+                        };
+
+                        IntLit(n)
                     }
                 },
 
-
                 t => {
                     debug!("Unknown token: {:?}", t);
-                    panic!()
+                    unreachable!()
                 },
             };
 
-
-            
             self.nl = 0;
-            self.tokens.push(self.to_span().to_token(token));
+            return self.to_span().to_token(token).some();
         }
-
-        self.tokens
+        None
     }
+}
 
-    // always TokenKind::Register
-    fn parse_register(&mut self, mut reg: String) -> Option<TokenKind> {
-        use RegSize::*;
-        let size = match reg.pop().unwrap() {
-            'd' => Double,
-            'l' => Long,
-            's' => Short,
-            'h' => HighByte, // high byte represented as 0... prob better idea to have some kind of enum
-                      // for register size but it is what it is. This is a legacy feature of x86
-                      // anyway so we might end up removing it as no compiler actually takes it
-                      // into account.. maybe?
-            'b' => Byte,
-            _ => {
-                self.to_span()
-                    .length(reg.len())
-                    .to_log()
-                    .msg("Invalid token in register identifier")
-                    .push(self.logger);
-                return None;
-            },
-        };
-
-        let Ok(num) = reg.parse::<usize>() else {
-            self.to_span()
-                .length(reg.len())
-                .to_log()
-                .msg("Invalid token in register identifier")
-                .push(self.logger);
-            return None;
-        };
-
-        Some(TokenKind::Register(size, num))
+impl Lexer {
+    pub fn new(file: File, filename: &'static str) -> Lexer {
+        Lexer { 
+            filename, 
+            file: BufReader::new(file), 
+            li: 1, 
+            nl: 0, 
+            chars: Vec::new(),
+            ci: 1
+        }
     }
 
     fn test_next(&mut self, test: char) -> bool {
@@ -280,54 +237,64 @@ impl Lexer<'_> {
     }
 
     fn advance(&mut self) -> Option<char> {
-        self.next().or_else(|| {
-            match self.next_line() {
-                Some(l) => self.advance(),
-                None => {
-                    self.tokens.push(self.to_span().to_token(TokenKind::EOF));
-                    None
-                },
-            }
-        })
+        self.next().or_else(|| self.next_line().map_or(None, |_| self.advance()))
     }
 
     fn next(&mut self) -> Option<char> {
-        self.chars.next().map(|c| {
-            self.ci = c.0; c.1
+        self.chars.pop().map(|c| {
+            self.ci += 1; c
         })
     }
 
     fn peek(&mut self) -> Option<char> {
-        self.chars.peek().map(|c| c.1)
+        self.chars.get(1).copied()
     }
 
-    fn esc_to_char(&mut self, c: char) -> Option<char> {
+    fn esc_to_char(&mut self, c: char) -> Result<char, Log> {
         let c = match c {
-            'n' => '\n',
-            't' => '\t',
-            'r' => '\t',
-            '\\' => '\\',
-            '"' => '"',
-            _  => {
-                self.to_span()
-                    .to_log()
-                    .msg(format!("Invalid escaped character `{}`", c))
-                    .push(self.logger);
-                return None;
-            },
-        }; Some(c)
-    }
+            '@' | '0' => 0,   // NUL | Null
+            'A' =>       1,   // SOH | Start of Heading
+            'B' =>       2,   // STX | Start of Text
+            'C' =>       3,   // ETX | End of Text
+            'D' =>       4,   // EOT | End of Transmission
+            'E' =>       5,   // ENQ | Enquiry
+            'F' =>       6,   // ACK | Acknowledgement
+            'G' | 'a' => 7,   // BEL | Bell
+            'H' | 'b' => 8,   // BS  | Backspace
+            'I' | 't' => 9,   // HT  | Horizontal Tab
+            'J' | 'n' => 10,  // LF  | Line Feed
+            'K' | 'v' => 11,  // VT  | Vertical Tab
+            'L' | 'f' => 12,  // FF  | Form Feed
+            'M' | 'r' => 13,  // CR  | Carriage Return
+            'N' =>       14,  // SO  | Shift Out
+            'O' =>       15,  // SI  | Shift In
+            'P' =>       16,  // DLE | Data Link Escape
+            'Q' =>       17,  // DC1 | Device Control 1
+            'R' =>       18,  // DC2 | Device Control 2
+            'S' =>       19,  // DC3 | Device Control 3 (XOFF)
+            'T' =>       20,  // DC4 | Device Control 4
+            'U' =>       21,  // NAK | Negative Acknowledgement
+            'V' =>       22,  // SYN | Synchronous Idle
+            'W' =>       23,  // ETB | End of Transmission Block
+            'X' =>       24,  // CAN | Cancel
+            'Y' =>       25,  // EM  | End of Medium
+            'Z' =>       26,  // SUB | Substitute ||| EOF | End of File
+            '[' | 'e' => 27,  // ESC | Escape
+            '\\'=>       28,  // FS  | File Separator
+            ']' =>       29,  // GS  | Group Selector
+            '^' =>       30,  // RS  | Record Separator
+            '_' =>       31,  // US  | Unit Separator
+            '?' =>       127, // DEL | Delete
 
-    fn num(&mut self, word: String, base: u32) -> Option<usize> {
-        usize::from_str_radix(&word, base).map_or_else(|e| {
-            self.to_span()
-                .length(word.len())
-                .to_log()
-                .msg("Invalid integer literal")
-                .notes(e)
-                .push(self.logger);
-            None
-        }, |n| Some(n))
+            '\\' =>      92,  // \ | Backslash
+            '"'  =>      34,  // " | Double Quote
+            
+            _  => {
+                return Err(self.to_span()
+                    .to_log()
+                    .msg(format!("Invalid escaped character `{}`", c)));
+            },
+        }; Ok(char::from(c))
     }
 
     fn word(&mut self) -> String {
@@ -340,25 +307,32 @@ impl Lexer<'_> {
         } word
     }
 
-    fn next_line(&mut self) -> Option<&str> {
-        match self.lines.next() { 
-            Some(l) if l.trim().is_empty() => self.next_line(),
-            Some(l) => {
+    fn next_line(&mut self) -> Result<(), Log> {
+        let mut line = Vec::new();
+        if let Err(e) = self.file.read_until(b'\n', &mut line) {
+            return Err(self.to_span()
+                .to_log()
+                .msg(format!("End of file or err: {}", e))
+                .level(Level::Debug));
+        }
+    
+        match String::from_utf8(line) {
+            Ok(l) => {
                 self.li += 1;
                 self.nl += 1;
-                self.chars = l.chars().enumerate().peekable();
-
-
-                self.tokens.push(self.to_span().to_token(TokenKind::NL));
-
-                Some(l)
+                self.chars = l.chars().collect::<Vec<char>>();
+                Ok(())
+            },
+            Err(e) => {
+                return Err(self.to_span()
+                    .to_log()
+                    .msg("Invalid utf8 in file")
+                    .notes(e))
             }
-            None => None,
         }
     }
 
     fn to_span(&self) -> Span {
         Span::new(self.filename, self.li - self.nl, self.ci + 1)
     }
-
 }

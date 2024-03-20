@@ -1,7 +1,7 @@
 use crate::logger::Log;
 use crate::token::{Token, TokenKind};
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Span {
     pub file:   &'static str,
     // both line and col are counted from 1
@@ -24,11 +24,11 @@ impl Span {
         self.length = Some(length); self
     }
 
-    pub fn line(mut self, f: fn(usize) -> usize) -> Self {
+    pub fn line<F: FnOnce(usize) -> usize>(mut self, f: F) -> Self {
         self.line = f(self.line); self
     }
 
-    pub fn col(mut self, f: fn(usize) -> usize) -> Self {
+    pub fn col<F: FnOnce(usize) -> usize>(mut self, f: F) -> Self {
         self.col = f(self.col); self
     }
 

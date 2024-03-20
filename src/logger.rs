@@ -106,6 +106,7 @@ impl Display for Log {
 }
 
 use crate::ARGS;
+use crate::token::{Token, TokenKind};
 impl Log {
     pub fn new() -> Self {
         Self {
@@ -132,6 +133,13 @@ impl Log {
         self.notes = notes.to_string().into_boxed_str(); self
     }
 
+
+    pub fn to_token(self) -> Token {
+        let span = self.span.clone().unwrap();
+        Token { kind: TokenKind::Err(self), span}
+    }
+
+
     
     pub fn push(self, logs: &mut Vec<Log>) {
         logs.push(self);
@@ -144,6 +152,8 @@ impl Log {
 
         println!("{}", self);
     }
+
+
 
 
     fn get_file_line(file: &str, line: &usize) -> Option<String> {

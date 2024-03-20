@@ -58,10 +58,34 @@ They may contain labels, jumps, etc.
 To return use the `end` keyword, which takes return arguments
 eg: `end 16`, `end array`
 
+## Attributes
+these are inserted after the identifier of a function/label
+eg: `main entry:` entry here is an attribute
+
+- **entry**
+    The program's entry point. Exclusive. Label Only.
+
+- **inline**
+    Inserts the body wherever it's called. Function only.
+
+- **static**
+    Insert the function/label into the `.data` section
+    
+- **const**
+    Insert the function/label into the `.rodata` section
+
+- **init**
+    Insert the function/label into the `.bss` section
+
+
 
 # Variables
 
-## static, const, init
+## Data Segments
+these are 
+
+- **static**
+    
 
 ## Register vars
 

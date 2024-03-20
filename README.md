@@ -1,4 +1,4 @@
-shard is still in a VERY EARLY STAGE, like not even usable yet
+shard is still in a VERY EARLY STAGE, like not even usable yet  
 If you like this concept then PLEASE help out  
 I cant do it all by myself.. :/  
 
@@ -87,7 +87,7 @@ bubble_sort [2] array, 2 n {
    loop i < n {
       %j 2 = 0
       loop j < n-i-1 {
-         array.j > array.(j+1) ->
+         (array.j > array.(j+1))
             '[array.j] : [array.(j+1)]
          'j ++
       } 

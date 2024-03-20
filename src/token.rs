@@ -1,11 +1,12 @@
 use crate::location::Span;
+use crate::logger::Log;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug)]
 pub enum TokenKind {
     // Symbols
     Ampersand,
     At,
-    // Backtick,
+    // Backtick,   // error or Chalit
     Backslash,
     Bang,
     Caret,
@@ -13,7 +14,7 @@ pub enum TokenKind {
     Comma,
     Dollar,
     Dot,
-    DoubleQuote,
+    // DoubleQuote,   // error or StrLit
     Equals,
     FatArrow,
     GreaterThan,
@@ -40,59 +41,33 @@ pub enum TokenKind {
     Slash,
     Star,
     Tilde,
-    // TinyArrowLeft,
-    TinyArrowRight,
+    SmallArrowLeft,
+    SmallArrowRight,
     Underscore,
 
     // Other
     Ident(String),
-    Register(RegSize, usize),
-    WS,
     NL,
 
     // keywords
     Jmp,
     Ret,
     End,
-    Init,
     Inline,
-    Static,
-    Const, 
     Entry,
 
     // literals
-    BinLit(usize),
     CharLit(char),
-    DecLit(usize),
-    FloatLit(f64),
-    HexLit(usize),
-    OctLit(usize),
     StrLit(String),
 
-    EOF,
-}
+    IntLit(usize),
+    FloatLit(f64),
+    SIntLit(isize),
 
-#[derive(Debug, PartialEq, Clone)]
-pub enum RegSize {
-//  Word,   // this will depend on architecture
-    Double, // double as in double long.. not a double precision float
-    Long,
-    Short,
-    HighByte,
-    Byte,
-}
 
-impl Into<usize> for RegSize {
-    fn into(self) -> usize {
-        use RegSize::*;
-        match self {
-            Double   => 8,
-            Long     => 4,
-            Short    => 2,
-            HighByte => 1,
-            Byte     => 1,
-        }
-    }
+    Err(Log),
+
+    // EOF,
 }
 
 #[derive(Debug)]
@@ -104,5 +79,9 @@ pub struct Token {
 impl Token {
     pub fn new(kind: TokenKind, span: Span) -> Self {
         Token{kind,span}
+    }
+
+    pub fn some(self) -> Option<Self> {
+        Some(self)
     }
 }
