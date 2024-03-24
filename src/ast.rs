@@ -65,10 +65,19 @@ enum OpKind {
     BitAnd, // &
     BitOr,  // |
     BitXor, // ^
+<<<<<<< HEAD
 
     LogAnd, // &&
     LogOr,  // ||
     BitXor, // ^^
+=======
+    BitNot, // ~
+
+    LogAnd, // &&
+    LogOr,  // ||
+    LogXor, // ^^
+    LogNot, // ~~
+>>>>>>> 397b7e7 (ast)
 
     Add,    // +
     Sub,    // -
