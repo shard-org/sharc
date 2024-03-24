@@ -149,21 +149,21 @@ enum Tag {
     // INTERNAL
 
 }
-    //
-    // // build components
-    // pub linker:    Exec, // required!
-    // pub assembler: Exec, // required!
-    // pub sharc:     Vec<String>,
-    //
-    // pub verbs:     Vec<VerbDef>,
-    //
-    // //
-    // // architecture specific defs, not *meant* to be used in main files
-    // // these should be all caps
-    // pub word:       usize, // word size
-    // pub attributes: Vec<(String, String)>, // (from, into)
-    // pub registers:  Vec<(String, String)>, // (from, into)
-    //
-    // pub syscall_addr: usize,
-    // pub syscall_conv: (Vec<String>, String),
-    // pub syscalls:     Vec<(String, Vec<SysArg>)>,
+
+// // build components
+// pub linker:    Exec, // required!
+// pub assembler: Exec, // required!
+// pub sharc:     Vec<String>,
+//
+// pub verbs:     Vec<VerbDef>,
+//
+// //
+// // architecture specific defs, not *meant* to be used in main files
+// // these should be all caps
+// pub word:       usize, // word size
+// pub attributes: Vec<(String, String)>, // (from, into)
+// pub registers:  Vec<(String, String)>, // (from, into)
+//
+// pub syscall_addr: usize,
+// pub syscall_conv: (Vec<String>, String),
+// pub syscalls:     Vec<(String, Vec<SysArg>)>,

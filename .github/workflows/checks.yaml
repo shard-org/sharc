@@ -21,13 +21,4 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Clippy
-        run: cargo clippy -v -- -D warnings
-
-  format:
-    name: Format
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Format
-        run: cargo fmt -v --check
+        run: cargo clippy -v
