@@ -44,9 +44,6 @@ prtnt string [1] {
 prt inline string [1], len 4 {
     *write 1, string, len
 }
-```
-
-
 
 static {
     VAR 1: 87
@@ -63,13 +60,13 @@ main entry:
        $puts "hello!"
    }
 
+   
 
 
 // WARN: No way to check if the label always return at comptime if it doesnt have a body
 add a 4, b 4 -> 4: 
    end a + b
    
-
 
 
 
@@ -89,3 +86,53 @@ signed literals? nah
 shadow identifiers: solves loops problem!
 just allow returns with no body but comptime WARN
 typed labels! `VAR 1: 87`
+
+
+
+
+
+
+Okay so I just got a crazy idea... Anonymous functions
+What? in shart? huh?
+Yeah crazy I know, but hold on.
+
+we aleady have something like this in the form of conditionals and loops.
+a conditional is a label that's only executed if a condition is met
+```rs
+(var = 2) => $puts "its two!"
+
+// the above example is simply syntax sugar for:
+(var = 2) {
+   $puts "it's two!"
+}
+```
+
+This is already an anonymous label! 
+Same thing happens with a `loop`. In the below example `loop` is an attribute of that label, not the identifier.
+
+```rs
+loop (var > 2) {
+   $puts "it's above two!"
+   'var --
+}
+```
+
+this also means you can name loops, being then able to jump to them at any time!
+```rs
+my_loop loop (var > 2) {
+   $puts "it's above two!"
+   'var --
+}
+
+jmp my_loop
+```
+
+Now the opposite of that would mean that you can have a function as a variable...
+```rs
+%var = -> 1 {
+    end 20
+}
+```
+
+```rs
+```

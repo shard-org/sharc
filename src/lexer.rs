@@ -191,18 +191,17 @@ impl Iterator for Lexer {
                     }
 
                     else {
-                        let Ok(n) = utils::parse_int(word.clone()) else {
-                            return self.to_span()
+                        match utils::parse_int(word.clone()) {
+                            Ok(n) => IntLit(n),
+                            Result::Err(e) => return self.to_span()
                                 .col(|x| x - word.len())
                                 .length(word.len())
                                 .to_log()
                                 .msg("Invalid integer literal")
-                                // .notes(e)
+                                .notes(e)
                                 .to_token()
-                                .some();
-                        };
-
-                        IntLit(n)
+                                .some(),
+                        }
                     }
                 },
 

@@ -38,10 +38,11 @@ fn main() {
     let file = std::fs::File::open(main_file_name).unwrap();
     let lexer = Lexer::new(file, main_file_name);
 
-    for tok in lexer {
-        match tok.kind {
+    for t in lexer {
+        match t.kind {
             crate::token::TokenKind::Err(e) => e.print(),
-            k => println!("{:?}", k),
+            crate::token::TokenKind::NL => print!("NL, \n"),
+            k => print!("{:?}, ", k),
         }
     }
 

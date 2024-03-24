@@ -5,7 +5,7 @@ main entry:
    %array [2] = /* whatever */
    %n 2 = !length array
 
-   bubble_sort array, n
+   !bubble_sort array, n
    ret
 
 bubble_sort [2] array, 2 n {

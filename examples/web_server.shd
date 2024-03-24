@@ -1,6 +1,18 @@
-.inc std.{net, io}
+:name web_server
+:arch x86_64 linux
 
-main:
+:use std.{net, io, fmt}
+
+RESPONSE const [166:1]: "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n<!DOCTYPE html><html lang=\"en\"><head><title>Hello!</title></head><body><h1>Hello!</h1><p>Hi from Shard</p></body></html>\r\n"
+
+check_err {
+   (rax >= 0) => ret
+
+   !prt <- !fmt "ERROR: {#}\n", rax
+   ret
+}
+
+entry:
    // create socket
    %socket 4 = *socket AF_INET, SOCK_STREAM
    !check_err
@@ -13,20 +25,11 @@ main:
    *listen socket, 5
    !check_err
 
-   
-
-loop:
+loop () {
    %client = *accept socket, 0, 0
    !check_err
 
-   *write client, "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n<!DOCTYPE html><html lang=\"en\"><head><title>Hello!</title></head><body><h1>Hello!</h1><p>Hi from Shard</p></body></html>\r\n", 166
+   *write client, response, size response
    !check_err
+}
 
-   jmp loop
-/* infinite loop */
-
-check_err:
-   (r1 >= 0) => ret
-
-   #prt <- #fmt "ERROR: {#}\n", r1
-   ret
