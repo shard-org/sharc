@@ -1,19 +1,18 @@
 use super::*;
 use std::process::exit;
 use crate::logger::Level;
-use crate::verbs::Verb;
 
-const USAGE: &str = "Usage: sharc [-AhV] [-l level] [-f file] [verbs...]";
+const USAGE: &str = "Usage: sharc [-hNV] [-l level] [-f file] [verbs...]";
 const HELP_MESSAGE: &str = 
 "\x1b[1mDESCRIPTION\x1b[0m
 \x1b[1msharc\x1b[0m is a compiler for the Shard Programming Language. 
-!!!add more description!!!
+\x1b[1mTODO:\x1b[0m expand description
 
 \x1b[1mOPTIONS\x1b[0m
     -h  Print this message
     -V  Print the version number
 
-    -A  compile to assembly without outputing a binary
+    -N  Bypass the `default` verb, instead compiling the file directly
 
     -f FILE
         File to start compiling from. (default is `main.shd` or `src/main.shd`)
@@ -26,29 +25,36 @@ const HELP_MESSAGE: &str =
         info  - Generic info thrown by the compiler
         debug - Info for us, the compiler developers. Probably not useful to mere mortals";
 
+#[derive(Debug)]
+pub struct Verb {
+    pub verb: &'static str, 
+    pub args: Vec<&'static str>,
+}
 
 #[derive(Debug)]
 pub struct Args {
-    pub file:    Option<&'static str>,
-    pub asm:     bool,
-    pub log_lvl: logger::Level,
-    pub verb:    Option<Verb>,
+    pub file:       Option<&'static str>,
+    pub no_default: bool,
+    pub log_lvl:    logger::Level,
+    pub verb:       Option<Verb>,
+    // pub parser_strict: bool,
 }
 
 impl Args {
     fn default() -> Self {
         Args {
-            file:    None,
-            asm:     false,
-            log_lvl: Level::Info,
-            verb:    None,
+            file:       None,
+            no_default: false,
+            log_lvl:    Level::Info,
+            verb:       None,
+            // parser_strict: false,
         }
     }
 
     pub fn parse(args: Vec<String>) -> Self {
-        if args.is_empty() {
-            fatal!("Missing arguments\x1b[0m\n{}\n\n{}", USAGE, HELP_MESSAGE);
-            exit(1);
+        if args.contains(&String::from("--help")) {
+            println!("{}\n\n{}", USAGE, HELP_MESSAGE);
+            exit(0);
         }
 
         let mut out = Self::default();
@@ -68,9 +74,12 @@ impl Args {
                             exit(0);
                         },
 
+                        'N' => out.no_default = true,
+
                         /* log level */
                         'l' => out.log_lvl = match args.next() {
                             Some(a) => match a.as_str() {
+                                "f" | "fatal" => Level::Fatal,
                                 "e" | "err"   => Level::Err,
                                 "w" | "warn"  => Level::Warn,
                                 "i" | "info"  => Level::Info,
@@ -104,6 +113,11 @@ impl Args {
                 continue;
             }
 
+            if arg == "shark" {
+                println!("\x1b[34m{}\x1b[0m", SHARK_ASCII);
+                exit(1);
+            }
+
             out.verb = Some(Verb {
                 verb: Box::leak(arg.into_boxed_str()), 
                 args: args.clone().fold(Vec::new(), |mut acc, a| {
@@ -116,3 +130,20 @@ impl Args {
         out
     }
 }
+
+
+const SHARK_ASCII: &str = 
+r#"                                 ,-
+                               ,'::|
+                              /::::|
+                            ,'::::o\                                      _..
+         ____........-------,..::?88b                                  ,-' /
+ _.--"""". . . .      .   .  .  .  ""`-._                           ,-' .;'
+<. - :::::o......  ...   . . .. . .  .  .""--._                  ,-'. .;'
+ `-._  ` `":`:`:`::||||:::::::::::::::::.:. .  ""--._ ,'|     ,-'.  .;'
+     """_=--       //'doo.. ````:`:`::::::::::.:.:.:. .`-`._-'.   .;'
+         ""--.__     P(       \               ` ``:`:``:::: .   .;'
+                "\""--.:-.     `.                             .:/
+                  \. /    `-._   `.""-----.,-..::(--"".\""`.  `:\
+                   `P         `-._ \          `-:\          `. `:\
+                                   ""            "            `-._)"#;

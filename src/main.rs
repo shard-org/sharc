@@ -1,15 +1,15 @@
 mod args;
 mod logger;
 mod utils;
+
 mod location;
-mod verbs;
-mod macros;
+mod token;
+
+mod lexer;
 
 use logger::{Log, Logs};
-use location::Span;
 use args::Args;
-use macros::Macro;
-
+use lexer::Lexer;
 
 lazy_static::lazy_static! {
     // init args
@@ -18,26 +18,42 @@ lazy_static::lazy_static! {
 
 
 fn main() {
-    let mut logs: Vec<Log> = Vec::new();
+    // let mut logs: Vec<Log> = Vec::new();
 
     warn!("sharc is still deep in development :p");
     warn!("Please report any bugs, crashes, as well as feature suggestions.");
+    print!("\n");
 
     debug!("{:#?}", *ARGS);
 
 
 
-    let main_file = ARGS.file.unwrap_or_else(get_main_file);
-    let mut main_file_contents = utils::reader(main_file);
+    let main_file_name = ARGS.file.unwrap_or_else(get_main_file);
+    let main_file = utils::open(main_file_name);
 
-    let macros = Macro::parse(&main_file_contents, &mut logs, main_file);
-    debug!("{:#?}", macros);
 
-    Macro::apply(macros, &mut main_file_contents);
+    let tokens = Lexer::new(main_file, main_file_name);
+    // logs.print();
 
-    logs.print();
+    let file = std::fs::File::open(main_file_name).unwrap();
+    let lexer = Lexer::new(file, main_file_name);
 
-    todo!();
+    for t in lexer {
+        match t.kind {
+            crate::token::TokenKind::Err(e) => e.print(),
+            crate::token::TokenKind::NL => print!("NL, \n"),
+            k => print!("{:?}, ", k),
+        }
+    }
+
+    // let kinds = tokens.iter().fold(Vec::new(), |mut acc, t| {
+    //     acc.push(t.kind.clone()); acc
+    // });
+    //
+    // debug!("{:?}", kinds);
+
+
+    todo!()
 
 
     // let token_stream = Lexer::new(main_file, unsafe{ARGS.infile}).lex();
@@ -63,9 +79,6 @@ fn main() {
     // }
     //
     // log!(FATAL, "assembler not yet implemented");
-
-    logs.print();
-    logs.summary();
 }
 
 fn get_main_file() -> &'static str {

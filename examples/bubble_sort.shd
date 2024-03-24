@@ -5,14 +5,14 @@ main entry:
    %array [2] = /* whatever */
    %n 2 = !length array
 
-   bubble_sort array, n
+   !bubble_sort array, n
    ret
 
 bubble_sort [2] array, 2 n {
-   %i 2 = 0
+   %i 2
    loop (i < n) {
 
-      %j 2 = 0
+      %j 2
       loop (j < n-i-1) {
          (array.j > array.(j+1)) 
             '[array.j] : [array.(j+1)]

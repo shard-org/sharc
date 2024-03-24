@@ -2,37 +2,57 @@ use super::*;
 use std::fs;
 use std::process::exit;
 
-pub fn reader<T>(filename: T) -> String 
+pub fn open<T>(filename: T) -> fs::File 
 where
     T: AsRef<std::path::Path> + std::fmt::Display + Copy,
 {
-    debug!("Reading file: {}", filename);
-
-    // Check if the file exists
-    if fs::metadata(filename).is_err() {
-        fatal!("File {} does not exist", filename);
-        exit(1);
-    }
+    debug!("Opening file: `{}`", filename);
 
     // read the file
-    let Ok(file) = fs::read_to_string(filename) else {
-        fatal!("Could not read file {}", filename);
-        exit(1);
-    };
-
-    // Check if it's empty
-    if file.replace(char::is_whitespace, "").is_empty() {
-        fatal!("File {} is empty", filename);
-        exit(1);
-    } file
+    match fs::File::open(filename){
+        Ok(f) => f,
+        Err(e) => {
+            fatal!("Could not open `{}`: {}", filename, e);
+            exit(1);
+        },
+    }
 }
 
-pub fn writer(filename: &str, contents: &str) {
-    debug!("Writing file: {}", filename);
 
-    // Write the file
-    if let Err(e) = fs::write(filename, contents) {
-        fatal!("Could not write to file {}: {e}", filename);
-        exit(1);
+
+
+//
+// parsing
+use std::error::Error;
+pub fn parse_int(mut st: String) -> Result<usize, Box<dyn Error>> {
+    match st.pop() {
+        Some('0') => {
+            let num = match st.pop() {
+                Some('b') => usize::from_str_radix(&st, 2)?,
+                Some('o') => usize::from_str_radix(&st, 8)?,
+                Some('x') => usize::from_str_radix(&st, 16)?,
+                Some(_) => st.parse::<usize>()?,
+                None => 0,
+            }; Ok(num)
+        },
+        Some(c) => Ok(format!("{}{}", c, st).parse::<usize>()?),
+        None => Err("Empty".into()),
+    }
+}
+
+
+
+
+
+pub trait MapIf {
+    fn map_if<F>(self, f: F) -> Option<Self> 
+    where Self: Sized, F: FnOnce(&Self) -> bool;
+}
+
+impl<T> MapIf for T {
+    fn map_if<F: FnOnce(&T) -> bool>(self, f: F) -> Option<Self> {
+        if f(&self) { 
+            return Some(self);
+        } None
     }
 }

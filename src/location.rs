@@ -1,8 +1,9 @@
 use crate::logger::Log;
+use crate::token::{Token, TokenKind};
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Span {
-    pub file:   Box<str>,
+    pub file:   &'static str,
     // both line and col are counted from 1
     pub line:   usize,
     pub col:    usize,
@@ -10,30 +11,33 @@ pub struct Span {
 }
 
 impl Span {
-    pub fn new<T: std::fmt::Display>(file: T, line: usize, col: usize) -> Self {
+    pub fn new(file: &'static str, line: usize, col: usize) -> Self {
         Self {
-            file: file.to_string().into_boxed_str(),
+            file,
             line,
             col,
             length: None,
         }
     }
 
-    pub fn to_log(self) -> Log {
-        Log::new().span(self)
-    }
-
     pub fn length(mut self, length: usize) -> Self {
         self.length = Some(length); self
     }
 
-    pub fn advance(&mut self, c: char) {
-        if c == '\n' {
-            self.line += 1;
-            self.col = 0;
-            return;
-        } 
+    pub fn line<F: FnOnce(usize) -> usize>(mut self, f: F) -> Self {
+        self.line = f(self.line); self
+    }
 
-        self.col += 1;
+    pub fn col<F: FnOnce(usize) -> usize>(mut self, f: F) -> Self {
+        self.col = f(self.col); self
+    }
+
+
+    pub fn to_log(self) -> Log {
+        Log::new().span(self)
+    }
+
+    pub fn to_token(self, kind: TokenKind) -> Token {
+        Token { kind, span: self }
     }
 }

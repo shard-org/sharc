@@ -4,10 +4,13 @@ use crate::logger::{Log, ERR, FATAL};
 
 #[derive(Debug)]
 pub struct Lexer {
-    filename: &'static str,
-    location: Location,
-    input: String,
-    current_index: usize,
+    filename:  &'static str,
+    input:     String,
+
+    column:    usize,
+    line:      usize,
+
+    cur_index: usize,
 }
 
 impl Lexer {

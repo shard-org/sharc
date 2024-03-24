@@ -1,7 +1,7 @@
 #[macro_export]
 macro_rules! debug {
     ($($fmt:tt)*) => {
-        Log::new().msg(format!($($fmt)*)).print()
+        Log::new().level($crate::logger::Level::Debug).msg(format!($($fmt)*)).print()
     };
 }
 
@@ -76,7 +76,7 @@ impl Display for Log {
                 };
 
                 form.push_str(line.trim());
-                form.push_str("\n\x1b[36m  | \x1b[0m");
+                form.push_str(&format!("\n\x1b[36m{} | \x1b[0m", " ".repeat(span.line.to_string().len())));
 
                 form.push_str(self.get_level_colour().as_str());
                 (1..span.col).for_each(|_| form.push(' '));
@@ -106,10 +106,11 @@ impl Display for Log {
 }
 
 use crate::ARGS;
+use crate::token::{Token, TokenKind};
 impl Log {
     pub fn new() -> Self {
         Self {
-            level: Level::Debug,
+            level: Level::Err,
             span:  None,
             msg:   Box::default(),
             notes: Box::default(),
@@ -132,6 +133,13 @@ impl Log {
         self.notes = notes.to_string().into_boxed_str(); self
     }
 
+
+    pub fn to_token(self) -> Token {
+        let span = self.span.clone().unwrap();
+        Token { kind: TokenKind::Err(self), span}
+    }
+
+
     
     pub fn push(self, logs: &mut Vec<Log>) {
         logs.push(self);
@@ -144,6 +152,8 @@ impl Log {
 
         println!("{}", self);
     }
+
+
 
 
     fn get_file_line(file: &str, line: &usize) -> Option<String> {
@@ -176,15 +186,16 @@ impl Log {
 }
 
 pub trait Logs {
-    fn print(&self);
+    fn print(&mut self);
     fn sort(self) -> Self;
     fn summary(&self);
 }
 
 use std::process::exit;
 impl Logs for Vec<Log> {
-    fn print(&self) {
+    fn print(&mut self) {
         self.iter().for_each(Log::print);
+        self.clear();
     }
 
     fn sort(mut self) -> Self {
@@ -193,22 +204,24 @@ impl Logs for Vec<Log> {
     }
 
     fn summary(&self) {
+        self.iter().for_each(Log::print);
+
         let errors = self.iter().filter(|log| log.level == Level::Err).count();
         let warns = self.iter().filter(|log| log.level == Level::Warn).count();
 
-        // if self.iter().any(|log| log.level == Level::Fatal) { return; }
+        // if self.iter().any(|log| log.level == Level::Fatal) { exit(1); }
 
         if warns != 0 && errors == 0 {
-            warn!("{} Warnings Emmited", warns);
+            warn!("{} Warning(s) Emmited", warns);
         }
         else 
         if warns == 0 && errors != 0 {
-            err!("Could Not Compile, {} Errors Emmited", errors);
+            err!("Could Not Compile, {} Error(s) Emmited", errors);
             exit(1);
         }
         else 
         if warns != 0 && errors != 0 {
-            err!("Could Not Compile, {} Errors and {} warnings Emmited", errors, warns);
+            err!("Could Not Compile, {} Error(s) and {} warning(s) Emmited", errors, warns);
             exit(1);
         }
     }
