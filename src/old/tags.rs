@@ -46,7 +46,7 @@ impl Configs {
 
             let Some((key_i, key)) = chars.word() else {
                 Span::new(filename, li, ci)
-                    .to_log()
+                    .into_log()
                     .msg("Missing config key after `:`")
                     .level(Level::Err)
                     .push(logs);
@@ -58,7 +58,7 @@ impl Configs {
                     if configs.name != "out" {
                         Span::new(filename, li, ci)
                             .length(line.len())
-                            .to_log()
+                            .into_log()
                             .msg("Config key `name` overset")
                             .level(Level::Warn)
                             .push(logs);
@@ -72,7 +72,7 @@ impl Configs {
                     if name.is_empty() {
                         Span::new(filename, li, line.len()+1)
                             .length(5)
-                            .to_log()
+                            .into_log()
                             .msg("Missing value for config key `name`")
                             .level(Level::Warn)
                             .push(logs);
@@ -85,7 +85,7 @@ impl Configs {
                     if !configs.version.is_empty() {
                         Span::new(filename, li, ci)
                             .length(line.len())
-                            .to_log()
+                            .into_log()
                             .msg("config key `version` overset")
                             .level(Level::Warn)
                             .push(logs);
@@ -100,7 +100,7 @@ impl Configs {
                     if version.is_empty() {
                         Span::new(filename, li, line.len()+1)
                             .length(5)
-                            .to_log()
+                            .into_log()
                             .msg("Missing value for config key `version`")
                             .level(Level::Warn)
                             .push(logs);
@@ -122,7 +122,7 @@ impl Configs {
                     if !configs.linker.is_empty() {
                         Span::new(filename, li, ci)
                             .length(line.len())
-                            .to_log()
+                            .into_log()
                             .msg("config key `link` overset")
                             .level(Level::Warn)
                             .push(logs);
@@ -135,7 +135,7 @@ impl Configs {
                     if configs.linker.is_empty() {
                         Span::new(filename, li, line.len()+1)
                             .length(5)
-                            .to_log()
+                            .into_log()
                             .msg("Missing value for config key `link`")
                             .level(Level::Warn)
                             .push(logs);
@@ -154,7 +154,7 @@ impl Configs {
                         _ => {
                             Span::new(filename, li, ci)
                                 .length(line.len())
-                                .to_log()
+                                .into_log()
                                 .msg("Architectures other than `x86_64 linux` are not yet supported")
                                 .level(Level::Fatal)
                                 .push(logs);
@@ -171,7 +171,7 @@ impl Configs {
                 a => {
                     Span::new(filename, li, ci)
                         .length(key_i)
-                        .to_log()
+                        .into_log()
                         .msg(format!("Invalid config key `{}`", a))
                         .level(Level::Err)
                         .push(logs);

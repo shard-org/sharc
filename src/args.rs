@@ -1,10 +1,9 @@
 use super::*;
-use std::process::exit;
 use crate::logger::Level;
+use std::process::exit;
 
 const USAGE: &str = "Usage: sharc [-hNV] [-l level] [-f file] [verbs...]";
-const HELP_MESSAGE: &str = 
-"\x1b[1mDESCRIPTION\x1b[0m
+const HELP_MESSAGE: &str = "\x1b[1mDESCRIPTION\x1b[0m
 \x1b[1msharc\x1b[0m is a compiler for the Shard Programming Language. 
 \x1b[1mTODO:\x1b[0m expand description
 
@@ -27,26 +26,26 @@ const HELP_MESSAGE: &str =
 
 #[derive(Debug)]
 pub struct Verb {
-    pub verb: &'static str, 
+    pub verb: &'static str,
     pub args: Vec<&'static str>,
 }
 
 #[derive(Debug)]
 pub struct Args {
-    pub file:       Option<&'static str>,
+    pub file: Option<&'static str>,
     pub no_default: bool,
-    pub log_lvl:    logger::Level,
-    pub verb:       Option<Verb>,
+    pub log_lvl: logger::Level,
+    pub verb: Option<Verb>,
     // pub parser_strict: bool,
 }
 
 impl Args {
     fn default() -> Self {
         Args {
-            file:       None,
+            file: None,
             no_default: false,
-            log_lvl:    Level::Info,
-            verb:       None,
+            log_lvl: Level::Info,
+            verb: None,
             // parser_strict: false,
         }
     }
@@ -77,31 +76,35 @@ impl Args {
                         'N' => out.no_default = true,
 
                         /* log level */
-                        'l' => out.log_lvl = match args.next() {
-                            Some(a) => match a.as_str() {
-                                "f" | "fatal" => Level::Fatal,
-                                "e" | "err"   => Level::Err,
-                                "w" | "warn"  => Level::Warn,
-                                "i" | "info"  => Level::Info,
-                                "d" | "debug" => Level::Debug,
-                                _ => { 
-                                    fatal!("Invalid Log Level: {}", a);
+                        'l' => {
+                            out.log_lvl = match args.next() {
+                                Some(a) => match a.as_str() {
+                                    "f" | "fatal" => Level::Fatal,
+                                    "e" | "err" => Level::Err,
+                                    "w" | "warn" => Level::Warn,
+                                    "i" | "info" => Level::Info,
+                                    "d" | "debug" => Level::Debug,
+                                    _ => {
+                                        fatal!("Invalid Log Level: {}", a);
+                                        exit(1);
+                                    },
+                                },
+                                None => {
+                                    fatal!("Missing argument after `-l`");
                                     exit(1);
                                 },
-                            },
-                            None => {
-                                fatal!("Missing argument after `-l`");
-                                exit(1);
-                            },
+                            }
                         },
 
                         /* file */
-                        'f' => out.file = match args.next() {
-                            Some(f) => Some(Box::leak(f.into_boxed_str())),
-                            None => {
-                                fatal!("Missing argument after `-f`");
-                                exit(1);
-                            },
+                        'f' => {
+                            out.file = match args.next() {
+                                Some(f) => Some(Box::leak(f.into_boxed_str())),
+                                None => {
+                                    fatal!("Missing argument after `-f`");
+                                    exit(1);
+                                },
+                            }
                         },
 
                         a => {
@@ -109,7 +112,7 @@ impl Args {
                             exit(1);
                         },
                     }
-                } 
+                }
                 continue;
             }
 
@@ -119,21 +122,19 @@ impl Args {
             }
 
             out.verb = Some(Verb {
-                verb: Box::leak(arg.into_boxed_str()), 
+                verb: Box::leak(arg.into_boxed_str()),
                 args: args.clone().fold(Vec::new(), |mut acc, a| {
                     acc.push(Box::leak(a.into_boxed_str()));
                     acc
                 }),
             });
             break;
-        } 
+        }
         out
     }
 }
 
-
-const SHARK_ASCII: &str = 
-r#"                                 ,-
+const SHARK_ASCII: &str = r#"                                 ,-
                                ,'::|
                               /::::|
                             ,'::::o\                                      _..

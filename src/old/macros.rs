@@ -25,7 +25,7 @@ impl Macro {
 
             let Some((ident_i, ident)) = chars.word() else {
                 Span::new(filename, li, ci)
-                    .to_log()
+                    .into_log()
                     .msg("Missing macro ident after `/`")
                     .level(Level::Err)
                     .push(logs);
@@ -38,7 +38,7 @@ impl Macro {
                     // ends with a `{` as well
                     Span::new(filename, li, 1)
                         .length(line.len())
-                        .to_log()
+                        .into_log()
                         .msg("Function like macros aren't yet implemented")
                         .level(Level::Err)
                         .push(logs);
@@ -53,7 +53,7 @@ impl Macro {
                 if value.is_empty() {
                     Span::new(filename, li, line.len() + 1)
                         .length(5)
-                        .to_log()
+                        .into_log()
                         .msg("Macro missing a value")
                         .level(Level::Err)
                         .push(logs);
@@ -66,7 +66,7 @@ impl Macro {
 
             Span::new(filename, li, ident_i + 2)
                 .length(5)
-                .to_log()
+                .into_log()
                 .msg("Macro missing a value")
                 .level(Level::Err)
                 .push(logs);

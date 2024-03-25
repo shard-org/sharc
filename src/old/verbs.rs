@@ -39,7 +39,7 @@ impl ParsedVerb {
                 let Some((_, name)) = chars.word() else {
                     Span::new(filename, li, ci+2)
                         .length(5)
-                        .to_log()
+                        .into_log()
                         .msg("Missing verb identifier")
                         .level(Level::Err)
                         .push(logs);
@@ -51,7 +51,7 @@ impl ParsedVerb {
                 let Some((_, exec)) = chars.word() else {
                     Span::new(filename, li, ci+2)
                         .length(5)
-                        .to_log()
+                        .into_log()
                         .msg("Missing verb identifier")
                         .level(Level::Err)
                         .push(logs);

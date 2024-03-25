@@ -7,32 +7,28 @@ mod token;
 
 mod lexer;
 
-use logger::{Log, Logs};
 use args::Args;
 use lexer::Lexer;
+use logger::Log;
 
 lazy_static::lazy_static! {
     // init args
     pub static ref ARGS: Args = Args::parse(std::env::args().skip(1).collect());
 }
 
-
 fn main() {
     // let mut logs: Vec<Log> = Vec::new();
 
     warn!("sharc is still deep in development :p");
     warn!("Please report any bugs, crashes, as well as feature suggestions.");
-    print!("\n");
+    println!();
 
     debug!("{:#?}", *ARGS);
-
-
 
     let main_file_name = ARGS.file.unwrap_or_else(get_main_file);
     let main_file = utils::open(main_file_name);
 
-
-    let tokens = Lexer::new(main_file, main_file_name);
+    let _tokens = Lexer::new(main_file, main_file_name);
     // logs.print();
 
     let file = std::fs::File::open(main_file_name).unwrap();
@@ -41,7 +37,7 @@ fn main() {
     for t in lexer {
         match t.kind {
             crate::token::TokenKind::Err(e) => e.print(),
-            crate::token::TokenKind::NL => print!("NL, \n"),
+            crate::token::TokenKind::NL => println!("NL, "),
             k => print!("{:?}, ", k),
         }
     }
@@ -52,9 +48,7 @@ fn main() {
     //
     // debug!("{:?}", kinds);
 
-
     todo!()
-
 
     // let token_stream = Lexer::new(main_file, unsafe{ARGS.infile}).lex();
     // Log::print_all();  // Exits if errors are found
@@ -65,9 +59,6 @@ fn main() {
     // let output = compiler::compiler(token_stream);
     //
     // unsafe{logger::check_err();}
-
-
-
 
     // log!(DEBUG, "asm output:\n{:?}", &output);
     //
@@ -90,6 +81,6 @@ fn get_main_file() -> &'static str {
         }
     }
 
-    fatal!("Could not find a main file. Use the `-f` flag, or make sure it's within one of these paths: {:?}", MAIN_FILE_PATHS); 
+    fatal!("Could not find a main file. Use the `-f` flag, or make sure it's within one of these paths: {:?}", MAIN_FILE_PATHS);
     std::process::exit(1)
 }

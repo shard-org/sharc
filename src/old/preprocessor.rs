@@ -134,7 +134,7 @@ impl Preprocess<'_> {
                         self.to_span()
                             .col(|x| x+1)
                             .length(5)
-                            .to_log()
+                            .into_log()
                             .msg("Missing name or path")
                             .push(self.logger);
                         continue;
@@ -151,7 +151,7 @@ impl Preprocess<'_> {
                         self.to_span()
                             .col(|x| x+1)
                             .length(5)
-                            .to_log()
+                            .into_log()
                             .msg("Missing name or path")
                             .push(self.logger);
                         continue;
@@ -168,7 +168,7 @@ impl Preprocess<'_> {
                         self.to_span()
                             .col(|x| x+1)
                             .length(5)
-                            .to_log()
+                            .into_log()
                             .msg("Missing args")
                             .push(self.logger);
                         continue;
@@ -187,7 +187,7 @@ impl Preprocess<'_> {
                             self.to_span()
                                 .col(|x| x+1)
                                 .length(5)
-                                .to_log()
+                                .into_log()
                                 .msg("Invalid WORD definition")
                                 .notes(e.to_string())
                                 .push(self.logger);
@@ -201,7 +201,7 @@ impl Preprocess<'_> {
                 s if s.is_empty() => continue,
 
                 s => self.to_span()
-                        .to_log()
+                        .into_log()
                         .msg(format!("Invalid Tag `{}`", s))
                         .push(self.logger),
             }

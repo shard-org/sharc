@@ -63,9 +63,7 @@ pub enum TokenKind {
     FloatLit(f64),
     SIntLit(isize),
 
-
     Err(Log),
-
     // EOF,
 }
 
@@ -77,7 +75,7 @@ pub struct Token {
 
 impl Token {
     pub fn new(kind: TokenKind, span: Span) -> Self {
-        Token{kind,span}
+        Token { kind, span }
     }
 
     pub fn some(self) -> Option<Self> {
