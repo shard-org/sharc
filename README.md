@@ -1,19 +1,17 @@
-shard is still in a VERY EARLY STAGE, like not even usable yet  
+shard is still at a VERY EARLY STAGE, like not even usable yet  
 If you like this concept then PLEASE help out  
 I cant do it all by myself.. :/  
 
 Our Discord: https://discord.gg/z3Qnr87e7c  
 for **contributing** ^^^   
 
-We've also got a website now! https://shardlang.org/  
-Although it does need full rework.. Hey any frontend devs?  
-
 # Features
 - Fine grained low level access to hardware features, like registers, syscalls, interrupts
 - No "safety features" preventing you from doing what you want
-- Keep the syntax and language terse, yet clear and concise
+- Terse, yet clear and concise syntax and language
 - Simple macro system allowing for functions as well as "search and replace"
 - Customizable compiler verbs and build scripts, all in-language
+- Unique features like: *Label Attributes*, *Typed Operators*, and *Anonymous Labels*
 
 # Non-Features
 - Do not strife for cross-platform compatibility. As hardware features are exposed to the user code becomes inherently incompatible
@@ -28,7 +26,7 @@ We're using the linux `write` syscall directly here
 ```
 :arch x86_64 linux
 
-main entry:
+entry:
    *write 1, "Hello, World!", 13
    ret
 ```
@@ -36,20 +34,21 @@ main entry:
 ## Fibonacci
 ```
 :arch x86_64 linux
-:link -lc
+:linker #LINKER -lc
 
 fibonacci n 2 -> 2 {
-   n <= 1 -> end n
-   end @fibonacci (n - 1) + @fibonacci (n - 2)
+   (n <= 1) ret n
+   ret !fibonacci (n - 1) + !fibonacci (n - 2)
 }
 
-main entry:
-   %terms 2 = 9
+entry:
+   %terms 2
+   $scanf "%d", terms
 
-   %i 2 = 0
-   loop i < terms {
-      $printf "%d ", @fibonacci i
-      'i ++
+   %i 2
+   loop (i < terms) => {'i ++} {
+      !fibonacci i
+         =>> $printf "%d\n"
    }
 
    ret
@@ -61,7 +60,7 @@ Values starting with `#` are macro invocations referring to the current project.
 ```
 :name bubble_sort
 :arch x86_64 linux
-:link -lc
+:linker #LINKER -lc
 
 :verb run /bin/sh {
    sharc #FILE
@@ -69,37 +68,35 @@ Values starting with `#` are macro invocations referring to the current project.
    ./#NAME
 }
 
-main entry:
-   %array [2] = { 7, 5, 1, 4, 9, 8, 2, 6, 3 }
-   %length 2 = 9
+entry:
+   %array [2] = (2, 8, 9, 7, 4, 3, 6, 5, 1, 0)
 
-   bubble_sort array, length
+   !bubble_sort array, 10
 
-   loop length > 0 {
-      'length --
-      $printf "%d", array.length
+   // print the array
+   %i 2
+   loop (i = 10) => {'i ++} {
+      printf "%d\n", array.i
    }
 
    ret
 
-bubble_sort [2] array, 2 n {
-   %i 2 = 0
-   loop i < n {
-      %j 2 = 0
-      loop j < n-i-1 {
-         (array.j > array.(j+1))
+bubble_sort [2] array, 2 len {
+   %i 2
+   loop (i < len) => {'i ++} {
+      %j 2
+      loop (j < len-i-1) => {'j ++} {
+         (array.j > array.(j+1)) 
             '[array.j] : [array.(j+1)]
-         'j ++
-      } 
-      'i ++
+      }
    }
 }
 ```
 
 ## Python?!
-I've realised this system technically lets you run python (or any other language) from `sharc`.
+I've realised this system technically lets you convert shard files into python files (or any other language).
 ```
-:verb py /bin/sh {
+:verb DEFAULT /bin/sh {
     tail +4 #FILE | python
 }
 
