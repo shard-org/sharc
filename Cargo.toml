@@ -8,4 +8,4 @@ repository = "https://github.com/anthonysSlab/shard"
 
 
 [dependencies]
-lazy_static = "1.4"
+once_cell = "1.19"

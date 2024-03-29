@@ -41,7 +41,7 @@ pub struct Args {
 }
 
 impl Args {
-    fn default() -> Self {
+    pub fn default() -> Self {
         Args {
             file:       None,
             no_default: false,

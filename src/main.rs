@@ -11,11 +11,10 @@ use logger::{Log, Logs};
 use args::Args;
 use lexer::Lexer;
 
-lazy_static::lazy_static! {
-    // init args
-    pub static ref ARGS: Args = Args::parse(std::env::args().skip(1).collect());
-}
-
+use once_cell::sync::Lazy;
+pub static ARGS: Lazy<Args> = Lazy::new(|| 
+    Args::parse(std::env::args().skip(1).collect())
+);
 
 fn main() {
     // let mut logs: Vec<Log> = Vec::new();
