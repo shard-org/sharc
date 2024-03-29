@@ -99,7 +99,13 @@ impl Iterator for Lexer {
                         .to_token()
                         .some();
                 },
-                '=' => Equals,
+                '=' => {
+                    if self.test_next('>') {
+                        if self.test_next('>') { FatDoubleArrow }
+                        else { FatArrow }
+                    }
+                    else { Equals }
+                },
                 '>' => {
                     if self.test_next('=') { GreaterThanEquals }
                     else { GreaterThan }
@@ -138,7 +144,7 @@ impl Iterator for Lexer {
                     /* block comments */
                     if self.test_next('*') { 
                         let mut last: char = '\0';
-                        while let Some(c) = self.next_char() {
+                        while let Some(c) = self.advance() {
                             if last == '*' && c == '/' { break }
                             last = c;
                         } continue;
@@ -146,7 +152,8 @@ impl Iterator for Lexer {
 
                     // line comments
                     if self.test_next('/') { 
-                        while self.next().is_some() {}
+                        self.chars.clear();
+                        self.chars.push_back('\n');
                         continue;
                     }
 
@@ -194,7 +201,7 @@ impl Iterator for Lexer {
                         match utils::parse_int(word.clone()) {
                             Ok(n) => IntLit(n),
                             Result::Err(e) => return self.to_span()
-                                .col(|x| x - word.len())
+                                .col(|x| x - word.len() - 1)
                                 .length(word.len())
                                 .to_log()
                                 .msg("Invalid integer literal")
@@ -211,7 +218,7 @@ impl Iterator for Lexer {
                 },
             };
 
-            self.nl = 0;
+            // self.nl = 0;
             return self.to_span().to_token(token).some();
         }
         None
@@ -231,7 +238,10 @@ impl Lexer {
     }
 
     fn test_next(&mut self, test: char) -> bool {
-         self.peek().is_some_and(|c| c == test)
+         if self.peek().is_some_and(|c| c == test) {
+             self.next_char();
+             return true;
+         } false
     }
 
     fn advance(&mut self) -> Option<char> {
@@ -330,7 +340,7 @@ impl Lexer {
         match String::from_utf8(line) {
             Ok(l) => {
                 self.li += 1;
-                self.nl += 1;
+                // self.nl += 1;
                 self.ci = 0;
                 self.chars = l.chars().collect::<VecDeque<char>>();
                 Some(())
@@ -347,6 +357,6 @@ impl Lexer {
     }
 
     fn to_span(&self) -> Span {
-        Span::new(self.filename, self.li - self.nl, self.ci)
+        Span::new(self.filename, self.li - self.nl - 1, self.ci - 1)
     }
 }

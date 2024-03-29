@@ -40,7 +40,11 @@ fn main() {
 
     for t in lexer {
         match t.kind {
-            crate::token::TokenKind::Err(e) => e.print(),
+            crate::token::TokenKind::Err(e) => {
+                print!("\n");
+                e.print();
+                std::process::exit(1)
+            },
             crate::token::TokenKind::NL => print!("NL, \n"),
             k => print!("{:?}, ", k),
         }

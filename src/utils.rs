@@ -24,19 +24,20 @@ where
 //
 // parsing
 use std::error::Error;
-pub fn parse_int(mut st: String) -> Result<usize, Box<dyn Error>> {
-    match st.pop() {
+pub fn parse_int(st: String) -> Result<usize, Box<dyn Error>> {
+    let mut chars = st.chars();
+    match chars.next() {
         Some('0') => {
-            let num = match st.pop() {
-                Some('b') => usize::from_str_radix(&st, 2)?,
-                Some('o') => usize::from_str_radix(&st, 8)?,
-                Some('x') => usize::from_str_radix(&st, 16)?,
+            let num = match chars.next() {
+                Some('b') => usize::from_str_radix(&chars.collect::<String>(), 2)?,
+                Some('o') => usize::from_str_radix(&chars.collect::<String>(), 8)?,
+                Some('x') => usize::from_str_radix(&chars.collect::<String>(), 16)?,
                 Some(_) => st.parse::<usize>()?,
                 None => 0,
             }; Ok(num)
         },
-        Some(c) => Ok(format!("{}{}", c, st).parse::<usize>()?),
-        None => Err("Empty".into()),
+        Some(_) => Ok(st.parse::<usize>()?),
+        None => Err("Empty?!".into()),
     }
 }
 
