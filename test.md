@@ -16,7 +16,7 @@
 /* ... */
 
 :SYSCALL_ADDR 0x80
-:SYSCALL_CONV r0, r5, r4, r3, r10, r9, r8 -> r0
+:SYSCALL_CONV 
 
 :SYSCALL read { 
     = 0x00
