@@ -1,88 +1,29 @@
-use crate::location::Span;
-use crate::logger::Log;
+use crate::span::Span;
+use std::fmt::Formatter;
 
 #[derive(Debug)]
 pub enum TokenKind {
-    // Symbols
-    Ampersand,
-    At,
-    // Backtick,   // error or Chalit
-    Backslash,
-    Bang,
-    Caret,
-    Colon,
-    Comma,
-    Dollar,
-    Dot,
-    // DoubleQuote,   // error or StrLit
-    Equals,
-    FatArrow,         // =>
-    FatDoubleArrow,   // =>>
-    GreaterThan,
-    GreaterThanEquals,
-    LeftBrace,
-    LeftBracket,
-    LeftParen,
-    LessThan,
-    LessThanEquals,
-    Minus,
-    MinusMinus,
-    NotEquals,
-    Percent,
-    Pipe,
     Plus,
-    PlusPlus,
-    Pound,
-    Question,
-    RightBrace,
-    RightBracket,
-    RightParen,
-    Semicolon,
-    SingleQuote,
-    Slash,
+    Minus,
     Star,
-    Tilde,
-    SmallArrowLeft,
-    SmallArrowRight,
-    Underscore,
-
-    // Other
-    Ident(String),
-    NL,
-
-    // keywords
-    Jmp,
-    Ret,
-    End,
-    Inline,
-    Entry,
-
-    // literals
-    CharLit(char),
-    StrLit(String),
-
-    IntLit(usize),
-    FloatLit(f64),
-    SIntLit(isize),
-
-
-    Err(Log),
-
-    // EOF,
+    Slash,
+    Identifier,
 }
 
-#[derive(Debug)]
-pub struct Token {
-    pub kind: TokenKind,
-    pub span: Span,
+pub struct Token<'source> {
+    kind: TokenKind,
+    span: Span,
+    text: &'source str,
 }
 
-impl Token {
-    pub fn new(kind: TokenKind, span: Span) -> Self {
-        Token{kind,span}
+impl<'source> Token<'source> {
+    pub fn new(kind: TokenKind, span: Span, text: &'source str) -> Self {
+        Self { kind, span, text }
     }
+}
 
-    pub fn some(self) -> Option<Self> {
-        Some(self)
+impl std::fmt::Display for Token<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Token{{{:?}, {}}}", self.kind, self.span)
     }
 }

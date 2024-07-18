@@ -2,9 +2,9 @@
 name = "sharc"
 version = "0.1.0"
 edition = "2021"
-description = "A compiler for the Shard programming language."
+description = "The compiler for the Shard Programming Language."
 license = "MIT"
-repository = "https://github.com/anthonysSlab/shard"
+repository = "https://github.com/shard-org/sharc"
 
 
 [dependencies]

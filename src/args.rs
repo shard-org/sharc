@@ -1,139 +1,151 @@
-use super::*;
+use crate::error::{ErrorKind, ErrorLevel};
 use std::process::exit;
-use crate::logger::Level;
 
-const USAGE: &str = "Usage: sharc [-hNV] [-l level] [-f file] [verbs...]";
-const HELP_MESSAGE: &str = 
-"\x1b[1mDESCRIPTION\x1b[0m
-\x1b[1msharc\x1b[0m is a compiler for the Shard Programming Language. 
-\x1b[1mTODO:\x1b[0m expand description
-
-\x1b[1mOPTIONS\x1b[0m
-    -h  Print this message
-    -V  Print the version number
-
-    -N  Bypass the `default` verb, instead compiling the file directly
-
-    -f FILE
-        File to start compiling from. (default is `main.shd` or `src/main.shd`)
-
-    -l [fatal|err|warn|info|debug]
-        Specify the log level for the messages the compiler sends.
-        fatal - Irrecoverable error, immidiately exits process
-        err   - Regular error
-        warn  - A warning, highlighting potential errors
-        info  - Generic info thrown by the compiler
-        debug - Info for us, the compiler developers. Probably not useful to mere mortals";
-
-#[derive(Debug)]
-pub struct Verb {
-    pub verb: &'static str, 
-    pub args: Vec<&'static str>,
+macro_rules! error {
+    ($($ident:tt)*) => {
+        ErrorKind::ArgumentParserError
+            .new(format!($($ident)*))
+            .with_note("Run sharc with \x1b[1m--help\x1b[0m for usage information".to_string())
+            .display(false);
+        exit(1);
+    };
 }
+
+// struct ArgsDefinition {
+//
+// }
+//
+// struct Arg {
+//     long: Option<&'static str>,
+//     short: Option<&'static str>,
+//     note: Option<&'static str>,
+//     description: Option<&'static str>,
+// }
+//
+// impl Arg {
+//
+// }
 
 #[derive(Debug)]
 pub struct Args {
-    pub file:       Option<&'static str>,
-    pub no_default: bool,
-    pub log_lvl:    logger::Level,
-    pub verb:       Option<Verb>,
-    // pub parser_strict: bool,
+    pub file: Option<&'static str>,
+    pub debug: bool,
+    pub code_context: bool,
+    pub level: ErrorLevel,
 }
 
 impl Args {
     pub fn default() -> Self {
         Args {
-            file:       None,
-            no_default: false,
-            log_lvl:    Level::Info,
-            verb:       None,
-            // parser_strict: false,
+            file: None,
+            debug: false,
+            code_context: true,
+            level: ErrorLevel::Warn,
+        }
+    }
+
+    fn handle_arg(&mut self, arg: &str, args: &mut std::vec::IntoIter<String>, is_end: bool) {
+        match arg {
+            "h" => {
+                println!("{}", USAGE);
+                exit(0);
+            }
+            "help" => {
+                println!("{}\n\n{}", USAGE, HELP_MESSAGE);
+                exit(0);
+            }
+            "V" | "version" => {
+                println!("sharc {}", env!("CARGO_PKG_VERSION"));
+                exit(0);
+            }
+            "d" | "debug" => {
+                self.debug = true;
+            }
+            "l" | "error-level" => {
+                if !is_end {
+                    error!("flags with parameters must be at the end of a group, or defined separately");
+                };
+                let Some(level) = args.next() else {
+                    error!("expected level");
+                };
+                self.level = match level.as_str() {
+                    "error" => ErrorLevel::Error,
+                    "warn" => ErrorLevel::Warn,
+                    "note" => ErrorLevel::Note,
+                    "silent" => ErrorLevel::Silent,
+                    _ => {
+                        error!("invalid level `{}`", level);
+                    }
+                };
+            }
+            "no-context" => {
+                self.code_context = false;
+            }
+            "f" | "file" => {
+                if !is_end {
+                    error!("flags with parameters must be at the end of a group, or defined separately");
+                };
+                let Some(file) = args.next() else {
+                    error!("expected file");
+                };
+                if self.file.is_some() {
+                    error!("unexpected argument '{}'", file);
+                }
+                self.file = Some(Box::leak(file.into_boxed_str()))
+            }
+            _ => {
+                error!("unrecognized argument '{}'", arg);
+            }
         }
     }
 
     pub fn parse(args: Vec<String>) -> Self {
-        if args.contains(&String::from("--help")) {
-            println!("{}\n\n{}", USAGE, HELP_MESSAGE);
-            exit(0);
-        }
-
         let mut out = Self::default();
         let mut args = args.into_iter();
 
         while let Some(arg) = args.next() {
-            if let Some(arg) = arg.strip_prefix('-') {
-                for c in arg.chars() {
-                    match c {
-                        'h' => {
-                            println!("{}\n\n{}", USAGE, HELP_MESSAGE);
-                            exit(0);
-                        },
-
-                        'V' => {
-                            println!("{}", env!("CARGO_PKG_VERSION"));
-                            exit(0);
-                        },
-
-                        'N' => out.no_default = true,
-
-                        /* log level */
-                        'l' => out.log_lvl = match args.next() {
-                            Some(a) => match a.as_str() {
-                                "f" | "fatal" => Level::Fatal,
-                                "e" | "err"   => Level::Err,
-                                "w" | "warn"  => Level::Warn,
-                                "i" | "info"  => Level::Info,
-                                "d" | "debug" => Level::Debug,
-                                _ => { 
-                                    fatal!("Invalid Log Level: {}", a);
-                                    exit(1);
-                                },
-                            },
-                            None => {
-                                fatal!("Missing argument after `-l`");
-                                exit(1);
-                            },
-                        },
-
-                        /* file */
-                        'f' => out.file = match args.next() {
-                            Some(f) => Some(Box::leak(f.into_boxed_str())),
-                            None => {
-                                fatal!("Missing argument after `-f`");
-                                exit(1);
-                            },
-                        },
-
-                        a => {
-                            fatal!("Unknown arg `{}`\n{}", a, USAGE);
-                            exit(1);
-                        },
+            if let Some(arg) = arg.strip_prefix("--") {
+                out.handle_arg(arg, &mut args, true);
+            } else if let Some(arg) = arg.strip_prefix("-") {
+                for (i, c) in arg.char_indices().map(|(i, _)| &arg[i..i + 1]).enumerate() {
+                    out.handle_arg(c, &mut args, i == arg.len() - 1)
+                }
+            } else {
+                match arg.as_str() {
+                    "shark" => {
+                        println!("\x1b[34m{}\x1b[0m", SHARK_ASCII);
+                        exit(69);
                     }
-                } 
-                continue;
+                    "verbs" => {
+                        error!("no");
+                    }
+                    _ => {
+                        error!("unrecognized argument '{}'", arg);
+                    }
+                }
             }
-
-            if arg == "shark" {
-                println!("\x1b[34m{}\x1b[0m", SHARK_ASCII);
-                exit(1);
-            }
-
-            out.verb = Some(Verb {
-                verb: Box::leak(arg.into_boxed_str()), 
-                args: args.clone().fold(Vec::new(), |mut acc, a| {
-                    acc.push(Box::leak(a.into_boxed_str()));
-                    acc
-                }),
-            });
-            break;
-        } 
+        }
         out
     }
 }
 
+const USAGE: &str = "Usage: sharc [-hvd] [-l LEVEL] [-f FILE]";
+const HELP_MESSAGE: &str = "\x1b[1mDESCRIPTION\x1b[0m
+    The compiler for the Shard Programming Language.
+    \x1b[1mTODO:\x1b[0m expand description with --help
 
-const SHARK_ASCII: &str = 
-r#"                                 ,-
+\x1b[1mOPTIONS\x1b[0m
+    -h, --help                  Show only usage with -h
+    -v, --version               Show version
+    -d, --debug                 Print debug information
+        Shows a ton of information not intended for mere mortals.
+    -l, --error-level LEVEL     [error|warn|note|silent]
+        (default: warn)
+    -f, --file FILE             File to compile
+        (default: main.shd)
+
+        --no-context            Disable code context";
+const SHARK_ASCII: &str = r#"                                 ,-
                                ,'::|
                               /::::|
                             ,'::::o\                                      _..
