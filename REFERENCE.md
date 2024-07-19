@@ -20,6 +20,9 @@
 
 > run `rustfmt` :)
 
+> Don't use 1 letter long lifetime names like `'a`.  
+> Give them a name related to what the lifetime is tied to like `'contents`
+
 # Exit Codes
 Exit Codes for `sharc` should vary depending on where the error appeared
 
