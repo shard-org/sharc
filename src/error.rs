@@ -122,8 +122,8 @@ impl Display for ErrorFormatter {
             }
             None => {}
         };
-        if error.note.is_some() {
-            writeln!(f, "       {}", error.note.as_ref().unwrap())?;
+        if let Some(note) = &error.note {
+            writeln!(f, "       {}", note)?;
         };
         Ok(())
     }
