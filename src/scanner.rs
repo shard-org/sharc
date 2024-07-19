@@ -93,7 +93,7 @@ impl Scanner {
         Ok(self)
     }
 
-    fn leak(mut self) -> &'static str {
+    fn leak(self) -> &'static str {
         Box::leak(self.contents.into_boxed_str())
     }
 }
