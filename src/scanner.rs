@@ -9,7 +9,7 @@ use once_cell::sync::Lazy;
 pub struct Scanner {
     filename: &'static str,
     index: usize,
-    pub contents: String,
+    contents: String,
     reader: BufReader<File>,
 }
 
@@ -59,27 +59,21 @@ impl Scanner {
             match std::str::from_utf8(&buf) {
                 Ok(s) => self.contents.push_str(s),
                 Err(_) => {
-                    let (line_index, line_number, column) = self.contents.chars().enumerate().fold(
-                        (0, 1, 0),
-                        |(mut li, mut ln, mut cl), (index, c)| {
+                    let (line_index, line_number) = self.contents.chars().enumerate().fold(
+                        (0, 1),
+                        |(mut li, mut ln), (index, c)| {
                             match c {
                                 '\n' => {
                                     li = index;
                                     ln += 1;
-                                    cl = 0;
                                 }
-                                _ => cl += 1,
+                                _ => {}
                             };
-                            (li, ln, cl)
+                            (li, ln)
                         },
                     );
-                    let span = crate::span::Span::new(
-                        self.filename,
-                        line_number,
-                        line_index,
-                        self.index,
-                        self.index,
-                    );
+                    let span =
+                        crate::span::Span::new(self.filename, line_number, line_index, self.index);
                     ErrorKind::IOError
                         .new("Invalid UTF-8 data".to_string())
                         .with_label(ErrorLabel::new(span))
