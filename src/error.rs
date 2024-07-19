@@ -2,6 +2,9 @@ use crate::span::Span;
 use std::fmt::{Display, Formatter};
 use std::sync::mpsc::Sender;
 
+// use colored::*;
+use colored::*;
+
 #[derive(Debug, PartialEq, PartialOrd, Copy, Clone)]
 pub enum ErrorLevel {
     Fatal,
@@ -104,27 +107,29 @@ struct ErrorFormatter {
 impl Display for ErrorFormatter {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let error = &self.error;
-        let prefix = match error.kind.level() {
-            ErrorLevel::Fatal => "Fatal",
-            ErrorLevel::Error => "Error",
-            ErrorLevel::Warn => "Warning",
-            ErrorLevel::Note => "Note",
+        let (prefix, color) = match error.kind.level() {
+            ErrorLevel::Fatal => ("Fatal", Color::Red),
+            ErrorLevel::Error => ("Error", Color::Red),
+            ErrorLevel::Warn  => ("Warning", Color::Yellow),
+            ErrorLevel::Note  => ("Note", Color::White),
             _ => unreachable!("Why does an error have the level of silent you idiot."),
         };
 
-        writeln!(f, "{}: {}", prefix, error.title)?;
+        writeln!(f, "{} {}", format!("{}:", prefix.color(color)).bold(), error.title)?;
         match error.label.as_ref() {
             Some(label) => {
-                writeln!(f, "-----> {}", label.span)?;
+                writeln!(f, " {} {}", "---->".cyan(), label.span)?;
                 if self.show_context {
                     unimplemented!("Labels are not yet supported. BLAME ANTHONY")
                 }
-            }
-            None => {}
-        };
+            },
+            None => {},
+        }
+
         if let Some(note) = &error.note {
-            writeln!(f, "       {}", note)?;
-        };
+            writeln!(f, "       {}", note.bright_black().italic())?;
+        }
+
         Ok(())
     }
 }
