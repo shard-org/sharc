@@ -107,28 +107,76 @@ struct ErrorFormatter {
 impl Display for ErrorFormatter {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let error = &self.error;
-        let (prefix, color) = match error.kind.level() {
-            ErrorLevel::Fatal => ("Fatal", Color::Red),
-            ErrorLevel::Error => ("Error", Color::Red),
-            ErrorLevel::Warn  => ("Warning", Color::Yellow),
-            ErrorLevel::Note  => ("Note", Color::White),
+        let (prefix, primary_color, secondary_color) = match error.kind.level() {
+            ErrorLevel::Fatal => ("Fatal", Color::Red, Color::BrightRed),
+            ErrorLevel::Error => ("Error", Color::Red, Color::BrightRed),
+            ErrorLevel::Warn => ("Warning", Color::Yellow, Color::BrightYellow),
+            ErrorLevel::Note => ("Note", Color::White, Color::White),
             _ => unreachable!("Why does an error have the level of silent you idiot."),
         };
+        
+        
+        writeln!(
+            f,
+            "{} {}",
+            format!("{}", format!("{prefix}:").color(primary_color)).bold(),
+            error.title
+        )?;
 
-        writeln!(f, "{} {}", format!("{}:", prefix.color(color)).bold(), error.title)?;
         match error.label.as_ref() {
-            Some(label) => {
-                writeln!(f, " {} {}", "---->".cyan(), label.span)?;
-                if self.show_context {
-                    unimplemented!("Labels are not yet supported. BLAME ANTHONY")
+            Some(label) if !self.show_context => {
+                let span = &label.span;
+                writeln!(f, " {} {}", "--->".cyan(), span)?;
+                
+                if let Some(note) = &error.note {
+                    writeln!(f, " {}", note.bright_black().italic())?;
                 }
             },
-            None => {},
+            Some(label) => {
+                let span = &label.span;
+                writeln!(f, " {} {}", "--->".cyan(), span)?;
+
+                let file = crate::Scanner::get_file(span.filename);
+
+                let line_index = file[..=span.start_index].rfind('\n').unwrap_or(0);
+
+                let slice = &file[line_index..];
+                let line = slice.split('\n').nth(0).unwrap_or(slice);
+                
+                let pad_num = span.line_number.to_string().len();
+                
+
+                println!("{} {} {}{}{}", 
+                    span.line_number.to_string().dimmed().bold(),
+                    "|".cyan().dimmed(),
+                    &line[..span.start_index-1],
+                    &line[span.start_index-1..span.end_index].color(secondary_color),
+                    &line[span.end_index..],
+                );
+
+                println!(
+                    "{} {} {}{} {}",
+                    " ".repeat(pad_num),
+                    "|".cyan().dimmed(),
+                    " ".repeat(span.start_index - line_index - 1),
+                    "^".repeat(span.end_index - span.start_index + 1).color(primary_color).bold(),
+                    label.text.as_ref().unwrap_or(&String::with_capacity(0)).color(secondary_color),
+                );
+
+                if let Some(note) = &error.note {
+                    writeln!(f, "{} {} {}", 
+                        " ".repeat(pad_num),
+                        "|".cyan().dimmed(),
+                        note.bright_black().italic()
+                    )?;
+                }
+
+            }
+            None => if let Some(note) = &error.note {
+                writeln!(f, "{}", note.bright_black().italic())?;
+            },
         }
 
-        if let Some(note) = &error.note {
-            writeln!(f, "       {}", note.bright_black().italic())?;
-        }
 
         Ok(())
     }
