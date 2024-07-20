@@ -2,7 +2,6 @@ use crate::span::Span;
 use std::fmt::{Display, Formatter};
 use std::sync::mpsc::Sender;
 
-// use colored::*;
 use colored::*;
 
 #[derive(Debug, PartialEq, PartialOrd, Copy, Clone)]

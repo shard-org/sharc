@@ -5,26 +5,11 @@ macro_rules! error {
     ($($ident:tt)*) => {
         ErrorKind::ArgumentParserError
             .new(format!($($ident)*))
-            .with_note("Run sharc with \x1b[1m--help\x1b[0m for usage information".to_string())
+            .with_note("(Run sharc with \x1b[1m--help\x1b[0m for usage information)".to_string())
             .display(false);
         exit(1);
     };
 }
-
-// struct ArgsDefinition {
-//
-// }
-//
-// struct Arg {
-//     long: Option<&'static str>,
-//     short: Option<&'static str>,
-//     note: Option<&'static str>,
-//     description: Option<&'static str>,
-// }
-//
-// impl Arg {
-//
-// }
 
 #[derive(Debug)]
 pub struct Args {
@@ -69,10 +54,10 @@ impl Args {
                     error!("expected level");
                 };
                 self.level = match level.as_str() {
-                    "error" => ErrorLevel::Error,
-                    "warn" => ErrorLevel::Warn,
-                    "note" => ErrorLevel::Note,
-                    "silent" => ErrorLevel::Silent,
+                    "e" | "error" => ErrorLevel::Error,
+                    "w" | "warn" => ErrorLevel::Warn,
+                    "n" | "note" => ErrorLevel::Note,
+                    "s" | "silent" => ErrorLevel::Silent,
                     _ => {
                         error!("invalid level `{}`", level);
                     }
