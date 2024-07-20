@@ -1,7 +1,3 @@
-use crate::location::Span;
-use crate::logger::Log;
-
-#[derive(Debug)]
 pub enum TokenKind {
     // Symbols
     Ampersand,
@@ -65,19 +61,10 @@ pub enum TokenKind {
     FloatLit(f64),
     SIntLit(isize),
 }
+struct Lexer {
 
-#[derive(Debug)]
-pub struct Token {
-    pub kind: TokenKind,
-    pub span: Span,
 }
 
-impl Token {
-    pub fn new(kind: TokenKind, span: Span) -> Self {
-        Token{kind,span}
-    }
-
-    pub fn some(self) -> Option<Self> {
-        Some(self)
-    }
+impl Lexer {
+    pub fn 
 }

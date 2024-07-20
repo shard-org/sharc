@@ -109,20 +109,25 @@ impl Display for ErrorFormatter {
         let (prefix, color) = match error.kind.level() {
             ErrorLevel::Fatal => ("Fatal", Color::Red),
             ErrorLevel::Error => ("Error", Color::Red),
-            ErrorLevel::Warn  => ("Warning", Color::Yellow),
-            ErrorLevel::Note  => ("Note", Color::White),
+            ErrorLevel::Warn => ("Warning", Color::Yellow),
+            ErrorLevel::Note => ("Note", Color::White),
             _ => unreachable!("Why does an error have the level of silent you idiot."),
         };
 
-        writeln!(f, "{} {}", format!("{}:", prefix.color(color)).bold(), error.title)?;
+        writeln!(
+            f,
+            "{} {}",
+            format!("{}:", prefix.color(color)).bold(),
+            error.title
+        )?;
         match error.label.as_ref() {
             Some(label) => {
                 writeln!(f, " {} {}", "---->".cyan(), label.span)?;
                 if self.show_context {
                     unimplemented!("Labels are not yet supported. BLAME ANTHONY")
                 }
-            },
-            None => {},
+            }
+            None => {}
         }
 
         if let Some(note) = &error.note {

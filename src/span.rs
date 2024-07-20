@@ -45,7 +45,7 @@ pub struct SpanPrinter<'s> {
     line_index: usize,
 }
 
-impl std::fmt::Display for SpanPrinter {
+impl std::fmt::Display for SpanPrinter<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let column = self.span.start_index - self.line_index;
         write!(

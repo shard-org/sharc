@@ -1,5 +1,5 @@
 use crate::error::{ErrorKind, ErrorLevel};
-use std::process::exit;
+use crate::{exit, ExitCode};
 
 macro_rules! error {
     ($($ident:tt)*) => {
@@ -7,7 +7,7 @@ macro_rules! error {
             .new(format!($($ident)*))
             .with_note("(Run sharc with \x1b[1m--help\x1b[0m for usage information)".to_string())
             .display(false);
-        exit(1);
+        exit(ExitCode::Generic);
     };
 }
 
@@ -33,15 +33,15 @@ impl Args {
         match arg {
             "h" => {
                 println!("{}", USAGE);
-                exit(0);
+                exit(ExitCode::OK);
             }
             "help" => {
                 println!("{}\n\n{}", USAGE, HELP_MESSAGE);
-                exit(0);
+                exit(ExitCode::OK);
             }
             "V" | "version" => {
                 println!("sharc {}", env!("CARGO_PKG_VERSION"));
-                exit(0);
+                exit(ExitCode::OK);
             }
             "d" | "debug" => {
                 self.debug = true;
@@ -99,7 +99,7 @@ impl Args {
                 match arg.as_str() {
                     "shark" => {
                         println!("\x1b[34m{}\x1b[0m", SHARK_ASCII);
-                        exit(69);
+                        exit(ExitCode::EasterEgg);
                     }
                     "verbs" => {
                         error!("no");
