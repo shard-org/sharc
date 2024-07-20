@@ -2,9 +2,7 @@ use crate::error::{Error, ErrorKind};
 use crate::scanner::Scanner;
 
 mod args;
-mod r#const;
 mod error;
-mod lexer;
 mod scanner;
 mod span;
 mod token;

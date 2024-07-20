@@ -1,5 +1,5 @@
-use crate::location::Span;
-use crate::logger::Log;
+use crate::span::Span;
+use std::fmt::Formatter;
 
 #[derive(Debug)]
 pub enum TokenKind {
@@ -16,9 +16,9 @@ pub enum TokenKind {
     Dot,
     // DoubleQuote,   // error or StrLit
     Equals,
-    
-    FatArrow,         // =>
-    FatDoubleArrow,   // =>>
+
+    FatArrow,       // =>
+    FatDoubleArrow, // =>>
 
     GreaterThan,
     GreaterThanEquals,
@@ -73,7 +73,7 @@ pub struct Token {
 
 impl Token {
     pub fn new(kind: TokenKind, span: Span) -> Self {
-        Token{kind,span}
+        Token { kind, span }
     }
 
     pub fn some(self) -> Option<Self> {

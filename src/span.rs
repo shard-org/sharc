@@ -1,6 +1,6 @@
 use std::fmt::Formatter;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Span {
     pub filename: &'static str,
     pub line_number: usize,
