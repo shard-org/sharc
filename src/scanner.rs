@@ -4,6 +4,7 @@ use std::io::{self, BufReader, Read};
 use std::sync::RwLock;
 
 use crate::error::{ErrorKind, ErrorLabel};
+use crate::{exit, ExitCode};
 use once_cell::sync::Lazy;
 
 pub struct Scanner {
@@ -78,7 +79,7 @@ impl Scanner {
                         .new("Invalid UTF-8 data".to_string())
                         .with_label(ErrorLabel::new(span))
                         .display(false);
-                    std::process::exit(69);
+                    exit(ExitCode::FileIO);
                 }
             }
             self.index += 1;

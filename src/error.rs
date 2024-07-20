@@ -106,6 +106,7 @@ struct ErrorFormatter {
 impl Display for ErrorFormatter {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let error = &self.error;
+
         let (prefix, primary_color, secondary_color) = match error.kind.level() {
             ErrorLevel::Fatal => ("Fatal", Color::Red, Color::BrightRed),
             ErrorLevel::Error => ("Error", Color::Red, Color::BrightRed),
@@ -169,8 +170,7 @@ impl Display for ErrorFormatter {
                         note.bright_black().italic()
                     )?;
                 }
-
-            }
+            },
             None => if let Some(note) = &error.note {
                 writeln!(f, "{}", note.bright_black().italic())?;
             },

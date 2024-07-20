@@ -3,27 +3,80 @@ use std::fmt::Formatter;
 
 #[derive(Debug)]
 pub enum TokenKind {
-    Plus,
+    // Symbols
+    Ampersand,
+    At,
+    // Backtick,   // error or Chalit
+    Backslash,
+    Bang,
+    Caret,
+    Colon,
+    Comma,
+    Dollar,
+    Dot,
+    // DoubleQuote,   // error or StrLit
+    Equals,
+
+    FatArrow,       // =>
+    FatDoubleArrow, // =>>
+
+    GreaterThan,
+    GreaterThanEquals,
+    LeftBrace,
+    LeftBracket,
+    LeftParen,
+    LessThan,
+    LessThanEquals,
     Minus,
-    Star,
+    MinusMinus,
+    NotEquals,
+    Percent,
+    Pipe,
+    Plus,
+    PlusPlus,
+    Pound,
+    Question,
+    RightBrace,
+    RightBracket,
+    RightParen,
+    Semicolon,
+    SingleQuote,
     Slash,
-    Identifier,
+    Star,
+    Tilde,
+    SmallArrowLeft,
+    SmallArrowRight,
+    Underscore,
+
+    // Other
+    Ident,
+    NL,
+
+    // keywords
+    Jmp,
+    Ret,
+
+    // literals
+    CharLit,
+    StrLit,
+
+    IntLit,
+    FloatLit,
+    SIntLit,
 }
 
-pub struct Token<'source> {
-    kind: TokenKind,
-    span: Span,
-    text: &'source str,
+#[derive(Debug)]
+pub struct Token {
+    pub kind: TokenKind,
+    pub span: Span,
 }
 
-impl<'source> Token<'source> {
-    pub fn new(kind: TokenKind, span: Span, text: &'source str) -> Self {
-        Self { kind, span, text }
+impl Token {
+    pub fn new(kind: TokenKind, span: Span) -> Self {
+        Token { kind, span }
     }
-}
 
-impl std::fmt::Display for Token<'_> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Token{{{:?}, {}}}", self.kind, self.span)
+    pub fn some(self) -> Option<Self> {
+        Some(self)
     }
 }
