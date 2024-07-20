@@ -16,8 +16,10 @@ pub enum TokenKind {
     Dot,
     // DoubleQuote,   // error or StrLit
     Equals,
+    
     FatArrow,         // =>
     FatDoubleArrow,   // =>>
+
     GreaterThan,
     GreaterThanEquals,
     LeftBrace,
@@ -47,23 +49,20 @@ pub enum TokenKind {
     Underscore,
 
     // Other
-    Ident(String),
+    Ident,
     NL,
 
     // keywords
     Jmp,
     Ret,
-    End,
-    Inline,
-    Entry,
 
     // literals
-    CharLit(char),
-    StrLit(String),
+    CharLit,
+    StrLit,
 
-    IntLit(usize),
-    FloatLit(f64),
-    SIntLit(isize),
+    IntLit,
+    FloatLit,
+    SIntLit,
 }
 
 #[derive(Debug)]
