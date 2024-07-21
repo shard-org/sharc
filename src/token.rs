@@ -7,6 +7,8 @@ pub enum TokenKind {
     NewLine,
     Identifier,
 
+    Ret,
+
     FloatLiteral,
     BinaryIntLiteral,
     OctalIntLiteral,
@@ -53,10 +55,10 @@ pub enum TokenKind {
 }
 
 #[derive(Debug)]
-pub struct Token<'contents> {
+pub struct Token<'source> {
     pub kind: TokenKind,
     pub span: Span,
-    pub text: &'contents str,
+    pub text: &'source str,
 }
 
 impl std::fmt::Display for Token<'_> {

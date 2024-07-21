@@ -3,19 +3,19 @@ use crate::span::Span;
 use crate::token::{Token, TokenKind};
 use std::fmt::Display;
 
-pub struct Lexer<'contents> {
+pub struct Lexer<'source> {
     filename: &'static str,
-    contents: &'contents str,
-    chars: std::iter::Peekable<std::str::Chars<'contents>>,
+    contents: &'source str,
+    chars: std::iter::Peekable<std::str::Chars<'source>>,
     current: Option<char>,
     line_number: usize,
     index: usize,
     sender: ErrorSender,
-    pub tokens: Vec<Token<'contents>>,
+    pub tokens: Vec<Token<'source>>,
 }
 
-impl<'contents> Lexer<'contents> {
-    pub fn new(filename: &'static str, contents: &'contents str, sender: ErrorSender) -> Self {
+impl<'source> Lexer<'source> {
+    pub fn new(filename: &'static str, contents: &'source str, sender: ErrorSender) -> Self {
         let mut chars = contents.chars().peekable();
         Self {
             filename,
@@ -42,7 +42,7 @@ impl<'contents> Lexer<'contents> {
         }
     }
 
-    fn slice_source(&self, start: usize, end: usize) -> &'contents str {
+    fn slice_source(&self, start: usize, end: usize) -> &'source str {
         &self.contents[start..end]
     }
 
@@ -58,7 +58,7 @@ impl<'contents> Lexer<'contents> {
         self.chars.peek().cloned()
     }
 
-    fn push_token(&mut self, kind: TokenKind, span: Span, text: &'contents str) {
+    fn push_token(&mut self, kind: TokenKind, span: Span, text: &'source str) {
         self.tokens.push(Token { kind, span, text })
     }
 
@@ -138,6 +138,7 @@ impl<'contents> Lexer<'contents> {
                     let span = span_to!(self.index);
                     let kind = match ident {
                         // Any keywords are handled here
+                        "ret" => TokenKind::Ret,
                         _ => TokenKind::Identifier,
                     };
                     self.push_token(kind, span, ident);
