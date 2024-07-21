@@ -125,6 +125,15 @@ impl Args {
                 };
                 self.file.try_mut(Box::leak(file.into_boxed_str()));
             }
+            "o" | "output" => {
+                if !is_end {
+                    error!("flags with parameters must be at the end of a group, or defined separately");
+                };
+                let Some(output) = args.next() else {
+                    error!("expected file");
+                };
+                self.output.try_mut(Box::leak(output.into_boxed_str()));
+            }
             _ => {
                 error!("unrecognized argument '{}'", arg);
             }
@@ -171,10 +180,12 @@ const HELP_MESSAGE: &str = "\x1b[1mDESCRIPTION\x1b[0m
     -v, --version               Show version
     -d, --debug                 Print debug information
         Shows a ton of information not intended for mere mortals.
-    -l, --error-level LEVEL     [error|warn|note|silent]
+    -l, --error-level LEVEL     [fatal|error|warn|note|silent]
         (default: warn)
     -f, --file FILE             File to compile
         (default: main.shd)
+    -o, --output FILE           File to write to
+        (default: [input file].asm)
 
         --no-context            Disable code context";
 const SHARK_ASCII: &str = r#"                                 ,-
