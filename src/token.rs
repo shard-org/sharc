@@ -3,80 +3,68 @@ use std::fmt::Formatter;
 
 #[derive(Debug)]
 pub enum TokenKind {
-    // Symbols
-    Ampersand,
-    At,
-    // Backtick,   // error or Chalit
-    Backslash,
+    EOF,
+    NewLine,
+    Identifier,
+
+    FloatLiteral,
+    BinaryIntLiteral,
+    OctalIntLiteral,
+    DecimalIntLiteral,
+    HexadecimalIntLiteral,
+
+    Tilde,
     Bang,
+    At,
+    Pound,
+    Dollar,
+    Percent,
     Caret,
+    Ampersand,
+    Star,
+    LParen,
+    RParen,
+    Minus,
+    Underscore,
+    Equals,
+    Plus,
+    LBracket,
+    RBracket,
+    LBrace,
+    RBrace,
+    Pipe,
+    Semicolon,
     Colon,
     Comma,
-    Dollar,
     Dot,
-    // DoubleQuote,   // error or StrLit
-    Equals,
-
-    FatArrow,       // =>
-    FatDoubleArrow, // =>>
-
+    Slash,
+    Question,
+    ArrowLeft,
+    ArrowRight,
+    FatArrowRight,
     GreaterThan,
     GreaterThanEquals,
-    LeftBrace,
-    LeftBracket,
-    LeftParen,
     LessThan,
     LessThanEquals,
-    Minus,
     MinusMinus,
     NotEquals,
-    Percent,
-    Pipe,
-    Plus,
     PlusPlus,
-    Pound,
-    Question,
-    RightBrace,
-    RightBracket,
-    RightParen,
-    Semicolon,
-    SingleQuote,
-    Slash,
-    Star,
-    Tilde,
-    SmallArrowLeft,
-    SmallArrowRight,
-    Underscore,
-
-    // Other
-    Ident,
-    NL,
-
-    // keywords
-    Jmp,
-    Ret,
-
-    // literals
-    CharLit,
-    StrLit,
-
-    IntLit,
-    FloatLit,
-    SIntLit,
+    EqualsEquals,
 }
 
 #[derive(Debug)]
-pub struct Token {
+pub struct Token<'contents> {
     pub kind: TokenKind,
     pub span: Span,
+    pub text: &'contents str,
 }
 
-impl Token {
-    pub fn new(kind: TokenKind, span: Span) -> Self {
-        Token { kind, span }
-    }
-
-    pub fn some(self) -> Option<Self> {
-        Some(self)
+impl std::fmt::Display for Token<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Token({:?}, {:?}", self.kind, self.span)?;
+        if !self.text.is_empty() {
+            write!(f, ", {:?}", self.text)?;
+        };
+        write!(f, ")")
     }
 }

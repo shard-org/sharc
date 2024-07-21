@@ -1,51 +1,102 @@
 use crate::error::{ErrorKind, ErrorLevel};
-use crate::{exit, ExitCode};
+use std::fmt::{Debug, Formatter};
+use std::process::exit;
 
 macro_rules! error {
     ($($ident:tt)*) => {
         ErrorKind::ArgumentParserError
             .new(format!($($ident)*))
-            .with_note("(Run sharc with \x1b[1m--help\x1b[0m for usage information)".to_string())
+            .with_note("(Run sharc with \x1b[1m--help\x1b[0m for usage information)")
             .display(false);
-        exit(ExitCode::Generic);
+        exit(1);
     };
+}
+
+#[derive(Default)]
+pub struct Arg<T> {
+    pub field: Option<T>,
+    name: &'static str,
+}
+
+impl<T> Arg<T> {
+    pub fn new(name: &'static str) -> Self {
+        Self { field: None, name }
+    }
+
+    pub fn try_mut(&mut self, value: T) {
+        if self.field.is_some() {
+            error!("the argument {} cannot be used multiple times", self.name);
+        };
+        self.field = Some(value);
+    }
+
+    pub fn resolve(&mut self, default: T) {
+        if self.field.is_none() {
+            self.field = Some(default);
+        }
+    }
+}
+
+impl<T: Debug> Debug for Arg<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self.field)
+    }
 }
 
 #[derive(Debug)]
 pub struct Args {
-    pub file: Option<&'static str>,
-    pub debug: bool,
-    pub code_context: bool,
-    pub level: ErrorLevel,
+    pub file: Arg<&'static str>,
+    pub output: Arg<&'static str>,
+    pub debug: Arg<bool>,
+    pub code_context: Arg<bool>,
+    pub level: Arg<ErrorLevel>,
 }
 
 impl Args {
     pub fn default() -> Self {
-        Args {
-            file: None,
-            debug: false,
-            code_context: true,
-            level: ErrorLevel::Warn,
+        Self {
+            file: Arg::new("--file"),
+            output: Arg::new("--output"),
+            debug: Arg::new("--debug"),
+            code_context: Arg::new("--code-context"),
+            level: Arg::new("--error-level"),
         }
+    }
+
+    pub fn resolve_defaults(mut self) -> Self {
+        self.file.resolve("main.shd");
+        let output = {
+            let file = self.file.field.expect("Didn't resolve file");
+            let mut asm_file = match file.rfind('.') {
+                Some(index) => &file[..index],
+                None => file,
+            }
+            .to_string();
+            asm_file.push_str(".asm");
+            asm_file
+        };
+        self.output.resolve(Box::leak(output.into_boxed_str()));
+        self.debug.resolve(false);
+        self.code_context.resolve(true);
+        self.level.resolve(ErrorLevel::Warn);
+        self
     }
 
     fn handle_arg(&mut self, arg: &str, args: &mut std::vec::IntoIter<String>, is_end: bool) {
         match arg {
             "h" => {
                 println!("{}", USAGE);
-                exit(ExitCode::OK);
+                exit(0);
             }
             "help" => {
                 println!("{}\n\n{}", USAGE, HELP_MESSAGE);
-                exit(ExitCode::OK);
+                exit(0);
             }
             "V" | "version" => {
                 println!("sharc {}", env!("CARGO_PKG_VERSION"));
-                exit(ExitCode::OK);
+                exit(0);
             }
-            "d" | "debug" => {
-                self.debug = true;
-            }
+            "d" | "debug" => self.debug.try_mut(false),
             "l" | "error-level" => {
                 if !is_end {
                     error!("flags with parameters must be at the end of a group, or defined separately");
@@ -53,7 +104,8 @@ impl Args {
                 let Some(level) = args.next() else {
                     error!("expected level");
                 };
-                self.level = match level.as_str() {
+                self.level.try_mut(match level.as_str() {
+                    "f" | "fatal" => ErrorLevel::Fatal,
                     "e" | "error" => ErrorLevel::Error,
                     "w" | "warn" => ErrorLevel::Warn,
                     "n" | "note" => ErrorLevel::Note,
@@ -61,11 +113,9 @@ impl Args {
                     _ => {
                         error!("invalid level `{}`", level);
                     }
-                };
+                });
             }
-            "no-context" => {
-                self.code_context = false;
-            }
+            "no-context" => self.code_context.try_mut(false),
             "f" | "file" => {
                 if !is_end {
                     error!("flags with parameters must be at the end of a group, or defined separately");
@@ -73,10 +123,7 @@ impl Args {
                 let Some(file) = args.next() else {
                     error!("expected file");
                 };
-                if self.file.is_some() {
-                    error!("unexpected argument '{}'", file);
-                }
-                self.file = Some(Box::leak(file.into_boxed_str()))
+                self.file.try_mut(Box::leak(file.into_boxed_str()));
             }
             _ => {
                 error!("unrecognized argument '{}'", arg);
@@ -99,7 +146,7 @@ impl Args {
                 match arg.as_str() {
                     "shark" => {
                         println!("\x1b[34m{}\x1b[0m", SHARK_ASCII);
-                        exit(ExitCode::EasterEgg);
+                        exit(1);
                     }
                     "verbs" => {
                         error!("no");

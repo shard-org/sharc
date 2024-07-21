@@ -1,55 +1,48 @@
 use crate::span::Span;
+use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
 use std::sync::mpsc::Sender;
 
 use colored::*;
 
-pub enum ExitCode {
-    OK = 0,
-    Generic = 1,
-    ArgParsing = 2,
-    FileIO = 3,
-    Lexer = 9,
-    Parser = 16,
-    Macro = 22,
-    Codegen = 28,
-    EasterEgg = 69,
-}
-
-pub fn exit(code: ExitCode) -> ! {
-    std::process::exit(code as i32)
-}
-
 #[derive(Debug, PartialEq, PartialOrd, Copy, Clone)]
 pub enum ErrorLevel {
-    Fatal,
-    Error,
-    Warn,
-    Note,
     Silent,
+    Note,
+    Warn,
+    Error,
+    Fatal,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum ErrorKind {
     ArgumentParserError,
 
     IOError,
     UnexpectedCharacter,
+    UnterminatedMultilineComment,
+
+    // General
+    SyntaxError,
 }
 
 impl ErrorKind {
-    pub fn new(self, title: String) -> Error {
+    pub fn new<T: Into<String>>(self, title: T) -> Error {
         Error::new(self, title)
     }
+
     pub fn level(&self) -> ErrorLevel {
         match self {
-            // Error
-            ErrorKind::UnexpectedCharacter
-            | ErrorKind::ArgumentParserError
-            | ErrorKind::IOError => ErrorLevel::Error, // Warning
-                                                       // ...
-                                                       // Note
-                                                       // ...
+            // Argument Parsing
+            ErrorKind::ArgumentParserError => ErrorLevel::Error,
+
+            // Lexing
+            ErrorKind::IOError
+            | ErrorKind::UnexpectedCharacter
+            | ErrorKind::UnterminatedMultilineComment => ErrorLevel::Error,
+
+            // General
+            ErrorKind::SyntaxError => ErrorLevel::Error,
         }
     }
 }
@@ -65,8 +58,8 @@ impl ErrorLabel {
         Self { span, text: None }
     }
 
-    pub fn with_text(mut self, label: String) -> Self {
-        self.text = Some(label);
+    pub fn with_text<T: Into<String>>(mut self, label: T) -> Self {
+        self.text = Some(label.into());
         self
     }
 }
@@ -80,10 +73,10 @@ pub struct Error {
 }
 
 impl Error {
-    pub fn new(kind: ErrorKind, title: String) -> Self {
+    pub fn new<T: Into<String>>(kind: ErrorKind, title: T) -> Self {
         Self {
             kind,
-            title,
+            title: title.into(),
             label: None,
             note: None,
         }
@@ -94,8 +87,8 @@ impl Error {
         self
     }
 
-    pub fn with_note(mut self, note: String) -> Self {
-        self.note = Some(note);
+    pub fn with_note<T: Into<String>>(mut self, note: T) -> Self {
+        self.note = Some(note.into());
         self
     }
 
@@ -103,8 +96,16 @@ impl Error {
         Box::new(self)
     }
 
-    pub fn display(self, show_context: bool) {
-        eprintln!(
+    pub fn into_result(self) -> Result<()> {
+        Err(self.into_boxed_error())
+    }
+
+    pub fn level(&self) -> ErrorLevel {
+        self.kind.level()
+    }
+
+    pub fn display(&self, show_context: bool) {
+        eprint!(
             "{}",
             ErrorFormatter {
                 error: self,
@@ -114,12 +115,26 @@ impl Error {
     }
 }
 
-struct ErrorFormatter {
-    error: Error,
+impl Eq for Error {}
+
+impl PartialEq<Self> for Error {
+    fn eq(&self, other: &Self) -> bool {
+        self.level().eq(&other.level())
+    }
+}
+
+impl PartialOrd<Self> for Error {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.level().partial_cmp(&other.level())
+    }
+}
+
+struct ErrorFormatter<'e> {
+    error: &'e Error,
     show_context: bool,
 }
 
-impl Display for ErrorFormatter {
+impl Display for ErrorFormatter<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let error = &self.error;
 
@@ -130,68 +145,84 @@ impl Display for ErrorFormatter {
             ErrorLevel::Note => ("Note", Color::White, Color::White),
             _ => unreachable!("Why does an error have the level of silent you idiot."),
         };
-        
-        
+
         writeln!(
             f,
             "{} {}",
-            format!("{}", format!("{prefix}:").color(primary_color)).bold(),
+            format!(
+                "{}",
+                format!("[{prefix}] {:?}:", error.kind).color(primary_color)
+            )
+            .bold(),
             error.title
         )?;
 
         match error.label.as_ref() {
-            Some(label) if !self.show_context => {
-                let span = &label.span;
-                writeln!(f, " {} {}", "--->".cyan(), span)?;
-                
-                if let Some(note) = &error.note {
-                    writeln!(f, " {}", note.bright_black().italic())?;
-                }
-            },
             Some(label) => {
                 let span = &label.span;
-                writeln!(f, " {} {}", "--->".cyan(), span)?;
+                let contents = crate::Scanner::get_file(span.filename);
+                let line_index = match contents[..=span.start_index].rfind('\n') {
+                    Some(val) => val + 1,
+                    None => 0,
+                };
+                let end_line_index = {
+                    match contents[span.end_index..].find('\n') {
+                        Some(offset) => span.start_index + offset,
+                        None => contents.len() - 1,
+                    }
+                };
+                writeln!(f, " {} {}", "--->".cyan(), span.to_span_printer(line_index))?;
 
-                let file = crate::Scanner::get_file(span.filename);
+                if self.show_context {
+                    let pad_num = span.line_number.to_string().len();
 
-                let line_index = file[..=span.start_index].rfind('\n').unwrap_or(0);
+                    writeln!(
+                        f,
+                        "{} {} {}{}{}",
+                        span.line_number.to_string().dimmed().bold(),
+                        "|".cyan().dimmed(),
+                        &contents[line_index..span.start_index],
+                        &contents[span.start_index..span.end_index].color(secondary_color),
+                        &contents[span.end_index..=end_line_index],
+                    )?;
 
-                let slice = &file[line_index..];
-                let line = slice.split('\n').nth(0).unwrap_or(slice);
-                
-                let pad_num = span.line_number.to_string().len();
-                
-
-                println!("{} {} {}{}{}", 
-                    span.line_number.to_string().dimmed().bold(),
-                    "|".cyan().dimmed(),
-                    &line[..span.start_index-1],
-                    &line[span.start_index-1..span.end_index].color(secondary_color),
-                    &line[span.end_index..],
-                );
-
-                println!(
-                    "{} {} {}{} {}",
-                    " ".repeat(pad_num),
-                    "|".cyan().dimmed(),
-                    " ".repeat(span.start_index - line_index - 1),
-                    "^".repeat(span.end_index - span.start_index + 1).color(primary_color).bold(),
-                    label.text.as_ref().unwrap_or(&String::with_capacity(0)).color(secondary_color),
-                );
-
-                if let Some(note) = &error.note {
-                    writeln!(f, "{} {} {}", 
+                    writeln!(
+                        f,
+                        "{} {} {}{} {}",
                         " ".repeat(pad_num),
                         "|".cyan().dimmed(),
-                        note.bright_black().italic()
+                        " ".repeat(span.start_index - line_index),
+                        "^".repeat(span.end_index - span.start_index)
+                            .color(primary_color)
+                            .bold(),
+                        label
+                            .text
+                            .as_ref()
+                            .unwrap_or(&String::with_capacity(0))
+                            .color(secondary_color),
                     )?;
-                }
-            },
-            None => if let Some(note) = &error.note {
-                writeln!(f, "{}", note.bright_black().italic())?;
-            },
-        }
 
+                    if let Some(note) = &error.note {
+                        writeln!(
+                            f,
+                            "{} {} {}",
+                            " ".repeat(pad_num),
+                            "|".cyan().dimmed(),
+                            note.bright_black().italic()
+                        )?;
+                    }
+                } else {
+                    if let Some(note) = &error.note {
+                        writeln!(f, " {}", note.bright_black().italic())?;
+                    }
+                }
+            }
+            None => {
+                if let Some(note) = &error.note {
+                    writeln!(f, "{}", note.bright_black().italic())?;
+                }
+            }
+        }
 
         Ok(())
     }
@@ -210,16 +241,20 @@ impl<T: ToOwned> Unbox<T> for Box<T> {
     }
 }
 
-type Result<T> = std::result::Result<T, Box<Error>>;
+pub type Result<T> = std::result::Result<T, Box<Error>>;
 
 pub struct ErrorSender {
-    sender: Sender<Error>,
+    sender: Sender<Box<Error>>,
 }
 
 impl ErrorSender {
+    pub fn new(sender: Sender<Box<Error>>) -> Self {
+        Self { sender }
+    }
+
     pub fn send(&self, error: Box<Error>) {
         self.sender
-            .send(error.unbox())
+            .send(error)
             .expect("Error sender failed to send error.")
     }
 }

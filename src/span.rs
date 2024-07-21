@@ -1,6 +1,6 @@
 use std::fmt::Formatter;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Span {
     pub filename: &'static str,
     pub line_number: usize,
@@ -23,20 +23,30 @@ impl Span {
         }
     }
 
-    pub fn extend(&self, other: &Self) -> Self {
-        Self {
-            filename: self.filename,
-            line_number: self.line_number,
-            start_index: self.start_index,
-            end_index: other.end_index,
-        }
-    }
+    // pub fn extend(&self, other: &Self) -> Self {
+    //     Self {
+    //         filename: self.filename,
+    //         line_number: self.line_number,
+    //         start_index: self.start_index,
+    //         end_index: other.end_index,
+    //     }
+    // }
 
     pub fn to_span_printer(&self, line_index: usize) -> SpanPrinter {
         SpanPrinter {
             span: self,
             line_index,
         }
+    }
+}
+
+impl std::fmt::Debug for Span {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}:{}({},{})",
+            self.filename, self.line_number, self.start_index, self.end_index
+        )
     }
 }
 
