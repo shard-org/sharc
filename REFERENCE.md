@@ -20,8 +20,13 @@
 
 > run `rustfmt` :)
 
-> Don't use 1 letter long lifetime names like `'a`.  
-> Give them a name related to what the lifetime is tied to like `'contents`
+> If a lifetime must annotate more than one field/var, it should likely be expended to a more useful name;
+> Don't call them a 1 letter long name like `'a`.  
+> The impl block should use the same lifetime names as the object. Don't shorten them.
+
+> Trivial lifetimes *may* be described using a single letter, however try avoiding using an alphabetic order for lifetimes
+> `'a`, `'b`, `'c`. Instead use a letter 
+
 
 # Exit Codes
 Exit Codes for `sharc` should vary depending on where the error appeared
