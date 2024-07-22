@@ -1,17 +1,15 @@
-use std::{cmp, u64::MAX};
+use std::cmp;
 
 use log::error;
 
-use crate::{
-    lexer,
-    token::{Token, TokenKind},
-};
+use crate::{ lexer, span::Span, token::{Token, TokenKind} };
 
 // 'source is the lifetime for the source text that backs the lexer and parser
 pub struct Parser<'source> {
-    tokens: Box<[Token<'source>]>,
-    current: usize,
-    program: Program<'source>,
+    pub filename: &'static str,
+    pub tokens: Box<[Token<'source>]>,
+    pub current: usize,
+    pub program: Program<'source>,
 }
 
 
@@ -29,6 +27,7 @@ impl<'source> Program<'source> {
     }
 }
 
+#[derive(Debug)]
 pub struct Ast<'source> {
     pub start: usize, // used for span construction for reports
     pub end: usize,
@@ -36,11 +35,24 @@ pub struct Ast<'source> {
     pub kind: Box<AstKind<'source>>,
 }
 
+impl<'source> Ast<'source> {
+    pub fn to_span(&self, p: &Parser) -> Span {
+        Span {
+            filename:    p.filename,
+            line_number: p.tokens[self.start].span.line_number,
+            start_index: p.tokens[self.start].span.start_index,
+            end_index:   p.tokens[self.end].span.end_index,
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct FuncParam<'source> {
     ident: &'source str,
     param_type: Ast<'source>,
 }
 
+#[derive(Debug)]
 pub enum AstKind<'source> {
     Invalid,
     Identifier,
@@ -101,8 +113,9 @@ impl<'source> Parser<'source> {
         }
     }
 
-    pub fn new(tokens: Box<[Token<'source>]>) -> Self {
+    pub fn new(tokens: Box<[Token<'source>]>, filename: &'static str) -> Self {
         Parser {
+            filename,
             tokens,
             current: 0,
             program: Program::new(),
@@ -115,8 +128,8 @@ impl<'source> Parser<'source> {
 
     pub fn parse_expr_atom(&mut self) -> Option<Ast> {
         let text = self.current().text;
-        match self.current().kind {
-            TokenKind::DecimalIntLiteral => {
+        let node = match self.current().kind {
+            TokenKind::IntLiteral => {
                 let mut val = text.parse::<isize>();
                 
                 if val.is_err() {
@@ -125,8 +138,22 @@ impl<'source> Parser<'source> {
 
                 self.new_ast(AstKind::IntegerLiteralExpr { val: val.unwrap() }).into()
             }
+            TokenKind::FloatLiteral => {
+                let mut val = text.parse::<f64>();
+
+                if val.is_err() {
+                    todo!("emit parse error message");
+                }
+
+                self.new_ast(AstKind::FloatLiteralExpr { val: val.unwrap() }).into()
+            }
+            TokenKind::Identifier => {
+                self.new_ast(AstKind::Identifier).into() // identifiers just use the text of their first token
+            }
             _ => None
-        }
+        };
+        self.advance();
+        node
     }
 
 }

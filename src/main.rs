@@ -49,9 +49,11 @@ fn main() {
     let mut reports = Vec::<Error>::new();
     let (sender, receiver) = std::sync::mpsc::channel::<Box<Error>>();
 
+    let filename = args.file.field.unwrap();
+
     let tokens = {
         let mut lexer = Lexer::new(
-            args.file.field.unwrap(),
+            filename,
             Scanner::get_file(args.file.field.unwrap()),
             ErrorSender::new(sender),
         );
@@ -68,6 +70,8 @@ fn main() {
         lexer.tokens
     };
 
-    // println!("{:#?}", tokens);
-    let parser = Parser::new(tokens.into_boxed_slice());
+    println!("{:#?}", tokens);
+    let mut parser = Parser::new(tokens.into_boxed_slice(), filename);
+
+    println!("{:#?}", parser.parse_expr_atom());
 }

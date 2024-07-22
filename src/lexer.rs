@@ -158,7 +158,7 @@ impl<'source> Lexer<'source> {
                         continue;
                     }
                     self.push_token(
-                        TokenKind::from(base),
+                        TokenKind::IntLiteral,
                         span_to!(self.index),
                         self.slice_source(start_index + 2, self.index),
                     );
@@ -196,7 +196,7 @@ impl<'source> Lexer<'source> {
                         continue;
                     }
                     self.push_token(
-                        TokenKind::DecimalIntLiteral,
+                        TokenKind::IntLiteral,
                         span_to!(self.index),
                         self.slice_source(start_index, self.index),
                     );
@@ -350,16 +350,5 @@ impl Display for Base {
         }
         .to_string();
         write!(f, "{}", str)
-    }
-}
-
-impl From<Base> for TokenKind {
-    fn from(value: Base) -> Self {
-        match value {
-            Base::Binary => Self::BinaryIntLiteral,
-            Base::Octal => Self::OctalIntLiteral,
-            Base::Decimal => Self::DecimalIntLiteral,
-            Base::Hexadecimal => Self::HexadecimalIntLiteral,
-        }
     }
 }
