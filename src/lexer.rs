@@ -104,20 +104,30 @@ impl<'contents> Lexer<'contents> {
                         }
                     }
                     Some('*') => {
-                        let mut depth = 1;
-                        while depth > 0 {
+                        let mut depth = 0;
+                        loop {
                             match self.current.clone() {
-                                Some('/') if Some('*') == self.peek() => depth += 1,
-                                Some('*') if Some('/') == self.peek() => depth -= 1,
+                                Some('/') if Some('*') == self.peek() => {
+                                    self.advance();
+                                    self.advance();
+                                    depth += 1
+                                }
+                                Some('*') if Some('/') == self.peek() => {
+                                    self.advance();
+                                    self.advance();
+                                    depth -= 1;
+                                }
                                 None => break,
                                 _ => self.advance(),
                             }
-                            self.advance();
+                            if depth == 0 {
+                                break;
+                            };
                         }
                         if depth > 0 {
                             self.error(
                                 ErrorKind::UnterminatedMultilineComment
-                                    .new(format!("{} multiline comments left unclosed", depth))
+                                    .new(format!("{} comments never terminated", depth))
                                     .with_label(ErrorLabel::new(span_to!(self.index)))
                                     .into_boxed_error(),
                             )
