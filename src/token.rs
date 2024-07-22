@@ -1,7 +1,7 @@
 use crate::span::Span;
 use std::fmt::Formatter;
 
-#[derive(Debug)]
+#[derive(Debug, PartialOrd, PartialEq)]
 pub enum TokenKind {
     EOF,
     NewLine,
@@ -10,7 +10,7 @@ pub enum TokenKind {
     Ret,
 
     FloatLiteral,
-    
+
     BinaryIntLiteral,
     OctalIntLiteral,
     DecimalIntLiteral,

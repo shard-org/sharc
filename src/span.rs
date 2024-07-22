@@ -23,14 +23,14 @@ impl Span {
         }
     }
 
-    // pub fn extend(&self, other: &Self) -> Self {
-    //     Self {
-    //         filename: self.filename,
-    //         line_number: self.line_number,
-    //         start_index: self.start_index,
-    //         end_index: other.end_index,
-    //     }
-    // }
+    pub fn extend(&self, other: &Self) -> Self {
+        Self {
+            filename: self.filename,
+            line_number: self.line_number,
+            start_index: self.start_index,
+            end_index: other.end_index,
+        }
+    }
 
     pub fn to_span_printer(&self, line_index: usize) -> SpanPrinter {
         SpanPrinter {

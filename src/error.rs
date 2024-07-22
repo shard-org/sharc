@@ -18,11 +18,16 @@ pub enum ErrorLevel {
 pub enum ErrorKind {
     ArgumentParserError,
 
-    IOError,
+    // Lexer
     UnexpectedCharacter,
     UnterminatedMultilineComment,
 
+    // Parser
+    UnexpectedToken,
+    UnexpectedEOF,
+
     // General
+    IOError,
     SyntaxError,
 }
 
@@ -37,12 +42,15 @@ impl ErrorKind {
             ErrorKind::ArgumentParserError => ErrorLevel::Error,
 
             // Lexing
-            ErrorKind::IOError
-            | ErrorKind::UnexpectedCharacter
-            | ErrorKind::UnterminatedMultilineComment => ErrorLevel::Error,
+            ErrorKind::UnexpectedCharacter | ErrorKind::UnterminatedMultilineComment => {
+                ErrorLevel::Error
+            }
+
+            // Parsing
+            ErrorKind::UnexpectedToken | ErrorKind::UnexpectedEOF => ErrorLevel::Error,
 
             // General
-            ErrorKind::SyntaxError => ErrorLevel::Error,
+            ErrorKind::IOError | ErrorKind::SyntaxError => ErrorLevel::Error,
         }
     }
 }
@@ -92,14 +100,6 @@ impl Error {
         self
     }
 
-    pub fn into_boxed_error(self) -> Box<Self> {
-        Box::new(self)
-    }
-
-    pub fn into_result(self) -> Result<()> {
-        Err(self.into_boxed_error())
-    }
-
     pub fn level(&self) -> ErrorLevel {
         self.kind.level()
     }
@@ -115,7 +115,11 @@ impl Error {
     }
 }
 
-impl Eq for Error {}
+impl<T> Into<Result<T>> for Error {
+    fn into(self) -> Result<T> {
+        Err(self.into())
+    }
+}
 
 impl PartialEq<Self> for Error {
     fn eq(&self, other: &Self) -> bool {

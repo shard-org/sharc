@@ -129,7 +129,7 @@ impl<'source> Lexer<'source> {
                                 ErrorKind::UnterminatedMultilineComment
                                     .new(format!("{} comments never terminated", depth))
                                     .with_label(ErrorLabel::new(span_to!(self.index)))
-                                    .into_boxed_error(),
+                                    .into(),
                             )
                         }
                     }
@@ -193,7 +193,7 @@ impl<'source> Lexer<'source> {
                                         self.index,
                                         self.index + 1,
                                     )))
-                                    .into_boxed_error(),
+                                    .into(),
                             );
                             self.advance();
                             continue;
@@ -227,7 +227,7 @@ impl<'source> Lexer<'source> {
                                         self.index,
                                         self.index + 1,
                                     )))
-                                    .into_boxed_error(),
+                                    .into(),
                             );
                             self.advance();
                             continue;
@@ -296,14 +296,14 @@ impl<'source> Lexer<'source> {
                         ErrorKind::UnexpectedCharacter
                             .new(format!("{}", c))
                             .with_label(ErrorLabel::new(span_to!(self.index)))
-                            .into_boxed_error(),
+                            .into(),
                     );
                 }
             };
         }
         self.push_token(
             TokenKind::EOF,
-            self.span(self.line_number, self.index + 1, self.index + 1),
+            self.span(self.line_number, self.index, self.index),
             "",
         );
     }
@@ -332,7 +332,7 @@ impl<'source> Lexer<'source> {
                                 char, base
                             )),
                         )
-                        .into_result();
+                        .into();
                 }
                 (_, '_') => self.advance(),
                 _ => break,

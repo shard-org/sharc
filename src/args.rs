@@ -1,4 +1,5 @@
 use crate::error::{ErrorKind, ErrorLevel};
+use std::borrow::Borrow;
 use std::fmt::{Debug, Formatter};
 use std::process::exit;
 
@@ -34,6 +35,12 @@ impl<T> Arg<T> {
         if self.field.is_none() {
             self.field = Some(default);
         }
+    }
+
+    pub fn get(&self) -> &T {
+        self.field
+            .as_ref()
+            .expect("Did not call Args.resolve_defaults")
     }
 }
 

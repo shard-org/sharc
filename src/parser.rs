@@ -1,171 +1,168 @@
-use std::cmp;
+use crate::ast::{ASTKind, Program, AST};
+use crate::error::{Error, ErrorKind, ErrorLabel, ErrorSender, Result, Unbox};
+use crate::token::{Token, TokenKind};
+use std::cmp::PartialEq;
+use std::slice::Iter;
 
-use log::error;
-
-use crate::{ lexer, span::Span, token::{Token, TokenKind} };
-
-// 'source is the lifetime for the source text that backs the lexer and parser
-pub struct Parser<'source> {
-    pub filename: &'static str,
-    pub tokens: Box<[Token<'source>]>,
-    pub current: usize,
-    pub program: Program<'source>,
+pub struct Parser<'contents> {
+    filename: &'static str,
+    tokens: Vec<Token<'contents>>,
+    sender: ErrorSender,
+    index: usize,
 }
 
-
-pub struct Program<'source> {
-    stmts: Vec<Ast<'source>>,
-}
-
-impl<'source> Program<'source> {
-    pub fn new() -> Self {
-        Program { stmts: Vec::new() }
-    }
-
-    pub fn push(&mut self, stmt: Ast<'source>) {
-        self.stmts.push(stmt);
-    }
-}
-
-#[derive(Debug)]
-pub struct Ast<'source> {
-    pub start: usize, // used for span construction for reports
-    pub end: usize,
-
-    pub kind: Box<AstKind<'source>>,
-}
-
-impl<'source> Ast<'source> {
-    pub fn to_span(&self, p: &Parser) -> Span {
-        Span {
-            filename:    p.filename,
-            line_number: p.tokens[self.start].span.line_number,
-            start_index: p.tokens[self.start].span.start_index,
-            end_index:   p.tokens[self.end].span.end_index,
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct FuncParam<'source> {
-    ident: &'source str,
-    param_type: Ast<'source>,
-}
-
-#[derive(Debug)]
-pub enum AstKind<'source> {
-    Invalid,
-    Identifier,
-    IntegerLiteralExpr {
-        val: usize,
-    },
-    FloatLiteralExpr {
-        val: f64,
-    },
-    StringLiteralExpr {
-        val: String,
-    },
-    BinopExpr {
-        kind: TokenKind,
-        rhs: Ast<'source>,
-        lhs: Ast<'source>,
-    },
-    UnopExpr {
-        kind: TokenKind,
-        inner: Ast<'source>,
-    },
-
-    BlockStmt {
-        stmts: Vec<Ast<'source>>,
-    },
-    FuncDeclStmt {
-        ident: &'source str,
-        params: Vec<FuncParam<'source>>,
-    },
-
-    // only doing simple type structures for now, no arrays or structs or w/e
-    SimpleType {
-        size: usize,
-    },
-}
-
-impl<'source> Parser<'source> {
-
-    pub fn advance(&mut self) {
-        if self.current != self.tokens.len() - 1 {
-            self.current += 1;
-        }
-    }
-
-    pub fn current(&self) -> &Token {
-        &self.tokens[self.current]
-    }
-
-    pub fn peek(&self, offset: isize) -> &Token {
-        &self.tokens[cmp::max((self.current as isize + offset) as usize, self.tokens.len() - 1)]
-    }
-
-    pub fn new_ast(&self, kind : AstKind<'source>) -> Ast<'source> {
-        Ast {
-            start: self.current,
-            end: self.current,
-            kind: kind.into(),
-        }
-    }
-
-    pub fn new(tokens: Box<[Token<'source>]>, filename: &'static str) -> Self {
-        Parser {
+impl<'contents> Parser<'contents> {
+    pub fn new(filename: &'static str, tokens: Vec<Token<'contents>>, sender: ErrorSender) -> Self {
+        let mut iter = tokens.iter();
+        Self {
             filename,
             tokens,
-            current: 0,
-            program: Program::new(),
+            sender,
+            index: 0,
         }
     }
 
-    pub fn parse_program(&mut self) {
-
+    fn error(&mut self, error: Box<Error>) {
+        self.sender.send(error)
     }
 
-    pub fn parse_expr_atom(&mut self) -> Option<Ast> {
-        let text = self.current().text;
-        let node = match self.current().kind {
-              TokenKind::BinaryIntLiteral 
-            | TokenKind::OctalIntLiteral 
-            | TokenKind::DecimalIntLiteral 
-            | TokenKind::HexadecimalIntLiteral => {
+    fn current(&self) -> &Token<'contents> {
+        &self.tokens[self.index]
+    }
 
+    fn advance(&mut self) {
+        self.index += 1;
+    }
+
+    fn consume(&mut self, kind: TokenKind, msg: &'static str) -> Result<()> {
+        match self.current() {
+            token if token.kind == kind => Ok(()),
+            Token {
+                kind: actual, span, ..
+            } => ErrorKind::UnexpectedToken
+                .new(format!("expected '{kind:?}' got '{actual:?}'"))
+                .with_label(ErrorLabel::new(span.clone()).with_text(msg))
+                .into(),
+        }
+    }
+
+    fn consume_newline(&mut self) -> Result<()> {
+        match self.current() {
+            Token {
+                kind: TokenKind::NewLine | TokenKind::EOF,
+                ..
+            } => Ok(()),
+            Token { kind, span, .. } => ErrorKind::UnexpectedToken
+                .new(format!("expected NewLine got '{kind:?}'"))
+                .with_label(ErrorLabel::new(span.clone()))
+                .into(),
+        }
+    }
+
+    fn synchronize(&mut self) {
+        loop {
+            match self.current().kind {
+                TokenKind::NewLine => break,
+                TokenKind::EOF => break,
+                _ => continue,
+            }
+        }
+        return;
+    }
+
+    pub fn parse(&mut self) -> Program {
+        let stmts = match self.parse_block(TokenKind::EOF) {
+            Ok(AST {
+                kind: ASTKind::Block(stmts),
+                ..
+            }) => stmts,
+            Err(err) => {
+                self.error(err);
+                Vec::new()
+            }
+            _ => unreachable!("Can't happen nerds"),
+        };
+        Program {
+            stmts,
+            filename: self.filename,
+        }
+    }
+
+    fn parse_block(&mut self, until: TokenKind) -> Result<AST> {
+        let mut stmts = Vec::<Box<AST>>::new();
+        let start = self.current().span.clone();
+
+        while self.current().kind != until || self.current().kind != TokenKind::EOF {
+            match self.parse_expression() {
+                Ok(val) => {
+                    stmts.push(val.into());
+                    self.consume_newline().map_err(|err| {
+                        self.error(err);
+                        self.synchronize();
+                    });
+                }
+                Err(error) => {
+                    self.error(error);
+                    self.synchronize();
+                }
+            };
+        }
+        self.consume(until, "");
+        let end = start
+            .clone()
+            .extend(stmts.last().map_or_else(|| &start, |ast| &ast.span));
+
+        Ok(ASTKind::Block(stmts).into_ast(start.extend(&end)))
+    }
+
+    fn parse_expression(&mut self) -> Result<AST> {
+        self.parse_atom()
+    }
+
+    fn parse_atom(&mut self) -> Result<AST> {
+        // FIXME: Infinite loop because self.advance cannot be called, need to change to iterator I think. Someone else can handle this.
+        match &self.current() {
+            Token {
+                kind: TokenKind::Identifier,
+                span,
+                text,
+            } => Ok(ASTKind::Identifier(text.to_string()).into_ast(span.clone())),
+            Token {
+                kind:
+                    TokenKind::DecimalIntLiteral
+                    | TokenKind::BinaryIntLiteral
+                    | TokenKind::OctalIntLiteral
+                    | TokenKind::HexadecimalIntLiteral,
+                span,
+                text,
+            } => {
                 let base = match self.current().kind {
+                    TokenKind::DecimalIntLiteral => 10,
                     TokenKind::BinaryIntLiteral => 2,
                     TokenKind::OctalIntLiteral => 8,
-                    TokenKind::DecimalIntLiteral => 10,
                     TokenKind::HexadecimalIntLiteral => 16,
-                    _ => 0
+                    _ => unreachable!(),
                 };
-
-                let val = usize::from_str_radix(text, base);
-                
-                if val.is_err() {
-                    todo!("emit parse error message");
+                match usize::from_str_radix(text, base) {
+                    Ok(val) => Ok((ASTKind::IntegerLiteral(val).into_ast(span.clone()))),
+                    Err(_) => ErrorKind::SyntaxError
+                        .new("Invalid {} Integer Literal")
+                        .with_label(ErrorLabel::new(span.clone()))
+                        .into(),
                 }
-
-                self.new_ast(AstKind::IntegerLiteralExpr { val: val.unwrap() }).into()
             }
-            TokenKind::FloatLiteral => {
-                let mut val = text.parse::<f64>();
-
-                if val.is_err() {
-                    todo!("emit parse error message");
-                }
-
-                self.new_ast(AstKind::FloatLiteralExpr { val: val.unwrap() }).into()
-            }
-            TokenKind::Identifier => {
-                self.new_ast(AstKind::Identifier).into() // identifiers just use the text of their first token
-            }
-            _ => None
-        };
-        self.advance();
-        node
+            Token {
+                kind: TokenKind::EOF,
+                span,
+                ..
+            } => ErrorKind::UnexpectedEOF
+                .new("")
+                .with_label(ErrorLabel::new(span.clone()))
+                .into(),
+            Token { kind, span, .. } => ErrorKind::UnexpectedToken
+                .new(format!("got {kind:?}"))
+                .with_label(ErrorLabel::new(span.clone()))
+                .into(),
+        }
     }
-
 }
