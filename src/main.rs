@@ -41,6 +41,7 @@ fn print_reports_and_exit(reports: &mut Vec<Error>, args: &args::Args) {
 
 fn main() {
     let args = args::Args::parse(std::env::args().skip(1).collect()).resolve_defaults();
+    println!("{:?}", args);
 
     let mut reports = Vec::<Error>::new();
     let (sender, receiver) = std::sync::mpsc::channel::<Box<Error>>();

@@ -96,7 +96,7 @@ impl Args {
                 println!("sharc {}", env!("CARGO_PKG_VERSION"));
                 exit(0);
             }
-            "d" | "debug" => self.debug.try_mut(false),
+            "d" | "debug" => self.debug.try_mut(true),
             "l" | "error-level" => {
                 if !is_end {
                     error!("flags with parameters must be at the end of a group, or defined separately");
