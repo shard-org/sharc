@@ -57,7 +57,7 @@ pub enum AstKind<'source> {
     Invalid,
     Identifier,
     IntegerLiteralExpr {
-        val: isize,
+        val: usize,
     },
     FloatLiteralExpr {
         val: f64,
@@ -142,7 +142,7 @@ impl<'source> Parser<'source> {
                     _ => 0
                 };
 
-                let val = isize::from_str_radix(text, base);
+                let val = usize::from_str_radix(text, base);
                 
                 if val.is_err() {
                     todo!("emit parse error message");
