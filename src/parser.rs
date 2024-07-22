@@ -129,8 +129,35 @@ impl<'source> Parser<'source> {
     pub fn parse_expr_atom(&mut self) -> Option<Ast> {
         let text = self.current().text;
         let node = match self.current().kind {
-            TokenKind::IntLiteral => {
-                let mut val = text.parse::<isize>();
+            TokenKind::BinaryIntLiteral => {
+                let mut val =  isize::from_str_radix(text, 2);
+                
+                if val.is_err() {
+                    todo!("emit parse error message");
+                }
+
+                self.new_ast(AstKind::IntegerLiteralExpr { val: val.unwrap() }).into()
+            }
+            TokenKind::OctalIntLiteral => {
+                let mut val =  isize::from_str_radix(text, 8);
+                
+                if val.is_err() {
+                    todo!("emit parse error message");
+                }
+
+                self.new_ast(AstKind::IntegerLiteralExpr { val: val.unwrap() }).into()
+            }
+            TokenKind::DecimalIntLiteral => {
+                let mut val =  isize::from_str_radix(text, 10);
+                
+                if val.is_err() {
+                    todo!("emit parse error message");
+                }
+
+                self.new_ast(AstKind::IntegerLiteralExpr { val: val.unwrap() }).into()
+            }
+            TokenKind::HexadecimalIntLiteral => {
+                let mut val = isize::from_str_radix(text, 16);
                 
                 if val.is_err() {
                     todo!("emit parse error message");

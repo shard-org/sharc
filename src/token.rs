@@ -10,7 +10,11 @@ pub enum TokenKind {
     Ret,
 
     FloatLiteral,
-    IntLiteral,
+    
+    BinaryIntLiteral,
+    OctalIntLiteral,
+    DecimalIntLiteral,
+    HexadecimalIntLiteral,
 
     Tilde,
     Bang,
