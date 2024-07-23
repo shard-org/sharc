@@ -1,11 +1,11 @@
-use crate::error::{ErrorKind, ErrorLevel};
+use crate::report::{Level, ReportKind};
 use std::borrow::Borrow;
 use std::fmt::{Debug, Formatter};
 use std::process::exit;
 
 macro_rules! error {
     ($($ident:tt)*) => {
-        ErrorKind::ArgumentParserError
+        ReportKind::ArgumentParserError
             .new(format!($($ident)*))
             .with_note("(Run sharc with \x1b[1m--help\x1b[0m for usage information)")
             .display(false);
@@ -57,7 +57,7 @@ pub struct Args {
     pub output: Arg<&'static str>,
     pub debug: Arg<bool>,
     pub code_context: Arg<bool>,
-    pub level: Arg<ErrorLevel>,
+    pub level: Arg<Level>,
 }
 
 impl Args {
@@ -86,7 +86,7 @@ impl Args {
         self.output.resolve(Box::leak(output.into_boxed_str()));
         self.debug.resolve(false);
         self.code_context.resolve(true);
-        self.level.resolve(ErrorLevel::Warn);
+        self.level.resolve(Level::Warn);
         self
     }
 
@@ -113,11 +113,11 @@ impl Args {
                     error!("expected level");
                 };
                 self.level.try_mut(match level.as_str() {
-                    "f" | "fatal" => ErrorLevel::Fatal,
-                    "e" | "error" => ErrorLevel::Error,
-                    "w" | "warn" => ErrorLevel::Warn,
-                    "n" | "note" => ErrorLevel::Note,
-                    "s" | "silent" => ErrorLevel::Silent,
+                    "f" | "fatal" => Level::Fatal,
+                    "e" | "error" => Level::Error,
+                    "w" | "warn" => Level::Warn,
+                    "n" | "note" => Level::Note,
+                    "s" | "silent" => Level::Silent,
                     _ => {
                         error!("invalid level `{}`", level);
                     }

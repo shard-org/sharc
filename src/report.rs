@@ -1,12 +1,13 @@
 use crate::span::Span;
 use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
+use std::io::ErrorKind;
 use std::sync::mpsc::Sender;
 
 use colored::*;
 
 #[derive(Debug, PartialEq, PartialOrd, Copy, Clone)]
-pub enum ErrorLevel {
+pub enum Level {
     Silent,
     Note,
     Warn,
@@ -15,7 +16,7 @@ pub enum ErrorLevel {
 }
 
 #[derive(Clone, Debug)]
-pub enum ErrorKind {
+pub enum ReportKind {
     ArgumentParserError,
 
     // Lexer
@@ -31,37 +32,37 @@ pub enum ErrorKind {
     SyntaxError,
 }
 
-impl ErrorKind {
-    pub fn new<T: Into<String>>(self, title: T) -> Error {
-        Error::new(self, title)
+impl ReportKind {
+    pub fn new<T: Into<String>>(self, title: T) -> Report {
+        Report::new(self, title)
     }
 
-    pub fn level(&self) -> ErrorLevel {
+    pub fn level(&self) -> Level {
         match self {
             // Argument Parsing
-            ErrorKind::ArgumentParserError => ErrorLevel::Error,
+            ReportKind::ArgumentParserError => Level::Error,
 
             // Lexing
-            ErrorKind::UnexpectedCharacter | ErrorKind::UnterminatedMultilineComment => {
-                ErrorLevel::Error
+            ReportKind::UnexpectedCharacter | ReportKind::UnterminatedMultilineComment => {
+                Level::Error
             }
 
             // Parsing
-            ErrorKind::UnexpectedToken | ErrorKind::UnexpectedEOF => ErrorLevel::Error,
+            ReportKind::UnexpectedToken | ReportKind::UnexpectedEOF => Level::Error,
 
             // General
-            ErrorKind::IOError | ErrorKind::SyntaxError => ErrorLevel::Error,
+            ReportKind::IOError | ReportKind::SyntaxError => Level::Error,
         }
     }
 }
 
 #[derive(Clone)]
-pub struct ErrorLabel {
+pub struct ReportLabel {
     span: Span,
     text: Option<String>,
 }
 
-impl ErrorLabel {
+impl ReportLabel {
     pub fn new(span: Span) -> Self {
         Self { span, text: None }
     }
@@ -73,15 +74,15 @@ impl ErrorLabel {
 }
 
 #[derive(Clone)]
-pub struct Error {
-    kind: ErrorKind,
+pub struct Report {
+    kind: ReportKind,
     title: String,
-    label: Option<ErrorLabel>,
+    label: Option<ReportLabel>,
     note: Option<String>,
 }
 
-impl Error {
-    pub fn new<T: Into<String>>(kind: ErrorKind, title: T) -> Self {
+impl Report {
+    pub fn new<T: Into<String>>(kind: ReportKind, title: T) -> Self {
         Self {
             kind,
             title: title.into(),
@@ -90,7 +91,7 @@ impl Error {
         }
     }
 
-    pub fn with_label(mut self, label: ErrorLabel) -> Self {
+    pub fn with_label(mut self, label: ReportLabel) -> Self {
         self.label = Some(label);
         self
     }
@@ -100,54 +101,54 @@ impl Error {
         self
     }
 
-    pub fn level(&self) -> ErrorLevel {
+    pub fn level(&self) -> Level {
         self.kind.level()
     }
 
     pub fn display(&self, show_context: bool) {
         eprint!(
             "{}",
-            ErrorFormatter {
-                error: self,
+            ReportFormatter {
+                report: self,
                 show_context
             }
         )
     }
 }
 
-impl<T> Into<Result<T>> for Error {
+impl<T> Into<Result<T>> for Report {
     fn into(self) -> Result<T> {
         Err(self.into())
     }
 }
 
-impl PartialEq<Self> for Error {
+impl PartialEq<Self> for Report {
     fn eq(&self, other: &Self) -> bool {
         self.level().eq(&other.level())
     }
 }
 
-impl PartialOrd<Self> for Error {
+impl PartialOrd<Self> for Report {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         self.level().partial_cmp(&other.level())
     }
 }
 
-struct ErrorFormatter<'e> {
-    error: &'e Error,
+struct ReportFormatter<'e> {
+    report: &'e Report,
     show_context: bool,
 }
 
-impl Display for ErrorFormatter<'_> {
+impl Display for ReportFormatter<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let error = &self.error;
+        let report = &self.report;
 
-        let (prefix, primary_color, secondary_color) = match error.kind.level() {
-            ErrorLevel::Fatal => ("Fatal", Color::Red, Color::BrightRed),
-            ErrorLevel::Error => ("Error", Color::Red, Color::BrightRed),
-            ErrorLevel::Warn => ("Warning", Color::Yellow, Color::BrightYellow),
-            ErrorLevel::Note => ("Note", Color::White, Color::White),
-            _ => unreachable!("Why does an error have the level of silent you idiot."),
+        let (prefix, primary_color, secondary_color) = match report.kind.level() {
+            Level::Fatal => ("Fatal", Color::Red, Color::BrightRed),
+            Level::Error => ("Error", Color::Red, Color::BrightRed),
+            Level::Warn => ("Warning", Color::Yellow, Color::BrightYellow),
+            Level::Note => ("Note", Color::White, Color::White),
+            _ => unreachable!("Why does a report have the level of silent you idiot."),
         };
 
         writeln!(
@@ -155,13 +156,13 @@ impl Display for ErrorFormatter<'_> {
             "{} {}",
             format!(
                 "{}",
-                format!("[{prefix}] {:?}:", error.kind).color(primary_color)
+                format!("[{prefix}] {:?}:", report.kind).color(primary_color)
             )
             .bold(),
-            error.title
+            report.title
         )?;
 
-        match error.label.as_ref() {
+        match report.label.as_ref() {
             Some(label) => {
                 let span = &label.span;
                 let contents = crate::Scanner::get_file(span.filename);
@@ -206,7 +207,7 @@ impl Display for ErrorFormatter<'_> {
                             .color(secondary_color),
                     )?;
 
-                    if let Some(note) = &error.note {
+                    if let Some(note) = &report.note {
                         writeln!(
                             f,
                             "{} {} {}",
@@ -216,13 +217,13 @@ impl Display for ErrorFormatter<'_> {
                         )?;
                     }
                 } else {
-                    if let Some(note) = &error.note {
+                    if let Some(note) = &report.note {
                         writeln!(f, " {}", note.bright_black().italic())?;
                     }
                 }
             }
             None => {
-                if let Some(note) = &error.note {
+                if let Some(note) = &report.note {
                     writeln!(f, "{}", note.bright_black().italic())?;
                 }
             }
@@ -245,20 +246,63 @@ impl<T: ToOwned> Unbox<T> for Box<T> {
     }
 }
 
-pub type Result<T> = std::result::Result<T, Box<Error>>;
+pub type Result<T> = std::result::Result<T, Box<Report>>;
 
-pub struct ErrorSender {
-    sender: Sender<Box<Error>>,
+pub struct ReportSender {
+    sender: Sender<Box<Report>>,
 }
 
-impl ErrorSender {
-    pub fn new(sender: Sender<Box<Error>>) -> Self {
+impl ReportSender {
+    pub fn new(sender: Sender<Box<Report>>) -> Self {
         Self { sender }
     }
 
-    pub fn send(&self, error: Box<Error>) {
+    pub fn send(&self, report: Box<Report>) {
         self.sender
-            .send(error)
-            .expect("Error sender failed to send error.")
+            .send(report)
+            .expect("Error sender failed to send report.")
+    }
+}
+
+pub trait UnwrapReport<T> {
+    fn unwrap_or_fatal(self, report: Box<Report>) -> T;
+    fn unwrap_result(self, report: Box<Report>) -> Result<T>;
+}
+
+impl<T> UnwrapReport<T> for Option<T> {
+    fn unwrap_or_fatal(self, report: Box<Report>) -> T {
+        match self {
+            Some(val) => val,
+            None => {
+                report.display(false);
+                std::process::exit(1);
+            }
+        }
+    }
+
+    fn unwrap_result(self, report: Box<Report>) -> Result<T> {
+        match self {
+            Some(val) => Ok(val),
+            None => Err(report),
+        }
+    }
+}
+
+impl<T, E> UnwrapReport<T> for std::result::Result<T, E> {
+    fn unwrap_or_fatal(self, report: Box<Report>) -> T {
+        match self {
+            Ok(val) => val,
+            Err(_) => {
+                report.display(false);
+                std::process::exit(1);
+            }
+        }
+    }
+
+    fn unwrap_result(self, report: Box<Report>) -> Result<T> {
+        match self {
+            Ok(val) => Ok(val),
+            Err(_) => Err(report),
+        }
     }
 }

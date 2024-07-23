@@ -1,4 +1,4 @@
-use crate::error::{Error, ErrorKind, ErrorLabel, ErrorSender, Result};
+use crate::report::{Report, ReportKind, ReportLabel, ReportSender, Result};
 use crate::span::Span;
 use crate::token::{Token, TokenKind};
 use std::fmt::Display;
@@ -10,12 +10,12 @@ pub struct Lexer<'source> {
     current: Option<char>,
     line_number: usize,
     index: usize,
-    sender: ErrorSender,
+    sender: ReportSender,
     pub tokens: Vec<Token<'source>>,
 }
 
 impl<'source> Lexer<'source> {
-    pub fn new(filename: &'static str, contents: &'source str, sender: ErrorSender) -> Self {
+    pub fn new(filename: &'static str, contents: &'source str, sender: ReportSender) -> Self {
         let mut chars = contents.chars().peekable();
         Self {
             filename,
@@ -29,8 +29,8 @@ impl<'source> Lexer<'source> {
         }
     }
 
-    fn error(&mut self, error: Box<Error>) {
-        self.sender.send(error)
+    fn report(&mut self, report: Box<Report>) {
+        self.sender.send(report)
     }
 
     fn span(&self, line_number: usize, start_index: usize, end_index: usize) -> Span {
@@ -125,10 +125,10 @@ impl<'source> Lexer<'source> {
                             };
                         }
                         if depth > 0 {
-                            self.error(
-                                ErrorKind::UnterminatedMultilineComment
+                            self.report(
+                                ReportKind::UnterminatedMultilineComment
                                     .new(format!("{} comments never terminated", depth))
-                                    .with_label(ErrorLabel::new(span_to!(self.index)))
+                                    .with_label(ReportLabel::new(span_to!(self.index)))
                                     .into(),
                             )
                         }
@@ -163,8 +163,8 @@ impl<'source> Lexer<'source> {
                     };
                     self.advance();
                     self.advance();
-                    if let Err(error) = self.lex_integer(base) {
-                        self.error(error);
+                    if let Err(report) = self.lex_integer(base) {
+                        self.report(report);
                         continue;
                     }
                     self.push_token(
@@ -174,21 +174,21 @@ impl<'source> Lexer<'source> {
                     );
                 }
                 '0'..='9' => {
-                    if let Err(error) = self.lex_integer(Base::Decimal) {
-                        self.error(error);
+                    if let Err(report) = self.lex_integer(Base::Decimal) {
+                        self.report(report);
                         continue;
                     }
                     if let Some('.') = self.current {
                         self.advance();
-                        if let Err(error) = self.lex_integer(Base::Decimal) {
-                            self.error(error);
+                        if let Err(report) = self.lex_integer(Base::Decimal) {
+                            self.report(report);
                             continue;
                         }
                         if let Some('.') = self.current {
-                            self.error(
-                                ErrorKind::SyntaxError
+                            self.report(
+                                ReportKind::SyntaxError
                                     .new("Invalid Float Literal")
-                                    .with_label(ErrorLabel::new(self.span(
+                                    .with_label(ReportLabel::new(self.span(
                                         _line_number,
                                         self.index,
                                         self.index + 1,
@@ -214,15 +214,15 @@ impl<'source> Lexer<'source> {
                 '.' => match self.peek() {
                     Some('0'..='9') => {
                         self.advance();
-                        if let Err(error) = self.lex_integer(Base::Decimal) {
-                            self.error(error);
+                        if let Err(report) = self.lex_integer(Base::Decimal) {
+                            self.report(report);
                             continue;
                         }
                         if let Some('.') = self.current {
-                            self.error(
-                                ErrorKind::SyntaxError
+                            self.report(
+                                ReportKind::SyntaxError
                                     .new("Invalid Float Literal")
-                                    .with_label(ErrorLabel::new(self.span(
+                                    .with_label(ReportLabel::new(self.span(
                                         _line_number,
                                         self.index,
                                         self.index + 1,
@@ -292,10 +292,10 @@ impl<'source> Lexer<'source> {
 
                 c => {
                     self.advance();
-                    self.error(
-                        ErrorKind::UnexpectedCharacter
+                    self.report(
+                        ReportKind::UnexpectedCharacter
                             .new(format!("{}", c))
-                            .with_label(ErrorLabel::new(span_to!(self.index)))
+                            .with_label(ReportLabel::new(span_to!(self.index)))
                             .into(),
                     );
                 }
@@ -319,10 +319,10 @@ impl<'source> Lexer<'source> {
                     self.advance();
                 }
                 (_, '0'..='9' | 'a'..='z') => {
-                    return ErrorKind::SyntaxError
+                    return ReportKind::SyntaxError
                         .new("Invalid Integer Literal")
                         .with_label(
-                            ErrorLabel::new(self.span(
+                            ReportLabel::new(self.span(
                                 self.line_number,
                                 self.index,
                                 self.index + 1,

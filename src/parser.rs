@@ -1,5 +1,5 @@
 use crate::ast::{ASTKind, Program, AST};
-use crate::error::{Error, ErrorKind, ErrorLabel, ErrorSender, Result, Unbox};
+use crate::report::{Report, ReportKind, ReportLabel, ReportSender, Result, Unbox};
 use crate::token::{Token, TokenKind};
 use std::cmp::PartialEq;
 use std::slice::Iter;
@@ -9,14 +9,14 @@ pub struct Parser<'t, 'contents> {
     tokens: &'t [Token<'contents>],
     current: &'t Token<'contents>,
     index: usize,
-    sender: ErrorSender,
+    sender: ReportSender,
 }
 
 impl<'t, 'contents> Parser<'t, 'contents> {
     pub fn new(
         filename: &'static str,
         tokens: &'t [Token<'contents>],
-        sender: ErrorSender,
+        sender: ReportSender,
     ) -> Self {
         Self {
             filename,
@@ -27,8 +27,8 @@ impl<'t, 'contents> Parser<'t, 'contents> {
         }
     }
 
-    fn error(&mut self, error: Box<Error>) {
-        self.sender.send(error)
+    fn report(&mut self, report: Box<Report>) {
+        self.sender.send(report)
     }
 
     fn advance(&mut self) {
@@ -44,9 +44,9 @@ impl<'t, 'contents> Parser<'t, 'contents> {
             }
             Token {
                 kind: actual, span, ..
-            } => ErrorKind::UnexpectedToken
+            } => ReportKind::UnexpectedToken
                 .new(format!("expected '{kind:?}' got '{actual:?}'"))
-                .with_label(ErrorLabel::new(span.clone()).with_text(msg))
+                .with_label(ReportLabel::new(span.clone()).with_text(msg))
                 .into(),
         }
     }
@@ -57,9 +57,9 @@ impl<'t, 'contents> Parser<'t, 'contents> {
                 kind: TokenKind::NewLine | TokenKind::EOF,
                 ..
             } => Ok(()),
-            Token { kind, span, .. } => ErrorKind::UnexpectedToken
+            Token { kind, span, .. } => ReportKind::UnexpectedToken
                 .new(format!("expected NewLine got '{kind:?}'"))
-                .with_label(ErrorLabel::new(span.clone()))
+                .with_label(ReportLabel::new(span.clone()))
                 .into(),
         }
     }
@@ -83,7 +83,7 @@ impl<'t, 'contents> Parser<'t, 'contents> {
                 ..
             }) => stmts,
             Err(err) => {
-                self.error(err);
+                self.report(err);
                 Vec::new()
             }
             _ => unreachable!("Can't happen nerds"),
@@ -108,12 +108,12 @@ impl<'t, 'contents> Parser<'t, 'contents> {
                 Ok(val) => {
                     stmts.push(val.into());
                     self.consume_newline().map_err(|err| {
-                        self.error(err);
+                        self.report(err);
                         self.synchronize(until);
                     });
                 }
-                Err(error) => {
-                    self.error(error);
+                Err(report) => {
+                    self.report(report);
                     self.synchronize(until);
                 }
             };
@@ -164,9 +164,9 @@ impl<'t, 'contents> Parser<'t, 'contents> {
                 self.advance();
                 match usize::from_str_radix(text, base) {
                     Ok(val) => Ok((ASTKind::IntegerLiteral(val).into_ast(span.clone()))),
-                    Err(_) => ErrorKind::SyntaxError
+                    Err(_) => ReportKind::SyntaxError
                         .new("Invalid {} Integer Literal")
-                        .with_label(ErrorLabel::new(span.clone()))
+                        .with_label(ReportLabel::new(span.clone()))
                         .into(),
                 }
             }
@@ -176,16 +176,16 @@ impl<'t, 'contents> Parser<'t, 'contents> {
                 ..
             } => {
                 self.advance();
-                ErrorKind::UnexpectedEOF
+                ReportKind::UnexpectedEOF
                     .new("")
-                    .with_label(ErrorLabel::new(span.clone()))
+                    .with_label(ReportLabel::new(span.clone()))
                     .into()
             }
             Token { kind, span, .. } => {
                 self.advance();
-                ErrorKind::UnexpectedToken
+                ReportKind::UnexpectedToken
                     .new(format!("got {kind:?}"))
-                    .with_label(ErrorLabel::new(span.clone()))
+                    .with_label(ReportLabel::new(span.clone()))
                     .into()
             }
         }

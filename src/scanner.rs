@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::{self, BufReader, Read};
 use std::sync::RwLock;
 
-use crate::error::{ErrorKind, ErrorLabel};
+use crate::report::{ReportKind, ReportLabel, UnwrapReport};
 use once_cell::sync::Lazy;
 
 pub struct Scanner {
@@ -29,9 +29,17 @@ impl Scanner {
         }
 
         let contents = Scanner::new(filename)
-            .expect("failed to open file")
+            .unwrap_or_fatal(
+                ReportKind::IOError
+                    .new(format!("Failed to open file: '{}'", filename))
+                    .into(),
+            )
             .read()
-            .expect("failed to read file")
+            .unwrap_or_fatal(
+                ReportKind::IOError
+                    .new(format!("Failed to read file: '{}'", filename))
+                    .into(),
+            )
             .leak();
 
         let mut cache = CACHE.write().expect("failed to lock on cache");
@@ -79,9 +87,9 @@ impl Scanner {
                     );
                     let span =
                         crate::span::Span::new(self.filename, line_number, line_index, self.index);
-                    ErrorKind::IOError
+                    ReportKind::IOError
                         .new("Invalid UTF-8 data")
-                        .with_label(ErrorLabel::new(span))
+                        .with_label(ReportLabel::new(span))
                         .display(false);
                     std::process::exit(1);
                 }
