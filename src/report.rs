@@ -173,7 +173,7 @@ impl Display for ReportFormatter<'_> {
                 let end_line_index = {
                     match contents[span.end_index..].find('\n') {
                         Some(offset) => span.start_index + offset,
-                        None => contents.len() - 1,
+                        None => contents.len().checked_sub(1).unwrap_or(0),
                     }
                 };
                 writeln!(f, " {} {}", "--->".cyan(), span.to_span_printer(line_index))?;

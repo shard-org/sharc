@@ -174,13 +174,7 @@ impl<'t, 'contents> Parser<'t, 'contents> {
                 kind: TokenKind::EOF,
                 span,
                 ..
-            } => {
-                self.advance();
-                ReportKind::UnexpectedEOF
-                    .new("")
-                    .with_label(ReportLabel::new(span.clone()))
-                    .into()
-            }
+            } => ReportKind::UnexpectedEOF.new("").into(),
             Token { kind, span, .. } => {
                 self.advance();
                 ReportKind::UnexpectedToken
