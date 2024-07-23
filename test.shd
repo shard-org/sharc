@@ -1,1 +1,12 @@
--0x10
+:name hello_world
+:arch x86_64 linux
+
+:verb run /bin/sh {
+   sharc -f #FILE
+   chmod +x #NAME
+   ./#NAME
+}
+
+entry:
+  $write 1, "Hello, World!", 14
+  ret
