@@ -73,7 +73,7 @@ fn main() {
     };
 
     let program = {
-        let mut parser = Parser::new(args.file.get(), tokens, ErrorSender::new(sender));
+        let mut parser = Parser::new(args.file.get(), &tokens, ErrorSender::new(sender));
         let result = parser.parse();
         if *args.debug.get() {
             result.stmts.iter().for_each(|stmt| println!("{:#}", stmt))

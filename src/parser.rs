@@ -4,21 +4,26 @@ use crate::token::{Token, TokenKind};
 use std::cmp::PartialEq;
 use std::slice::Iter;
 
-pub struct Parser<'contents> {
+pub struct Parser<'t, 'contents> {
     filename: &'static str,
-    tokens: Vec<Token<'contents>>,
-    sender: ErrorSender,
+    tokens: &'t [Token<'contents>],
+    current: &'t Token<'contents>,
     index: usize,
+    sender: ErrorSender,
 }
 
-impl<'contents> Parser<'contents> {
-    pub fn new(filename: &'static str, tokens: Vec<Token<'contents>>, sender: ErrorSender) -> Self {
-        let mut iter = tokens.iter();
+impl<'t, 'contents> Parser<'t, 'contents> {
+    pub fn new(
+        filename: &'static str,
+        tokens: &'t [Token<'contents>],
+        sender: ErrorSender,
+    ) -> Self {
         Self {
             filename,
             tokens,
-            sender,
+            current: &tokens[0],
             index: 0,
+            sender,
         }
     }
 
@@ -26,17 +31,17 @@ impl<'contents> Parser<'contents> {
         self.sender.send(error)
     }
 
-    fn current(&self) -> &Token<'contents> {
-        &self.tokens[self.index]
-    }
-
     fn advance(&mut self) {
         self.index += 1;
+        self.current = &self.tokens[self.index];
     }
 
-    fn consume(&mut self, kind: TokenKind, msg: &'static str) -> Result<()> {
-        match self.current() {
-            token if token.kind == kind => Ok(()),
+    fn consume(&mut self, kind: TokenKind, msg: &'static str) -> Result<&Token> {
+        match self.current {
+            token if token.kind == kind => {
+                self.advance();
+                Ok(token)
+            }
             Token {
                 kind: actual, span, ..
             } => ErrorKind::UnexpectedToken
@@ -47,7 +52,7 @@ impl<'contents> Parser<'contents> {
     }
 
     fn consume_newline(&mut self) -> Result<()> {
-        match self.current() {
+        match self.current {
             Token {
                 kind: TokenKind::NewLine | TokenKind::EOF,
                 ..
@@ -59,11 +64,12 @@ impl<'contents> Parser<'contents> {
         }
     }
 
-    fn synchronize(&mut self) {
+    fn synchronize(&mut self, until: TokenKind) {
         loop {
-            match self.current().kind {
+            match &self.current.kind {
+                kind if kind == &until => break,
                 TokenKind::NewLine => break,
-                TokenKind::EOF => break,
+                TokenKind::EOF => return,
                 _ => continue,
             }
         }
@@ -71,7 +77,7 @@ impl<'contents> Parser<'contents> {
     }
 
     pub fn parse(&mut self) -> Program {
-        let stmts = match self.parse_block(TokenKind::EOF) {
+        let stmts = match self.parse_block(true) {
             Ok(AST {
                 kind: ASTKind::Block(stmts),
                 ..
@@ -88,26 +94,35 @@ impl<'contents> Parser<'contents> {
         }
     }
 
-    fn parse_block(&mut self, until: TokenKind) -> Result<AST> {
+    fn parse_block(&mut self, global: bool) -> Result<AST> {
         let mut stmts = Vec::<Box<AST>>::new();
-        let start = self.current().span.clone();
+        let until = if global {
+            TokenKind::EOF
+        } else {
+            TokenKind::RBrace
+        };
+        let start = self.current.span.clone();
 
-        while self.current().kind != until || self.current().kind != TokenKind::EOF {
+        while self.current.kind != until {
             match self.parse_expression() {
                 Ok(val) => {
                     stmts.push(val.into());
                     self.consume_newline().map_err(|err| {
                         self.error(err);
-                        self.synchronize();
+                        self.synchronize(until);
                     });
                 }
                 Err(error) => {
                     self.error(error);
-                    self.synchronize();
+                    self.synchronize(until);
                 }
             };
         }
-        self.consume(until, "");
+
+        if !global {
+            self.consume(until, "block not terminated");
+        };
+
         let end = start
             .clone()
             .extend(stmts.last().map_or_else(|| &start, |ast| &ast.span));
@@ -121,12 +136,15 @@ impl<'contents> Parser<'contents> {
 
     fn parse_atom(&mut self) -> Result<AST> {
         // FIXME: Infinite loop because self.advance cannot be called, need to change to iterator I think. Someone else can handle this.
-        match &self.current() {
+        match &self.current {
             Token {
                 kind: TokenKind::Identifier,
                 span,
                 text,
-            } => Ok(ASTKind::Identifier(text.to_string()).into_ast(span.clone())),
+            } => {
+                self.advance();
+                Ok(ASTKind::Identifier(text.to_string()).into_ast(span.clone()))
+            }
             Token {
                 kind:
                     TokenKind::DecimalIntLiteral
@@ -136,13 +154,14 @@ impl<'contents> Parser<'contents> {
                 span,
                 text,
             } => {
-                let base = match self.current().kind {
+                let base = match self.current.kind {
                     TokenKind::DecimalIntLiteral => 10,
                     TokenKind::BinaryIntLiteral => 2,
                     TokenKind::OctalIntLiteral => 8,
                     TokenKind::HexadecimalIntLiteral => 16,
                     _ => unreachable!(),
                 };
+                self.advance();
                 match usize::from_str_radix(text, base) {
                     Ok(val) => Ok((ASTKind::IntegerLiteral(val).into_ast(span.clone()))),
                     Err(_) => ErrorKind::SyntaxError
@@ -155,14 +174,20 @@ impl<'contents> Parser<'contents> {
                 kind: TokenKind::EOF,
                 span,
                 ..
-            } => ErrorKind::UnexpectedEOF
-                .new("")
-                .with_label(ErrorLabel::new(span.clone()))
-                .into(),
-            Token { kind, span, .. } => ErrorKind::UnexpectedToken
-                .new(format!("got {kind:?}"))
-                .with_label(ErrorLabel::new(span.clone()))
-                .into(),
+            } => {
+                self.advance();
+                ErrorKind::UnexpectedEOF
+                    .new("")
+                    .with_label(ErrorLabel::new(span.clone()))
+                    .into()
+            }
+            Token { kind, span, .. } => {
+                self.advance();
+                ErrorKind::UnexpectedToken
+                    .new(format!("got {kind:?}"))
+                    .with_label(ErrorLabel::new(span.clone()))
+                    .into()
+            }
         }
     }
 }

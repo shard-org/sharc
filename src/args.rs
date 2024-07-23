@@ -38,7 +38,8 @@ impl<T> Arg<T> {
     }
 
     pub fn get(&self) -> &T {
-        self.field
+        &self
+            .field
             .as_ref()
             .expect("Did not call Args.resolve_defaults")
     }

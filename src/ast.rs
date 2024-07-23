@@ -34,9 +34,9 @@ impl AST {
 impl Display for AST {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match &self.kind {
-            ASTKind::IntegerLiteral(val) => write!(f, "{}", val)?,
-            ASTKind::Identifier(ident) => write!(f, "{}", ident)?,
-            ASTKind::Block(stmts) => write!(f, "<block with {} statements>", stmts.len())?,
+            ASTKind::IntegerLiteral(val) => write!(f, "<IntegerLiteral: {}>", val)?,
+            ASTKind::Identifier(ident) => write!(f, "<Identifier: {}>", ident)?,
+            ASTKind::Block(stmts) => write!(f, "<Block: {} statements>", stmts.len())?,
         }
         Ok(())
     }

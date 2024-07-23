@@ -1,7 +1,7 @@
 use crate::span::Span;
 use std::fmt::Formatter;
 
-#[derive(Debug, PartialOrd, PartialEq)]
+#[derive(Debug, PartialOrd, PartialEq, Clone, Copy)]
 pub enum TokenKind {
     EOF,
     NewLine,
