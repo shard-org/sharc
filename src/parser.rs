@@ -53,7 +53,13 @@ impl<'t, 'contents> Parser<'t, 'contents> {
 
     fn synchronize(&mut self, until: TokenKind) {
         loop {
-            match &self.current.kind {
+            let token = &self.current.kind;
+
+            if token != &TokenKind::EOF {
+                self.advance();
+            }
+
+            match token {
                 kind if kind == &until => break,
                 TokenKind::NewLine => break,
                 TokenKind::EOF => return,
@@ -110,7 +116,6 @@ impl<'t, 'contents> Parser<'t, 'contents> {
     }
 
     fn parse_atom(&mut self) -> Result<AST> {
-        // FIXME: Infinite loop because self.advance cannot be called, need to change to iterator I think. Someone else can handle this.
         match &self.current {
             Token { kind: TokenKind::Identifier, span, text } => {
                 self.advance();
