@@ -38,11 +38,11 @@ Use the following prefix convention:
 > `fix:` bug fixes  
 > `refactor:` code refactoring  
 > `fmt:` code formatting  
-> `test:` adding tests
-> `wip:` work in progress (not working/finished yet)
-> `add:` add new files/directories
-> `rm:` remove files/directories
-> `chore:` miscellaneous tasks
+> `test:` adding tests  
+> `wip:` work in progress (not working/finished yet)  
+> `add:` add new files/directories  
+> `rm:` remove files/directories  
+> `chore:` miscellaneous tasks  
 
 Example:
 ```
