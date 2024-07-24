@@ -32,9 +32,7 @@ fn print_reports_and_exit(reports: &mut Vec<Report>, args: &args::Args) {
         exit(1);
     }
     reports.sort_by(|left, right| {
-        left.level()
-            .partial_cmp(&right.level())
-            .expect("Failed to order report kinds.")
+        left.level().partial_cmp(&right.level()).expect("Failed to order report kinds.")
     });
     reports.iter().for_each(|report| {
         if args.level.field.unwrap() <= report.level() {
@@ -53,18 +51,13 @@ fn main() {
 
     let filename = args.file.get();
 
+    println!("LEXING");
     let tokens = {
-        let mut lexer = Lexer::new(
-            filename,
-            Scanner::get_file(filename),
-            ReportSender::new(sender.clone()),
-        );
+        let mut lexer =
+            Lexer::new(filename, Scanner::get_file(filename), ReportSender::new(sender.clone()));
         lexer.lex_tokens();
         if *args.debug.get() {
-            lexer
-                .tokens
-                .iter()
-                .for_each(|token| println!("{:#}", token))
+            lexer.tokens.iter().for_each(|token| println!("{:#}", token))
         }
         if check_reports(&receiver, &mut reports) {
             print_reports_and_exit(&mut reports, &args);
@@ -72,6 +65,7 @@ fn main() {
         lexer.tokens
     };
 
+    println!("PARSING");
     let program = {
         let mut parser = Parser::new(args.file.get(), &tokens, ReportSender::new(sender));
         let result = parser.parse();

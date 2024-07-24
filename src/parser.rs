@@ -14,17 +14,9 @@ pub struct Parser<'t, 'contents> {
 
 impl<'t, 'contents> Parser<'t, 'contents> {
     pub fn new(
-        filename: &'static str,
-        tokens: &'t [Token<'contents>],
-        sender: ReportSender,
+        filename: &'static str, tokens: &'t [Token<'contents>], sender: ReportSender,
     ) -> Self {
-        Self {
-            filename,
-            tokens,
-            current: &tokens[0],
-            index: 0,
-            sender,
-        }
+        Self { filename, tokens, current: &tokens[0], index: 0, sender }
     }
 
     fn report(&mut self, report: Box<Report>) {
@@ -41,10 +33,8 @@ impl<'t, 'contents> Parser<'t, 'contents> {
             token if token.kind == kind => {
                 self.advance();
                 Ok(token)
-            }
-            Token {
-                kind: actual, span, ..
-            } => ReportKind::UnexpectedToken
+            },
+            Token { kind: actual, span, .. } => ReportKind::UnexpectedToken
                 .new(format!("expected '{kind:?}' got '{actual:?}'"))
                 .with_label(ReportLabel::new(span.clone()).with_text(msg))
                 .into(),
@@ -53,10 +43,7 @@ impl<'t, 'contents> Parser<'t, 'contents> {
 
     fn consume_newline(&mut self) -> Result<()> {
         match self.current {
-            Token {
-                kind: TokenKind::NewLine | TokenKind::EOF,
-                ..
-            } => Ok(()),
+            Token { kind: TokenKind::NewLine | TokenKind::EOF, .. } => Ok(()),
             Token { kind, span, .. } => ReportKind::UnexpectedToken
                 .new(format!("expected NewLine got '{kind:?}'"))
                 .with_label(ReportLabel::new(span.clone()))
@@ -78,29 +65,19 @@ impl<'t, 'contents> Parser<'t, 'contents> {
 
     pub fn parse(&mut self) -> Program {
         let stmts = match self.parse_block(true) {
-            Ok(AST {
-                kind: ASTKind::Block(stmts),
-                ..
-            }) => stmts,
+            Ok(AST { kind: ASTKind::Block(stmts), .. }) => stmts,
             Err(err) => {
                 self.report(err);
                 Vec::new()
-            }
+            },
             _ => unreachable!("Can't happen nerds"),
         };
-        Program {
-            stmts,
-            filename: self.filename,
-        }
+        Program { stmts, filename: self.filename }
     }
 
     fn parse_block(&mut self, global: bool) -> Result<AST> {
         let mut stmts = Vec::<Box<AST>>::new();
-        let until = if global {
-            TokenKind::EOF
-        } else {
-            TokenKind::RBrace
-        };
+        let until = if global { TokenKind::EOF } else { TokenKind::RBrace };
         let start = self.current.span.clone();
 
         while self.current.kind != until {
@@ -111,11 +88,11 @@ impl<'t, 'contents> Parser<'t, 'contents> {
                         self.report(err);
                         self.synchronize(until);
                     });
-                }
+                },
                 Err(report) => {
                     self.report(report);
                     self.synchronize(until);
-                }
+                },
             };
         }
 
@@ -123,9 +100,7 @@ impl<'t, 'contents> Parser<'t, 'contents> {
             self.consume(until, "block not terminated");
         };
 
-        let end = start
-            .clone()
-            .extend(stmts.last().map_or_else(|| &start, |ast| &ast.span));
+        let end = start.clone().extend(stmts.last().map_or_else(|| &start, |ast| &ast.span));
 
         Ok(ASTKind::Block(stmts).into_ast(start.extend(&end)))
     }
@@ -137,14 +112,10 @@ impl<'t, 'contents> Parser<'t, 'contents> {
     fn parse_atom(&mut self) -> Result<AST> {
         // FIXME: Infinite loop because self.advance cannot be called, need to change to iterator I think. Someone else can handle this.
         match &self.current {
-            Token {
-                kind: TokenKind::Identifier,
-                span,
-                text,
-            } => {
+            Token { kind: TokenKind::Identifier, span, text } => {
                 self.advance();
                 Ok(ASTKind::Identifier(text.to_string()).into_ast(span.clone()))
-            }
+            },
             Token {
                 kind:
                     TokenKind::DecimalIntLiteral
@@ -169,19 +140,15 @@ impl<'t, 'contents> Parser<'t, 'contents> {
                         .with_label(ReportLabel::new(span.clone()))
                         .into(),
                 }
-            }
-            Token {
-                kind: TokenKind::EOF,
-                span,
-                ..
-            } => ReportKind::UnexpectedEOF.new("").into(),
+            },
+            Token { kind: TokenKind::EOF, span, .. } => ReportKind::UnexpectedEOF.new("").into(),
             Token { kind, span, .. } => {
                 self.advance();
                 ReportKind::UnexpectedToken
                     .new(format!("got {kind:?}"))
                     .with_label(ReportLabel::new(span.clone()))
                     .into()
-            }
+            },
         }
     }
 }

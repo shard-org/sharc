@@ -10,17 +10,9 @@ pub struct Span {
 
 impl Span {
     pub fn new(
-        filename: &'static str,
-        line_number: usize,
-        start_index: usize,
-        end_index: usize,
+        filename: &'static str, line_number: usize, start_index: usize, end_index: usize,
     ) -> Self {
-        Self {
-            filename,
-            line_number,
-            start_index,
-            end_index,
-        }
+        Self { filename, line_number, start_index, end_index }
     }
 
     pub fn extend(&self, other: &Self) -> Self {
@@ -33,20 +25,13 @@ impl Span {
     }
 
     pub fn to_span_printer(&self, line_index: usize) -> SpanPrinter {
-        SpanPrinter {
-            span: self,
-            line_index,
-        }
+        SpanPrinter { span: self, line_index }
     }
 }
 
 impl std::fmt::Debug for Span {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}:{}({},{})",
-            self.filename, self.line_number, self.start_index, self.end_index
-        )
+        write!(f, "{}:{}({},{})", self.filename, self.line_number, self.start_index, self.end_index)
     }
 }
 
@@ -57,11 +42,7 @@ pub struct SpanPrinter<'s> {
 
 impl std::fmt::Display for SpanPrinter<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let column = self.span.start_index - self.line_index;
-        write!(
-            f,
-            "{}:{}:{}",
-            self.span.filename, self.span.line_number, column
-        )
+        let column = self.span.start_index - self.line_index; // .saturating_sub(self.line_index);
+        write!(f, "{}:{}:{}", self.span.filename, self.span.line_number, column)
     }
 }

@@ -38,10 +38,7 @@ impl<T> Arg<T> {
     }
 
     pub fn get(&self) -> &T {
-        &self
-            .field
-            .as_ref()
-            .expect("Did not call Args.resolve_defaults")
+        &self.field.as_ref().expect("Did not call Args.resolve_defaults")
     }
 }
 
@@ -95,15 +92,15 @@ impl Args {
             "h" => {
                 println!("{}", USAGE);
                 exit(0);
-            }
+            },
             "help" => {
                 println!("{}\n\n{}", USAGE, HELP_MESSAGE);
                 exit(0);
-            }
+            },
             "V" | "version" => {
                 println!("sharc {}", env!("CARGO_PKG_VERSION"));
                 exit(0);
-            }
+            },
             "d" | "debug" => self.debug.try_mut(true),
             "l" | "error-level" => {
                 if !is_end {
@@ -120,9 +117,9 @@ impl Args {
                     "s" | "silent" => Level::Silent,
                     _ => {
                         error!("invalid level `{}`", level);
-                    }
+                    },
                 });
-            }
+            },
             "no-context" => self.code_context.try_mut(false),
             "f" | "file" => {
                 if !is_end {
@@ -132,7 +129,7 @@ impl Args {
                     error!("expected file");
                 };
                 self.file.try_mut(Box::leak(file.into_boxed_str()));
-            }
+            },
             "o" | "output" => {
                 if !is_end {
                     error!("flags with parameters must be at the end of a group, or defined separately");
@@ -141,10 +138,10 @@ impl Args {
                     error!("expected file");
                 };
                 self.output.try_mut(Box::leak(output.into_boxed_str()));
-            }
+            },
             _ => {
                 error!("unrecognized argument '{}'", arg);
-            }
+            },
         }
     }
 
@@ -164,13 +161,13 @@ impl Args {
                     "shark" => {
                         println!("\x1b[34m{}\x1b[0m", SHARK_ASCII);
                         exit(1);
-                    }
+                    },
                     "verbs" => {
                         error!("no");
-                    }
+                    },
                     _ => {
                         error!("unrecognized argument '{}'", arg);
-                    }
+                    },
                 }
             }
         }
