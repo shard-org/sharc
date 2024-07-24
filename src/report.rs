@@ -22,6 +22,7 @@ pub enum ReportKind {
     // Lexer
     UnexpectedCharacter,
     UnterminatedMultilineComment,
+    UnterminatedStringLiteral,
 
     // Parser
     UnexpectedToken,
@@ -43,9 +44,9 @@ impl ReportKind {
             ReportKind::ArgumentParserError => Level::Error,
 
             // Lexing
-            ReportKind::UnexpectedCharacter | ReportKind::UnterminatedMultilineComment => {
-                Level::Error
-            }
+            ReportKind::UnexpectedCharacter
+            | ReportKind::UnterminatedMultilineComment
+            | ReportKind::UnterminatedStringLiteral => Level::Error,
 
             // Parsing
             ReportKind::UnexpectedToken | ReportKind::UnexpectedEOF => Level::Error,
@@ -83,12 +84,7 @@ pub struct Report {
 
 impl Report {
     pub fn new<T: Into<String>>(kind: ReportKind, title: T) -> Self {
-        Self {
-            kind,
-            title: title.into(),
-            label: None,
-            note: None,
-        }
+        Self { kind, title: title.into(), label: None, note: None }
     }
 
     pub fn with_label(mut self, label: ReportLabel) -> Self {
@@ -106,13 +102,7 @@ impl Report {
     }
 
     pub fn display(&self, show_context: bool) {
-        eprint!(
-            "{}",
-            ReportFormatter {
-                report: self,
-                show_context
-            }
-        )
+        eprint!("{}", ReportFormatter { report: self, show_context })
     }
 }
 
@@ -154,11 +144,7 @@ impl Display for ReportFormatter<'_> {
         writeln!(
             f,
             "{} {}",
-            format!(
-                "{}",
-                format!("[{prefix}] {:?}:", report.kind).color(primary_color)
-            )
-            .bold(),
+            format!("{}", format!("[{prefix}] {:?}:", report.kind).color(primary_color)).bold(),
             report.title
         )?;
 
@@ -170,12 +156,14 @@ impl Display for ReportFormatter<'_> {
                     Some(val) => val + 1,
                     None => 0,
                 };
+
                 let end_line_index = {
                     match contents[span.end_index..].find('\n') {
-                        Some(offset) => span.start_index + offset,
-                        None => contents.len().checked_sub(1).unwrap_or(0),
+                        Some(offset) => span.end_index + offset,
+                        None => contents.len().saturating_sub(1),
                     }
                 };
+
                 writeln!(f, " {} {}", "--->".cyan(), span.to_span_printer(line_index))?;
 
                 if self.show_context {
@@ -188,7 +176,7 @@ impl Display for ReportFormatter<'_> {
                         "|".cyan().dimmed(),
                         &contents[line_index..span.start_index],
                         &contents[span.start_index..span.end_index].color(secondary_color),
-                        &contents[span.end_index..=end_line_index],
+                        &contents[span.end_index..=end_line_index].trim_end_matches('\n'),
                     )?;
 
                     writeln!(
@@ -197,9 +185,7 @@ impl Display for ReportFormatter<'_> {
                         " ".repeat(pad_num),
                         "|".cyan().dimmed(),
                         " ".repeat(span.start_index - line_index),
-                        "^".repeat(span.end_index - span.start_index)
-                            .color(primary_color)
-                            .bold(),
+                        "^".repeat(span.end_index - span.start_index).color(primary_color).bold(),
                         label
                             .text
                             .as_ref()
@@ -221,12 +207,12 @@ impl Display for ReportFormatter<'_> {
                         writeln!(f, " {}", note.bright_black().italic())?;
                     }
                 }
-            }
+            },
             None => {
                 if let Some(note) = &report.note {
                     writeln!(f, "{}", note.bright_black().italic())?;
                 }
-            }
+            },
         }
 
         Ok(())
@@ -258,9 +244,7 @@ impl ReportSender {
     }
 
     pub fn send(&self, report: Box<Report>) {
-        self.sender
-            .send(report)
-            .expect("Error sender failed to send report.")
+        self.sender.send(report).expect("Error sender failed to send report.")
     }
 }
 
@@ -276,7 +260,7 @@ impl<T> UnwrapReport<T> for Option<T> {
             None => {
                 report.display(false);
                 std::process::exit(1);
-            }
+            },
         }
     }
 
@@ -295,7 +279,7 @@ impl<T, E> UnwrapReport<T> for std::result::Result<T, E> {
             Err(_) => {
                 report.display(false);
                 std::process::exit(1);
-            }
+            },
         }
     }
 
