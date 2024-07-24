@@ -152,22 +152,25 @@ impl Args {
         while let Some(arg) = args.next() {
             if let Some(arg) = arg.strip_prefix("--") {
                 out.handle_arg(arg, &mut args, true);
-            } else if let Some(arg) = arg.strip_prefix("-") {
+            } 
+
+            else if let Some(arg) = arg.strip_prefix("-") {
                 for (i, c) in arg.char_indices().map(|(i, _)| &arg[i..i + 1]).enumerate() {
                     out.handle_arg(c, &mut args, i == arg.len() - 1)
                 }
-            } else {
-                match arg.as_str() {
-                    "shark" => {
-                        println!("\x1b[34m{}\x1b[0m", SHARK_ASCII);
-                        exit(1);
-                    },
-                    "verbs" => {
-                        error!("no");
-                    },
-                    _ => {
-                        error!("unrecognized argument '{}'", arg);
-                    },
+            } 
+
+            else {
+                if arg == "shark" {
+                    println!("\x1b[34m{}\x1b[0m", SHARK_ASCII);
+                    exit(1);
+                }
+
+                out.verbs.push(Box::leak(arg.into_boxed_str()) as &str);
+
+                // drain remaining args
+                while let Some(arg) = args.next() {
+                    out.verbs.push(Box::leak(arg.into_boxed_str()) as &str);
                 }
             }
         }
