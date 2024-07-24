@@ -15,30 +15,29 @@ macro_rules! error {
 
 #[derive(Default)]
 pub struct Arg<T> {
-    pub field: Option<T>,
-    name: &'static str,
+    field: Box<T>,
+    name:  &'static str,
+    set:   bool,
 }
 
 impl<T> Arg<T> {
-    pub fn new(name: &'static str) -> Self {
-        Self { field: None, name }
-    }
-
-    pub fn try_mut(&mut self, value: T) {
-        if self.field.is_some() {
-            error!("the argument {} cannot be used multiple times", self.name);
-        };
-        self.field = Some(value);
-    }
-
-    pub fn resolve(&mut self, default: T) {
-        if self.field.is_none() {
-            self.field = Some(default);
+    pub fn new(default: T, name: &'static str) -> Self {
+        Self { 
+            field: Box::new(default),
+            name,
+            set: false,
         }
     }
 
+    pub fn try_mut(&mut self, value: T) {
+        if self.set {
+            error!("the argument {} cannot be used multiple times", self.name);
+        }
+        self.field = Box::new(value);
+    }
+
     pub fn get(&self) -> &T {
-        &self.field.as_ref().expect("Did not call Args.resolve_defaults")
+        &self.field
     }
 }
 
@@ -50,41 +49,24 @@ impl<T: Debug> Debug for Arg<T> {
 
 #[derive(Debug)]
 pub struct Args {
-    pub file: Arg<&'static str>,
+    pub file:   Arg<&'static str>,
     pub output: Arg<&'static str>,
-    pub debug: Arg<bool>,
+    pub debug:  Arg<bool>,
     pub code_context: Arg<bool>,
-    pub level: Arg<Level>,
+    pub level:  Arg<Level>,
+    pub verbs:  Vec<&'static str>,
 }
 
 impl Args {
     pub fn default() -> Self {
         Self {
-            file: Arg::new("--file"),
-            output: Arg::new("--output"),
-            debug: Arg::new("--debug"),
-            code_context: Arg::new("--code-context"),
-            level: Arg::new("--error-level"),
+            file:         Arg::new("main.shd",  "--file"),
+            output:       Arg::new("main.asm",  "--output"),
+            debug:        Arg::new(false,       "--debug"),
+            code_context: Arg::new(true,        "--code-context"),
+            level:        Arg::new(Level::Warn, "--error-level"),
+            verbs:        Vec::new(),
         }
-    }
-
-    pub fn resolve_defaults(mut self) -> Self {
-        self.file.resolve("main.shd");
-        let output = {
-            let file = self.file.field.expect("Didn't resolve file");
-            let mut asm_file = match file.rfind('.') {
-                Some(index) => &file[..index],
-                None => file,
-            }
-            .to_string();
-            asm_file.push_str(".asm");
-            asm_file
-        };
-        self.output.resolve(Box::leak(output.into_boxed_str()));
-        self.debug.resolve(false);
-        self.code_context.resolve(true);
-        self.level.resolve(Level::Warn);
-        self
     }
 
     fn handle_arg(&mut self, arg: &str, args: &mut std::vec::IntoIter<String>, is_end: bool) {
@@ -106,9 +88,11 @@ impl Args {
                 if !is_end {
                     error!("flags with parameters must be at the end of a group, or defined separately");
                 };
-                let Some(level) = args.next() else {
+
+                let level = args.next().unwrap_or_else(|| {
                     error!("expected level");
-                };
+                });
+
                 self.level.try_mut(match level.as_str() {
                     "f" | "fatal" => Level::Fatal,
                     "e" | "error" => Level::Error,
@@ -125,18 +109,22 @@ impl Args {
                 if !is_end {
                     error!("flags with parameters must be at the end of a group, or defined separately");
                 };
-                let Some(file) = args.next() else {
+
+                let file = args.next().unwrap_or_else(|| {
                     error!("expected file");
-                };
+                });
+
                 self.file.try_mut(Box::leak(file.into_boxed_str()));
             },
             "o" | "output" => {
                 if !is_end {
                     error!("flags with parameters must be at the end of a group, or defined separately");
                 };
-                let Some(output) = args.next() else {
+
+                let output = args.next().unwrap_or_else(|| {
                     error!("expected file");
-                };
+                });
+
                 self.output.try_mut(Box::leak(output.into_boxed_str()));
             },
             _ => {
@@ -178,10 +166,10 @@ impl Args {
     }
 }
 
-const USAGE: &str = "Usage: sharc [-hvd] [-l LEVEL] [-f FILE]";
+const USAGE: &str = "Usage: sharc [-hvd] [-l LEVEL] [-f FILE] [-o FILE] [VERB...]";
 const HELP_MESSAGE: &str = "\x1b[1mDESCRIPTION\x1b[0m
     The compiler for the Shard Programming Language.
-    \x1b[1mTODO:\x1b[0m expand description with --help
+    Documentation can be found at https://shardlang.org/doc/
 
 \x1b[1mOPTIONS\x1b[0m
     -h, --help                  Show only usage with -h
@@ -193,7 +181,7 @@ const HELP_MESSAGE: &str = "\x1b[1mDESCRIPTION\x1b[0m
     -f, --file FILE             File to compile
         (default: main.shd)
     -o, --output FILE           File to write to
-        (default: [input file].asm)
+        (default: main.asm)
 
         --no-context            Disable code context";
 const SHARK_ASCII: &str = r#"                                 ,-
