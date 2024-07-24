@@ -28,23 +28,27 @@ fn check_reports(receiver: &Receiver<Box<Report>>, reports: &mut Vec<Report>) ->
 }
 
 fn print_reports_and_exit(reports: &mut Vec<Report>, args: &args::Args) {
-    if args.level.field.unwrap() == Level::Silent {
-        exit(1);
-    }
+    if args.level.get() == &Level::Silent { exit(1); }
+
     reports.sort_by(|left, right| {
         left.level().partial_cmp(&right.level()).expect("Failed to order report kinds.")
     });
+
     reports.iter().for_each(|report| {
-        if args.level.field.unwrap() <= report.level() {
-            report.display(args.code_context.field.unwrap());
+        if args.level.get() <= &report.level() {
+            report.display(*args.code_context.get());
         }
     });
+
     exit(1);
 }
 
 fn main() {
-    let args = args::Args::parse(std::env::args().skip(1).collect()).resolve_defaults();
-    println!("{:?}", args);
+    let args = args::Args::parse(std::env::args().skip(1).collect());
+
+    if *args.debug.get() {
+        println!("{:#?}", args);
+    }
 
     let mut reports = Vec::<Report>::new();
     let (sender, receiver) = std::sync::mpsc::channel::<Box<Report>>();
