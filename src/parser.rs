@@ -116,20 +116,18 @@ impl<'t, 'contents> Parser<'t, 'contents> {
     }
 
     fn parse_atom(&mut self) -> Result<AST> {
-        match &self.current {
-            Token { kind: TokenKind::Identifier, span, text } => {
+        let Token{kind, span, text} = self.current;
+
+        match &kind {
+            TokenKind::Identifier => {
                 self.advance();
                 Ok(ASTKind::Identifier(text.to_string()).into_ast(span.clone()))
             },
-            Token {
-                kind:
-                    TokenKind::DecimalIntLiteral
-                    | TokenKind::BinaryIntLiteral
-                    | TokenKind::OctalIntLiteral
-                    | TokenKind::HexadecimalIntLiteral,
-                span,
-                text,
-            } => {
+
+            TokenKind::DecimalIntLiteral
+            | TokenKind::BinaryIntLiteral
+            | TokenKind::OctalIntLiteral
+            | TokenKind::HexadecimalIntLiteral => {
                 let base = match self.current.kind {
                     TokenKind::DecimalIntLiteral => 10,
                     TokenKind::BinaryIntLiteral => 2,
@@ -146,8 +144,9 @@ impl<'t, 'contents> Parser<'t, 'contents> {
                         .into(),
                 }
             },
-            Token { kind: TokenKind::EOF, span, .. } => ReportKind::UnexpectedEOF.new("").into(),
-            Token { kind, span, .. } => {
+
+            TokenKind::EOF => ReportKind::UnexpectedEOF.new("").into(),
+            kind => {
                 self.advance();
                 ReportKind::UnexpectedToken
                     .new(format!("got {kind:?}"))
