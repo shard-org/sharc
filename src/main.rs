@@ -28,15 +28,15 @@ fn check_reports(receiver: &Receiver<Box<Report>>, reports: &mut Vec<Report>) ->
 }
 
 fn print_reports_and_exit(reports: &mut Vec<Report>, args: &args::Args) {
-    if args.level.get() == &Level::Silent { exit(1); }
+    if *args.level.field == Level::Silent { exit(1); }
 
     reports.sort_by(|left, right| {
         left.level().partial_cmp(&right.level()).expect("Failed to order report kinds.")
     });
 
     reports.iter().for_each(|report| {
-        if args.level.get() <= &report.level() {
-            report.display(*args.code_context.get());
+        if *args.level.field <= report.level() {
+            report.display(*args.code_context.field);
         }
     });
 
@@ -46,22 +46,20 @@ fn print_reports_and_exit(reports: &mut Vec<Report>, args: &args::Args) {
 fn main() {
     let args = args::Args::parse(std::env::args().skip(1).collect());
 
-    if *args.debug.get() {
+    if *args.debug.field {
         println!("{:#?}", args);
     }
 
     let mut reports = Vec::<Report>::new();
     let (sender, receiver) = std::sync::mpsc::channel::<Box<Report>>();
 
-    let filename = args.file.get();
-
     println!("LEXING");
     let tokens = {
         let mut lexer =
-            Lexer::new(filename, Scanner::get_file(filename), ReportSender::new(sender.clone()));
+            Lexer::new(&args.file.field, Scanner::get_file(&args.file.field), ReportSender::new(sender.clone()));
 
         lexer.lex_tokens();
-        if *args.debug.get() {
+        if *args.debug.field {
             lexer.tokens.iter().for_each(|token| println!("{:#}", token))
         }
 
@@ -74,10 +72,10 @@ fn main() {
 
     println!("PARSING");
     let program = {
-        let mut parser = Parser::new(args.file.get(), &tokens, ReportSender::new(sender));
+        let mut parser = Parser::new(&args.file.field, &tokens, ReportSender::new(sender));
         let result = parser.parse();
 
-        if *args.debug.get() {
+        if *args.debug.field {
             result.stmts.iter().for_each(|stmt| println!("{:#}", stmt))
         }
 

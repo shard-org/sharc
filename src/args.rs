@@ -15,7 +15,7 @@ macro_rules! error {
 
 #[derive(Default)]
 pub struct Arg<T> {
-    field: Box<T>,
+    pub field: Box<T>,
     name:  &'static str,
     set:   bool,
 }
@@ -34,10 +34,6 @@ impl<T> Arg<T> {
             error!("the argument {} cannot be used multiple times", self.name);
         }
         self.field = Box::new(value);
-    }
-
-    pub fn get(&self) -> &T {
-        &self.field
     }
 }
 
@@ -69,67 +65,80 @@ impl Args {
         }
     }
 
-    fn handle_arg(&mut self, arg: &str, args: &mut std::vec::IntoIter<String>, is_end: bool) {
-        match arg {
-            "h" => {
-                println!("{}", USAGE);
-                exit(0);
-            },
-            "help" => {
-                println!("{}\n\n{}", USAGE, HELP_MESSAGE);
-                exit(0);
-            },
-            "V" | "version" => {
-                println!("sharc {}", env!("CARGO_PKG_VERSION"));
-                exit(0);
-            },
-            "d" | "debug" => self.debug.try_mut(true),
-            "l" | "error-level" => {
-                if !is_end {
-                    error!("flags with parameters must be at the end of a group, or defined separately");
+    fn handle_arg(&mut self, arg: &str, arguments: &mut std::vec::IntoIter<String>) {
+        let args: Vec<String> = match arg.starts_with("--") {
+            true  => vec![arg.into()],
+            false => arg.chars().skip(1).map(|c| format!("-{c}")).collect(),
+        };
+        let args_len = args.len();
+
+        for (i, arg) in args.into_iter().enumerate() {
+            let _is_end = i == args_len - 1;
+
+            macro_rules! is_end {
+                () => {
+                    if !_is_end {
+                        error!("flags with parameters must be at the end of a group, or defined separately");
+                    }
                 };
+            }
 
-                let level = args.next().unwrap_or_else(|| {
-                    error!("expected level");
-                });
+            match arg.as_str() {
+                "-h" => {
+                    println!("{}", USAGE);
+                    exit(0);
+                },
+                "--help" => {
+                    println!("{}\n\n{}", USAGE, HELP_MESSAGE);
+                    exit(0);
+                },
+                "-V" | "--version" => {
+                    println!("sharc {}", env!("CARGO_PKG_VERSION"));
+                    exit(0);
+                },
+                "-d" | "--debug" => self.debug.try_mut(true),
+                "-f" | "--file" => {
+                    is_end!();
 
-                self.level.try_mut(match level.as_str() {
-                    "f" | "fatal" => Level::Fatal,
-                    "e" | "error" => Level::Error,
-                    "w" | "warn" => Level::Warn,
-                    "n" | "note" => Level::Note,
-                    "s" | "silent" => Level::Silent,
-                    _ => {
-                        error!("invalid level `{}`", level);
-                    },
-                });
-            },
-            "no-context" => self.code_context.try_mut(false),
-            "f" | "file" => {
-                if !is_end {
-                    error!("flags with parameters must be at the end of a group, or defined separately");
-                };
+                    let file = arguments.next().unwrap_or_else(|| {
+                        error!("expected file");
+                    });
 
-                let file = args.next().unwrap_or_else(|| {
-                    error!("expected file");
-                });
+                    self.file.try_mut(Box::leak(file.into_boxed_str()));
+                },
+                "-o" | "--output" => {
+                    is_end!();
 
-                self.file.try_mut(Box::leak(file.into_boxed_str()));
-            },
-            "o" | "output" => {
-                if !is_end {
-                    error!("flags with parameters must be at the end of a group, or defined separately");
-                };
+                    let output = arguments.next().unwrap_or_else(|| {
+                        error!("expected file");
+                    });
 
-                let output = args.next().unwrap_or_else(|| {
-                    error!("expected file");
-                });
+                    self.output.try_mut(Box::leak(output.into_boxed_str()));
+                },
+                "-l" | "--error-level" => {
+                    is_end!();
 
-                self.output.try_mut(Box::leak(output.into_boxed_str()));
-            },
-            _ => {
-                error!("unrecognized argument '{}'", arg);
-            },
+                    let level = arguments.next().unwrap_or_else(|| {
+                        error!("expected level");
+                    });
+
+                    self.level.try_mut(match level.as_str() {
+                        "f" | "fatal" => Level::Fatal,
+                        "e" | "error" => Level::Error,
+                        "w" | "warn" => Level::Warn,
+                        "n" | "note" => Level::Note,
+                        "s" | "silent" => Level::Silent,
+                        _ => {
+                            error!("invalid level `{}`", level);
+                        },
+                    });
+                },
+                "--no-context" => self.code_context.try_mut(false),
+
+                _ => {
+                    error!("unrecognized argument '{}'", arg);
+                },
+            }
         }
     }
 
@@ -138,28 +147,21 @@ impl Args {
         let mut args = args.into_iter();
 
         while let Some(arg) = args.next() {
-            if let Some(arg) = arg.strip_prefix("--") {
-                out.handle_arg(arg, &mut args, true);
-            } 
+            if arg.starts_with("-") {
+                out.handle_arg(&arg, &mut args);
+                continue;
+            }
 
-            else if let Some(arg) = arg.strip_prefix("-") {
-                for (i, c) in arg.char_indices().map(|(i, _)| &arg[i..i + 1]).enumerate() {
-                    out.handle_arg(c, &mut args, i == arg.len() - 1)
-                }
-            } 
+            if arg == "shark" {
+                println!("\x1b[34m{}\x1b[0m", SHARK_ASCII);
+                exit(1);
+            }
 
-            else {
-                if arg == "shark" {
-                    println!("\x1b[34m{}\x1b[0m", SHARK_ASCII);
-                    exit(1);
-                }
+            out.verbs.push(Box::leak(arg.into_boxed_str()) as &str);
 
+            // drain remaining args
+            while let Some(arg) = args.next() {
                 out.verbs.push(Box::leak(arg.into_boxed_str()) as &str);
-
-                // drain remaining args
-                while let Some(arg) = args.next() {
-                    out.verbs.push(Box::leak(arg.into_boxed_str()) as &str);
-                }
             }
         }
         out
