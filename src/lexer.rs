@@ -1,362 +1,463 @@
-use std::{
-    io::{BufRead, BufReader},
-    fs::File,
-    collections::VecDeque,
-};
+use crate::report::{Report, ReportKind, ReportLabel, ReportSender, Result};
+use crate::span::Span;
+use crate::token::{Token, TokenKind};
+use std::fmt::Display;
 
-use crate::{
-    token::{Token, TokenKind},
-    location::Span,
-    logger::{Log, Level},
-
-    debug,
-    utils,
-};
-
-
-pub struct Lexer {
+pub struct Lexer<'source> {
     filename: &'static str,
-
-    file:     BufReader<File>,
-    li:       usize, // line counter
-    nl:       usize, // advanced without returning tokens //??!?
-
-    chars:    VecDeque<char>, // chars of the current line
-    ci:       usize, // char counter
+    contents: &'source str,
+    chars: std::iter::Peekable<std::str::Chars<'source>>,
+    current: Option<char>,
+    line_number: usize,
+    index: usize,
+    sender: ReportSender,
+    pub tokens: Vec<Token<'source>>,
 }
 
-impl Iterator for Lexer {
-    type Item = Token;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        while let Some(c) = self.advance() {
-            use TokenKind::*;
-            let token = match c {
-                '\n' => NL,
-                '&' => Ampersand,
-                '@' => At,
-                '`' => {
-                    let Some(mut c) = self.next_char() else {
-                        return self.to_span()
-                            .to_log()
-                            .msg("Invalid end of char literal")
-                            .to_token()
-                            .some();
-                    };
-
-                    if c == '\\' {
-                        let Some(cha) = self.next_char() else {
-                            return self.to_span()
-                                .to_log()
-                                .msg("Invalid end of char literal")
-                                .to_token()
-                                .some();
-                        };
-
-                        c = match self.esc_to_char(cha) {
-                            Ok(c) => c,
-                            Result::Err(e) => return e.to_token().some(),
-                        };
-                    }
-
-                    if self.next_char() != Some('`') {
-                        return self.to_span()
-                            .to_log()
-                            .msg("Invalid end of char literal")
-                            .to_token()
-                            .some();
-                    }
-
-                    CharLit(c)
-                },
-                '\\'=> Backslash,
-                '!' => Bang,
-                '^' => Caret,
-                ':' => Colon,
-                ',' => Comma,
-                '$' => Dollar,
-                '.' => Dot,
-                '"' => {
-                    let mut lit = String::new();
-                    while let Some(c) = self.next_char() {
-                        match c {
-                            '\\' => {
-                                if let Result::Err(e) = self.esc_to_char(c).map(|c| lit.push(c)) {
-                                    return e.to_token().some();
-                                }
-                                continue;
-                            },
-                            '"' => return self.to_span()
-                                .to_token(StrLit(lit))
-                                .some(),
-                            _ => lit.push(c),
-                        }
-                    }
-
-                    return self.to_span()
-                        .to_log()
-                        .msg("Invalid end of string literal")
-                        .to_token()
-                        .some();
-                },
-                '=' => {
-                    if self.test_next('>') {
-                        if self.test_next('>') { FatDoubleArrow }
-                        else { FatArrow }
-                    }
-                    else { Equals }
-                },
-                '>' => {
-                    if self.test_next('=') { GreaterThanEquals }
-                    else { GreaterThan }
-                },
-                '{' => LeftBrace,
-                '[' => LeftBracket,
-                '(' => LeftParen,
-                '<' => {
-                    if self.test_next('=') { LessThanEquals }
-                    else if self.test_next('-') { SmallArrowLeft }
-                    else { LessThan }
-                },
-                '-' => {
-                    if self.test_next('-') { MinusMinus }
-                    else if self.test_next('>') { SmallArrowRight }
-                    else { Minus }
-                },
-                '~' => {
-                    if self.test_next('=') { NotEquals }
-                    else { Tilde }
-                },
-                '%' => Percent,
-                '|' => Pipe,
-                '+' => {
-                    if self.test_next('+') { PlusPlus }
-                    else { Plus }
-                },
-                '#' => Pound,
-                '?' => Question,
-                '}' => RightBrace,
-                ']' => RightBracket,
-                ')' => RightParen,
-                ';' => Semicolon,
-                '\''=> SingleQuote,
-                '/' => {
-                    /* block comments */
-                    if self.test_next('*') { 
-                        let mut last: char = '\0';
-                        while let Some(c) = self.advance() {
-                            if last == '*' && c == '/' { break }
-                            last = c;
-                        } continue;
-                    }
-
-                    // line comments
-                    if self.test_next('/') { 
-                        self.chars.clear();
-                        self.chars.push_back('\n');
-                        continue;
-                    }
-
-                    Slash
-                },
-                '*' => Star,
-
-                ' ' | '\t' => continue,
-
-                c if c.is_ascii_alphabetic() || c == '_' => {
-                    let word = self.word();
-                    
-                    if word.is_empty() {
-                        if c == '_' { Underscore }
-                        else { Ident(String::from(c)) }
-                    }
-
-                    else {
-                        let word = format!("{}{}", c, word);
-                        match word.as_str() {
-                            // keywords
-                            "jmp" => Jmp,
-                            "ret" => Ret,
-                            "end" => End,
-                            "entry" => Entry,
-                            "inline" => Inline,
-
-                            _ => Ident(word),
-                        }
-                    }
-                },
-
-                c if c.is_numeric() => {
-                    let word = format!("{}{}", c, self.word());
-
-                    if word.contains('.') {
-                        FloatLit(word.parse::<f64>().unwrap())
-                    }
-
-                    else if word.starts_with('-') || word.starts_with('+') {
-                        SIntLit(word.parse::<isize>().unwrap())
-                    }
-
-                    else {
-                        match utils::parse_int(word.clone()) {
-                            Ok(n) => IntLit(n),
-                            Result::Err(e) => return self.to_span()
-                                .col(|x| x - word.len() - 1)
-                                .length(word.len())
-                                .to_log()
-                                .msg("Invalid integer literal")
-                                .notes(e)
-                                .to_token()
-                                .some(),
-                        }
-                    }
-                },
-
-                t => {
-                    debug!("Unknown token: {:?}", t);
-                    unreachable!()
-                },
-            };
-
-            // self.nl = 0;
-            return self.to_span().to_token(token).some();
-        }
-        None
-    }
-}
-
-impl Lexer {
-    pub fn new(file: File, filename: &'static str) -> Lexer {
-        Lexer { 
-            filename, 
-            file: BufReader::new(file), 
-            li: 1, 
-            nl: 0, 
-            chars: VecDeque::new(),
-            ci: 1
+impl<'source> Lexer<'source> {
+    pub fn new(filename: &'static str, contents: &'source str, sender: ReportSender) -> Self {
+        let mut chars = contents.chars().peekable();
+        Self {
+            filename,
+            contents,
+            current: chars.next(),
+            chars,
+            line_number: 1,
+            index: 0,
+            sender,
+            tokens: Vec::new(),
         }
     }
 
-    fn test_next(&mut self, test: char) -> bool {
-         if self.peek().is_some_and(|c| c == test) {
-             self.next_char();
-             return true;
-         } false
+    fn report(&mut self, report: Box<Report>) {
+        self.sender.send(report)
     }
 
-    fn advance(&mut self) -> Option<char> {
-        self.next_char().or_else(|| self.next_line().map_or(None, |_| self.advance()))
+    fn span(&self, line_number: usize, start_index: usize, end_index: usize) -> Span {
+        Span { filename: self.filename, line_number, start_index, end_index }
     }
 
-    fn next_char(&mut self) -> Option<char> {
-        self.chars.pop_front().map(|c| {
-            self.ci += 1; c
-        })
+    fn slice_source(&self, start: usize, end: usize) -> &'source str {
+        &self.contents[start..end]
+    }
+
+    fn advance(&mut self) {
+        self.current = self.chars.next();
+        if Some('\n') == self.current {
+            self.line_number += 1;
+        }
+        self.index += 1;
     }
 
     fn peek(&mut self) -> Option<char> {
-        self.chars.front().copied()
+        self.chars.peek().cloned()
     }
 
-    fn esc_to_char(&mut self, c: char) -> Result<char, Log> {
-        let c = match c {
-            '@' | '0' => 0,   // NUL | Null
-            'A' =>       1,   // SOH | Start of Heading
-            'B' =>       2,   // STX | Start of Text
-            'C' =>       3,   // ETX | End of Text
-            'D' =>       4,   // EOT | End of Transmission
-            'E' =>       5,   // ENQ | Enquiry
-            'F' =>       6,   // ACK | Acknowledgement
-            'G' | 'a' => 7,   // BEL | Bell
-            'H' | 'b' => 8,   // BS  | Backspace
-            'I' | 't' => 9,   // HT  | Horizontal Tab
-            'J' | 'n' => 10,  // LF  | Line Feed
-            'K' | 'v' => 11,  // VT  | Vertical Tab
-            'L' | 'f' => 12,  // FF  | Form Feed
-            'M' | 'r' => 13,  // CR  | Carriage Return
-            'N' =>       14,  // SO  | Shift Out
-            'O' =>       15,  // SI  | Shift In
-            'P' =>       16,  // DLE | Data Link Escape
-            'Q' =>       17,  // DC1 | Device Control 1
-            'R' =>       18,  // DC2 | Device Control 2
-            'S' =>       19,  // DC3 | Device Control 3 (XOFF)
-            'T' =>       20,  // DC4 | Device Control 4
-            'U' =>       21,  // NAK | Negative Acknowledgement
-            'V' =>       22,  // SYN | Synchronous Idle
-            'W' =>       23,  // ETB | End of Transmission Block
-            'X' =>       24,  // CAN | Cancel
-            'Y' =>       25,  // EM  | End of Medium
-            'Z' =>       26,  // SUB | Substitute ||| EOF | End of File
-            '[' | 'e' => 27,  // ESC | Escape
-            // '\\'=>       28,  // FS  | File Separator  // ??????
-            ']' =>       29,  // GS  | Group Selector
-            '^' =>       30,  // RS  | Record Separator
-            '_' =>       31,  // US  | Unit Separator
-            '?' =>       127, // DEL | Delete
-
-            '\\' =>      92,  // \ | Backslash
-            '"'  =>      34,  // " | Double Quote
-            
-            _  => {
-                return Err(self.to_span()
-                    .to_log()
-                    .msg(format!("Invalid escaped character `{}`", c)));
-            },
-        }; Ok(char::from(c))
+    fn push_token(&mut self, kind: TokenKind, span: Span, text: &'source str) {
+        self.tokens.push(Token { kind, span, text })
     }
 
-    fn word(&mut self) -> String {
-        let mut word = String::new();
-        while let Some(c) = self.peek() {
-            if !(c.is_ascii_alphanumeric() || c == '_'){ break; }
-
-            let _ = self.next_char();
-            word.push(c);
-        } word
-    }
-
-    fn next_line(&mut self) -> Option<()> {
-        let mut line = Vec::new();
-        match self.file.read_until(b'\n', &mut line) {
-            Ok(b) if b == 0 => {
-                self.to_span()
-                    .line(|x| x-1)
-                    .to_log()
-                    .msg(format!("EOF: {:?}", self.filename))
-                    .level(Level::Debug)
-                    .print();
-                return None
-            },
-            Ok(_) => (),
-            Err(e) => {
-                self.to_span()
-                    .to_log()
-                    .msg(format!("line get err: {}", e))
-                    .print();
-                return None;
-            },
+    fn push_simple_token(&mut self, kind: TokenKind, length: usize) {
+        let (line_number, start_index) = (self.line_number, self.index);
+        for _ in 0..length {
+            self.advance();
         }
-    
-        match String::from_utf8(line) {
-            Ok(l) => {
-                self.li += 1;
-                // self.nl += 1;
-                self.ci = 0;
-                self.chars = l.chars().collect::<VecDeque<char>>();
-                Some(())
-            },
-            Err(e) => {
-                self.to_span()
-                    .to_log()
-                    .msg("Invalid utf8 in file")
-                    .notes(e)
-                    .print();
-                None
+        self.push_token(
+            kind,
+            self.span(line_number, start_index, self.index),
+            self.slice_source(start_index, self.index),
+        );
+    }
+    pub fn lex_tokens(&mut self) {
+        'main: while let Some(current) = self.current {
+            let (_line_number, start_index) = (self.line_number, self.index);
+
+            macro_rules! span_to {
+                ($end:expr) => {
+                    self.span(_line_number, start_index, $end)
+                };
+            }
+
+            // macro_rules! span_from {
+            //     ($start:expr) => {
+            //         self.span(line_number, $start, self.index)
+            //     };
+            // }
+
+            let (token, len) = match current {
+                '\n' => {
+                    while Some('\n') == self.current {
+                        self.advance();
+                    }
+                    self.push_token(TokenKind::NewLine, span_to!(start_index), "");
+                    continue;
+                },
+                char if char.is_whitespace() => {
+                    self.advance();
+                    continue;
+                },
+                '/' => match self.peek() {
+                    Some('/') => {
+                        while Some('\n') != self.current {
+                            self.advance()
+                        }
+                        continue;
+                    },
+                    Some('*') => {
+                        let mut depth = 0;
+                        loop {
+                            match self.current.clone() {
+                                Some('/') if Some('*') == self.peek() => {
+                                    self.advance();
+                                    self.advance();
+                                    depth += 1
+                                },
+                                Some('*') if Some('/') == self.peek() => {
+                                    self.advance();
+                                    self.advance();
+                                    depth -= 1;
+                                },
+                                None => break,
+                                _ => self.advance(),
+                            }
+                            if depth == 0 {
+                                break;
+                            };
+                        }
+                        if depth > 0 {
+                            self.report(
+                                ReportKind::UnterminatedMultilineComment
+                                    .new(format!("{} comments never terminated", depth))
+                                    .with_label(ReportLabel::new(span_to!(self.index)))
+                                    .into(),
+                            )
+                        }
+                        continue;
+                    },
+                    _ => (TokenKind::Slash, 1),
+                },
+                'a'..='z' | 'A'..='Z' => {
+                    while let Some(char) = self.current {
+                        match char {
+                            'a'..='z' | 'A'..='Z' | '0'..='9' | '_' => {
+                                self.advance();
+                            },
+                            _ => break,
+                        }
+                    }
+                    let ident = self.slice_source(start_index, self.index);
+                    let span = span_to!(self.index);
+                    let kind = match ident {
+                        // Any keywords are handled here
+                        "ret" => TokenKind::Ret,
+                        _ => TokenKind::Identifier,
+                    };
+                    self.push_token(kind, span, ident);
+                    continue;
+                },
+                // Literals
+                '0' if self.peek().map_or(false, |c| "box".contains(c)) => {
+                    let base = match (current, self.peek()) {
+                        ('0', Some('b')) => Base::Binary,
+                        ('0', Some('o')) => Base::Octal,
+                        ('0', Some('x')) => Base::Hexadecimal,
+                        _ => unreachable!(),
+                    };
+                    self.advance();
+                    self.advance();
+                    if let Err(report) = self.lex_integer(base) {
+                        self.report(report);
+                        continue;
+                    }
+                    self.push_token(
+                        TokenKind::from(base),
+                        span_to!(self.index),
+                        self.slice_source(start_index + 2, self.index),
+                    );
+                    continue;
+                },
+                '0'..='9' => {
+                    if let Err(report) = self.lex_integer(Base::Decimal) {
+                        self.report(report);
+                        continue;
+                    }
+                    if let Some('.') = self.current {
+                        self.advance();
+                        if let Err(report) = self.lex_integer(Base::Decimal) {
+                            self.report(report);
+                            continue;
+                        }
+                        if let Some('.') = self.current {
+                            self.report(
+                                ReportKind::SyntaxError
+                                    .new("Invalid Float Literal")
+                                    .with_label(ReportLabel::new(self.span(
+                                        _line_number,
+                                        self.index,
+                                        self.index + 1,
+                                    )))
+                                    .into(),
+                            );
+                            self.advance();
+                            continue;
+                        }
+                        self.push_token(
+                            TokenKind::FloatLiteral,
+                            span_to!(self.index),
+                            self.slice_source(start_index, self.index),
+                        );
+                        continue;
+                    }
+                    self.push_token(
+                        TokenKind::DecimalIntLiteral,
+                        span_to!(self.index),
+                        self.slice_source(start_index, self.index),
+                    );
+                    continue;
+                },
+                '"' => {
+                    self.advance();
+                    while let Some(char) = self.current {
+                        match char {
+                            '"' => {
+                                self.advance();
+                                break;
+                            },
+                            '\\' => {
+                                self.advance();
+                                if let Some('"') = self.current {
+                                    self.advance();
+                                }
+                            },
+                            '\n' => {
+                                self.report(
+                                    ReportKind::UnterminatedStringLiteral.new("")
+                                        .with_label(ReportLabel::new(span_to!(self.index)))
+                                        .into(),
+                                );
+                                continue 'main;
+                            },
+                            _ => self.advance(),
+                        }
+                    }
+                    self.push_token(
+                        TokenKind::StringLiteral,
+                        span_to!(self.index),
+                        self.slice_source(start_index + 1, self.index - 1),
+                    );
+                    continue;
+                },
+                '`' => {
+                    self.advance();
+                    while let Some(char) = self.current {
+                        match char {
+                            '`' => {
+                                self.advance();
+                                break;
+                            },
+                            '\\' => {
+                                self.advance();
+                                if self.current == Some('`') && self.peek() != Some('`') {
+                                    self.advance();
+                                    self.report(
+                                        ReportKind::UnterminatedCharLiteral.new("")
+                                            .with_label(ReportLabel::new(span_to!(self.index)))
+                                            .with_note("help: Remove the escape character")
+                                            .into()
+                                    );
+                                    continue 'main;
+                                }
+                                
+                                self.advance();
+                            },
+                            '\n' => {
+                                self.report(
+                                    ReportKind::UnterminatedCharLiteral.new("")
+                                        .with_label(ReportLabel::new(span_to!(self.index)))
+                                        .into(),
+                                );
+                                continue 'main;
+                            },
+                            _ => self.advance(),
+                        }
+                    }
+                    self.push_token(
+                        TokenKind::CharLiteral,
+                        span_to!(self.index),
+                        self.slice_source(start_index + 1, self.index - 1),
+                    );
+                    continue;
+                },
+                // '.' => match self.peek() {
+                //     Some('0'..='9') => {
+                //         self.advance();
+                //         if let Err(report) = self.lex_integer(Base::Decimal) {
+                //             self.report(report);
+                //             continue;
+                //         }
+                //         if let Some('.') = self.current {
+                //             self.report(
+                //                 ReportKind::SyntaxError
+                //                     .new("Invalid Float Literal")
+                //                     .with_label(ReportLabel::new(self.span(
+                //                         _line_number,
+                //                         self.index,
+                //                         self.index + 1,
+                //                     )))
+                //                     .into(),
+                //             );
+                //             self.advance();
+                //             continue;
+                //         }
+                //         self.push_token(
+                //             TokenKind::FloatLiteral,
+                //             span_to!(self.index),
+                //             self.slice_source(start_index, self.index),
+                //         );
+                //         continue;
+                //     },
+                //     _ => (TokenKind::Dot, 1),
+                // },
+
+                //
+                // Characters
+                '.' => (TokenKind::Dot, 1),
+                '~' => match self.peek() {
+                    Some('=') => (TokenKind::NotEquals, 2),
+                    _ => (TokenKind::Tilde, 1),
+                },
+                '!' => (TokenKind::Bang, 1),
+                '@' => (TokenKind::At, 1),
+                '#' => (TokenKind::Pound, 1),
+                '$' => (TokenKind::Dollar, 1),
+                '%' => (TokenKind::Percent, 1),
+                '^' => match self.peek() {
+                    Some('^') => (TokenKind::CaretCaret, 2),
+                    _ => (TokenKind::Caret, 1),
+                },
+                '&' => match self.peek() {
+                    Some('&') => (TokenKind::AmpersandAmpersand, 2),
+                    _ => (TokenKind::Ampersand, 1),
+                },
+                '*' => (TokenKind::Star, 1),
+                '(' => (TokenKind::LParen, 1),
+                ')' => (TokenKind::RParen, 1),
+                '-' => match self.peek() {
+                    Some('>') => (TokenKind::ArrowRight, 2),
+                    Some('-') => (TokenKind::MinusMinus, 2),
+                    _ => (TokenKind::Minus, 1),
+                },
+                '_' => (TokenKind::Underscore, 1),
+                '+' => match self.peek() {
+                    Some('+') => (TokenKind::PlusPlus, 2),
+                    _ => (TokenKind::Plus, 1),
+                },
+                '[' => (TokenKind::LBracket, 1),
+                ']' => (TokenKind::RBracket, 1),
+                '{' => (TokenKind::LBrace, 1),
+                '}' => (TokenKind::RBrace, 1),
+                '|' => match self.peek() {
+                    Some('|') => (TokenKind::PipePipe, 2),
+                    _ => (TokenKind::Pipe, 1),
+                },
+                ';' => (TokenKind::Semicolon, 1),
+                ':' => (TokenKind::Colon, 1),
+                ',' => (TokenKind::Comma, 1),
+                '=' => match self.peek() {
+                    Some('=') => (TokenKind::EqualsEquals, 2),
+                    Some('>') => (TokenKind::FatArrowRight, 2),
+                    _ => (TokenKind::Equals, 1),
+                },
+                '<' => match self.peek() {
+                    Some('=') => (TokenKind::LessThanEquals, 2),
+                    Some('-') => (TokenKind::ArrowLeft, 2),
+                    _ => (TokenKind::LessThan, 1),
+                },
+                '>' => match self.peek() {
+                    Some('=') => (TokenKind::GreaterThanEquals, 2),
+                    _ => (TokenKind::GreaterThan, 1),
+                },
+                '?' => (TokenKind::Question, 1),
+
+                c => {
+                    self.advance();
+                    self.report(
+                        ReportKind::UnexpectedCharacter
+                            .new(format!("{}", c))
+                            .with_label(ReportLabel::new(span_to!(self.index)))
+                            .into(),
+                    );
+                    continue;
+                },
+            };
+            self.push_simple_token(token, len);
+        }
+
+        self.push_token(TokenKind::EOF, self.span(self.line_number, self.index, self.index), "");
+    }
+
+    fn lex_integer(&mut self, base: Base) -> Result<()> {
+        // use slices instead
+        while let Some(char) = self.current {
+            match (base, char.to_ascii_lowercase()) {
+                (Base::Binary, '0'..='1')
+                | (Base::Octal, '0'..='7')
+                | (Base::Decimal, '0'..='9')
+                | (Base::Hexadecimal, '0'..='9' | 'a'..='f') => {
+                    self.advance();
+                },
+                (_, '0'..='9' | 'a'..='z') => {
+                    return ReportKind::SyntaxError
+                        .new("Invalid Integer Literal")
+                        .with_label(
+                            ReportLabel::new(self.span(
+                                self.line_number,
+                                self.index,
+                                self.index + 1,
+                            ))
+                            .with_text(format!(
+                                "'{}' not valid for {} Integer Literal",
+                                char, base
+                            )),
+                        )
+                        .into();
+                },
+                (_, '_') => self.advance(),
+                _ => break,
             }
         }
+        Ok(())
     }
+}
 
-    fn to_span(&self) -> Span {
-        Span::new(self.filename, self.li - self.nl - 1, self.ci - 1)
+#[derive(Debug, Clone, Copy)]
+enum Base {
+    Binary,
+    Octal,
+    Decimal,
+    Hexadecimal,
+}
+
+impl Display for Base {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let str = match self {
+            Base::Binary => "Binary",
+            Base::Octal => "Octal",
+            Base::Decimal => "Decimal",
+            Base::Hexadecimal => "Hexadecimal",
+        }
+        .to_string();
+        write!(f, "{}", str)
+    }
+}
+
+impl From<Base> for TokenKind {
+    fn from(value: Base) -> Self {
+        match value {
+            Base::Binary => Self::BinaryIntLiteral,
+            Base::Octal => Self::OctalIntLiteral,
+            Base::Decimal => Self::DecimalIntLiteral,
+            Base::Hexadecimal => Self::HexadecimalIntLiteral,
+        }
     }
 }

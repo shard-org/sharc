@@ -1,88 +1,79 @@
-use crate::location::Span;
-use crate::logger::Log;
+use crate::span::Span;
+use std::fmt::Formatter;
 
-#[derive(Debug)]
+#[derive(Debug, PartialOrd, PartialEq, Clone, Copy)]
 pub enum TokenKind {
-    // Symbols
-    Ampersand,
-    At,
-    // Backtick,   // error or Chalit
-    Backslash,
+    EOF,
+    NewLine,
+    Identifier,
+
+    Ret,
+
+    FloatLiteral,
+
+    BinaryIntLiteral,
+    OctalIntLiteral,
+    DecimalIntLiteral,
+    HexadecimalIntLiteral,
+
+    StringLiteral,
+    CharLiteral,
+
+    Tilde,
     Bang,
+    At,
+    Pound,
+    Dollar,
+    Percent,
     Caret,
+    CaretCaret,
+    Ampersand,
+    AmpersandAmpersand,
+    Star,
+    LParen,
+    RParen,
+    Minus,
+    Underscore,
+    Equals,
+    Plus,
+    LBracket,
+    RBracket,
+    LBrace,
+    RBrace,
+    Pipe,
+    PipePipe,
+    Semicolon,
     Colon,
     Comma,
-    Dollar,
     Dot,
-    // DoubleQuote,   // error or StrLit
-    Equals,
-    FatArrow,         // =>
-    FatDoubleArrow,   // =>>
+    Slash,
+    Question,
+    ArrowLeft,
+    ArrowRight,
+    FatArrowRight,
     GreaterThan,
     GreaterThanEquals,
-    LeftBrace,
-    LeftBracket,
-    LeftParen,
     LessThan,
     LessThanEquals,
-    Minus,
     MinusMinus,
     NotEquals,
-    Percent,
-    Pipe,
-    Plus,
     PlusPlus,
-    Pound,
-    Question,
-    RightBrace,
-    RightBracket,
-    RightParen,
-    Semicolon,
-    SingleQuote,
-    Slash,
-    Star,
-    Tilde,
-    SmallArrowLeft,
-    SmallArrowRight,
-    Underscore,
-
-    // Other
-    Ident(String),
-    NL,
-
-    // keywords
-    Jmp,
-    Ret,
-    End,
-    Inline,
-    Entry,
-
-    // literals
-    CharLit(char),
-    StrLit(String),
-
-    IntLit(usize),
-    FloatLit(f64),
-    SIntLit(isize),
-
-
-    Err(Log),
-
-    // EOF,
+    EqualsEquals,
 }
 
 #[derive(Debug)]
-pub struct Token {
+pub struct Token<'source> {
     pub kind: TokenKind,
     pub span: Span,
+    pub text: &'source str,
 }
 
-impl Token {
-    pub fn new(kind: TokenKind, span: Span) -> Self {
-        Token{kind,span}
-    }
-
-    pub fn some(self) -> Option<Self> {
-        Some(self)
+impl std::fmt::Display for Token<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Token({:?}, {:?}", self.kind, self.span)?;
+        if !self.text.is_empty() {
+            write!(f, ", {:?}", self.text)?;
+        };
+        write!(f, ")")
     }
 }

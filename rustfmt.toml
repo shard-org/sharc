@@ -1,10 +1,9 @@
-fn_call_width = 90
+fn_params_layout = "Compressed"
 match_block_trailing_comma = true
-newline_style = "Unix"
-normalize_doc_attributes = true
-remove_nested_parens = true
-reorder_imports = true
-use_small_heuristics = "Max"
 max_width = 100
-use_try_shorthand = true
+merge_derives = true
+newline_style = "Unix"
+tab_spaces = 4
 use_field_init_shorthand = true
+use_small_heuristics = "Max"
+use_try_shorthand = true

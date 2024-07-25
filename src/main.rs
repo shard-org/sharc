@@ -1,98 +1,88 @@
-mod args;
-mod logger;
-mod utils;
+#![allow(dead_code, unused)]
 
-mod location;
+use crate::lexer::Lexer;
+use crate::parser::Parser;
+use crate::report::{Level, Report, ReportSender, Unbox};
+use crate::scanner::Scanner;
+use std::process::exit;
+use std::sync::mpsc::Receiver;
+
+mod args;
+mod ast;
+mod lexer;
+mod parser;
+mod report;
+mod scanner;
+mod span;
 mod token;
 
-mod lexer;
-
-use logger::{Log, Logs};
-use args::Args;
-use lexer::Lexer;
-
-use once_cell::sync::Lazy;
-pub static ARGS: Lazy<Args> = Lazy::new(|| 
-    Args::parse(std::env::args().skip(1).collect())
-);
-
-fn main() {
-    // let mut logs: Vec<Log> = Vec::new();
-
-    warn!("sharc is still deep in development :p");
-    warn!("Please report any bugs, crashes, as well as feature suggestions.");
-    print!("\n");
-
-    debug!("{:#?}", *ARGS);
-
-
-
-    let main_file_name = ARGS.file.unwrap_or_else(get_main_file);
-    let main_file = utils::open(main_file_name);
-
-
-    let tokens = Lexer::new(main_file, main_file_name);
-    // logs.print();
-
-    let file = std::fs::File::open(main_file_name).unwrap();
-    let lexer = Lexer::new(file, main_file_name);
-
-    for t in lexer {
-        match t.kind {
-            crate::token::TokenKind::Err(e) => {
-                print!("\n");
-                e.print();
-                std::process::exit(1)
-            },
-            crate::token::TokenKind::NL => print!("NL, \n"),
-            k => print!("{:?}, ", k),
+fn check_reports(receiver: &Receiver<Box<Report>>, reports: &mut Vec<Report>) -> bool {
+    let mut had_error = false;
+    receiver.try_iter().for_each(|report| {
+        if report.level() >= Level::Error {
+            had_error = true;
         }
-    }
-
-    // let kinds = tokens.iter().fold(Vec::new(), |mut acc, t| {
-    //     acc.push(t.kind.clone()); acc
-    // });
-    //
-    // debug!("{:?}", kinds);
-
-
-    todo!()
-
-
-    // let token_stream = Lexer::new(main_file, unsafe{ARGS.infile}).lex();
-    // Log::print_all();  // Exits if errors are found
-    // for token in &token_stream {
-    //     Log::new(DEBUG, None, "", format!("{}", token)).print();
-    // }
-
-    // let output = compiler::compiler(token_stream);
-    //
-    // unsafe{logger::check_err();}
-
-
-
-
-    // log!(DEBUG, "asm output:\n{:?}", &output);
-    //
-    // if unsafe{ARGS.asm} {
-    //     utils::writer(unsafe{ARGS.outfile}, &output);
-    //     Log::print_all();
-    //     log!(NOW, OK, "Asm output written to `{}`", unsafe{ARGS.outfile});
-    //     std::process::exit(0);
-    // }
-    //
-    // log!(FATAL, "assembler not yet implemented");
+        reports.push(report.unbox())
+    });
+    had_error
 }
 
-fn get_main_file() -> &'static str {
-    const MAIN_FILE_PATHS: [&str; 2] = ["main.shd", "src/main.shd"];
+fn print_reports_and_exit(reports: &mut Vec<Report>, args: &args::Args) {
+    if args.level.get() == &Level::Silent { exit(1); }
 
-    for file in MAIN_FILE_PATHS {
-        if std::fs::metadata(file).is_ok() {
-            return file;
+    reports.sort_by(|left, right| {
+        left.level().partial_cmp(&right.level()).expect("Failed to order report kinds.")
+    });
+
+    reports.iter().for_each(|report| {
+        if args.level.get() <= &report.level() {
+            report.display(*args.code_context.get());
         }
+    });
+
+    exit(1);
+}
+
+fn main() {
+    let args = args::Args::parse(std::env::args().skip(1).collect());
+
+    if *args.debug.get() {
+        println!("{:#?}", args);
     }
 
-    fatal!("Could not find a main file. Use the `-f` flag, or make sure it's within one of these paths: {:?}", MAIN_FILE_PATHS); 
-    std::process::exit(1)
+    let mut reports = Vec::<Report>::new();
+    let (sender, receiver) = std::sync::mpsc::channel::<Box<Report>>();
+
+    let filename = args.file.get();
+
+    println!("LEXING");
+    let tokens = {
+        let mut lexer =
+            Lexer::new(filename, Scanner::get_file(filename), ReportSender::new(sender.clone()));
+
+        lexer.lex_tokens();
+        if *args.debug.get() {
+            lexer.tokens.iter().for_each(|token| println!("{:#}", token))
+        }
+
+        if check_reports(&receiver, &mut reports) {
+            print_reports_and_exit(&mut reports, &args);
+        }
+
+        lexer.tokens
+    };
+
+    println!("PARSING");
+    let program = {
+        let mut parser = Parser::new(args.file.get(), &tokens, ReportSender::new(sender));
+        let result = parser.parse();
+
+        if *args.debug.get() {
+            result.stmts.iter().for_each(|stmt| println!("{:#}", stmt))
+        }
+
+        if check_reports(&receiver, &mut reports) {
+            print_reports_and_exit(&mut reports, &args);
+        };
+    };
 }

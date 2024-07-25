@@ -1,139 +1,190 @@
-use super::*;
+use crate::report::{Level, ReportKind};
+use std::borrow::Borrow;
+use std::fmt::{Debug, Formatter};
 use std::process::exit;
-use crate::logger::Level;
 
-const USAGE: &str = "Usage: sharc [-hNV] [-l level] [-f file] [verbs...]";
-const HELP_MESSAGE: &str = 
-"\x1b[1mDESCRIPTION\x1b[0m
-\x1b[1msharc\x1b[0m is a compiler for the Shard Programming Language. 
-\x1b[1mTODO:\x1b[0m expand description
+macro_rules! error {
+    ($($ident:tt)*) => {
+        ReportKind::ArgumentParserError
+            .new(format!($($ident)*))
+            .with_note("(Run with \x1b[1m--help\x1b[0m for usage information)")
+            .display(false);
+        exit(1);
+    };
+}
 
-\x1b[1mOPTIONS\x1b[0m
-    -h  Print this message
-    -V  Print the version number
+#[derive(Default)]
+pub struct Arg<T> {
+    field: Box<T>,
+    name:  &'static str,
+    set:   bool,
+}
 
-    -N  Bypass the `default` verb, instead compiling the file directly
+impl<T> Arg<T> {
+    pub fn new(default: T, name: &'static str) -> Self {
+        Self { 
+            field: Box::new(default),
+            name,
+            set: false,
+        }
+    }
 
-    -f FILE
-        File to start compiling from. (default is `main.shd` or `src/main.shd`)
+    pub fn try_mut(&mut self, value: T) {
+        if self.set {
+            error!("the argument {} cannot be used multiple times", self.name);
+        }
+        self.field = Box::new(value);
+    }
 
-    -l [fatal|err|warn|info|debug]
-        Specify the log level for the messages the compiler sends.
-        fatal - Irrecoverable error, immidiately exits process
-        err   - Regular error
-        warn  - A warning, highlighting potential errors
-        info  - Generic info thrown by the compiler
-        debug - Info for us, the compiler developers. Probably not useful to mere mortals";
+    pub fn get(&self) -> &T {
+        &self.field
+    }
+}
 
-#[derive(Debug)]
-pub struct Verb {
-    pub verb: &'static str, 
-    pub args: Vec<&'static str>,
+impl<T: Debug> Debug for Arg<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self.field)
+    }
 }
 
 #[derive(Debug)]
 pub struct Args {
-    pub file:       Option<&'static str>,
-    pub no_default: bool,
-    pub log_lvl:    logger::Level,
-    pub verb:       Option<Verb>,
-    // pub parser_strict: bool,
+    pub file:   Arg<&'static str>,
+    pub output: Arg<&'static str>,
+    pub debug:  Arg<bool>,
+    pub code_context: Arg<bool>,
+    pub level:  Arg<Level>,
+    pub verbs:  Vec<&'static str>,
 }
 
 impl Args {
     pub fn default() -> Self {
-        Args {
-            file:       None,
-            no_default: false,
-            log_lvl:    Level::Info,
-            verb:       None,
-            // parser_strict: false,
+        Self {
+            file:         Arg::new("main.shd",  "--file"),
+            output:       Arg::new("main.asm",  "--output"),
+            debug:        Arg::new(false,       "--debug"),
+            code_context: Arg::new(true,        "--code-context"),
+            level:        Arg::new(Level::Warn, "--error-level"),
+            verbs:        Vec::new(),
+        }
+    }
+
+    fn handle_arg(&mut self, arg: &str, args: &mut std::vec::IntoIter<String>, is_end: bool) {
+        match arg {
+            "h" => {
+                println!("{}", USAGE);
+                exit(0);
+            },
+            "help" => {
+                println!("{}\n\n{}", USAGE, HELP_MESSAGE);
+                exit(0);
+            },
+            "V" | "version" => {
+                println!("sharc {}", env!("CARGO_PKG_VERSION"));
+                exit(0);
+            },
+            "d" | "debug" => self.debug.try_mut(true),
+            "l" | "error-level" => {
+                if !is_end {
+                    error!("flags with parameters must be at the end of a group, or defined separately");
+                };
+
+                let level = args.next().unwrap_or_else(|| {
+                    error!("expected level");
+                });
+
+                self.level.try_mut(match level.as_str() {
+                    "f" | "fatal" => Level::Fatal,
+                    "e" | "error" => Level::Error,
+                    "w" | "warn" => Level::Warn,
+                    "n" | "note" => Level::Note,
+                    "s" | "silent" => Level::Silent,
+                    _ => {
+                        error!("invalid level `{}`", level);
+                    },
+                });
+            },
+            "no-context" => self.code_context.try_mut(false),
+            "f" | "file" => {
+                if !is_end {
+                    error!("flags with parameters must be at the end of a group, or defined separately");
+                };
+
+                let file = args.next().unwrap_or_else(|| {
+                    error!("expected file");
+                });
+
+                self.file.try_mut(Box::leak(file.into_boxed_str()));
+            },
+            "o" | "output" => {
+                if !is_end {
+                    error!("flags with parameters must be at the end of a group, or defined separately");
+                };
+
+                let output = args.next().unwrap_or_else(|| {
+                    error!("expected file");
+                });
+
+                self.output.try_mut(Box::leak(output.into_boxed_str()));
+            },
+            _ => {
+                error!("unrecognized argument '{}'", arg);
+            },
         }
     }
 
     pub fn parse(args: Vec<String>) -> Self {
-        if args.contains(&String::from("--help")) {
-            println!("{}\n\n{}", USAGE, HELP_MESSAGE);
-            exit(0);
-        }
-
         let mut out = Self::default();
         let mut args = args.into_iter();
 
         while let Some(arg) = args.next() {
-            if let Some(arg) = arg.strip_prefix('-') {
-                for c in arg.chars() {
-                    match c {
-                        'h' => {
-                            println!("{}\n\n{}", USAGE, HELP_MESSAGE);
-                            exit(0);
-                        },
+            if let Some(arg) = arg.strip_prefix("--") {
+                out.handle_arg(arg, &mut args, true);
+            } 
 
-                        'V' => {
-                            println!("{}", env!("CARGO_PKG_VERSION"));
-                            exit(0);
-                        },
+            else if let Some(arg) = arg.strip_prefix("-") {
+                for (i, c) in arg.char_indices().map(|(i, _)| &arg[i..i + 1]).enumerate() {
+                    out.handle_arg(c, &mut args, i == arg.len() - 1)
+                }
+            } 
 
-                        'N' => out.no_default = true,
+            else {
+                if arg == "shark" {
+                    println!("\x1b[34m{}\x1b[0m", SHARK_ASCII);
+                    exit(1);
+                }
 
-                        /* log level */
-                        'l' => out.log_lvl = match args.next() {
-                            Some(a) => match a.as_str() {
-                                "f" | "fatal" => Level::Fatal,
-                                "e" | "err"   => Level::Err,
-                                "w" | "warn"  => Level::Warn,
-                                "i" | "info"  => Level::Info,
-                                "d" | "debug" => Level::Debug,
-                                _ => { 
-                                    fatal!("Invalid Log Level: {}", a);
-                                    exit(1);
-                                },
-                            },
-                            None => {
-                                fatal!("Missing argument after `-l`");
-                                exit(1);
-                            },
-                        },
+                out.verbs.push(Box::leak(arg.into_boxed_str()) as &str);
 
-                        /* file */
-                        'f' => out.file = match args.next() {
-                            Some(f) => Some(Box::leak(f.into_boxed_str())),
-                            None => {
-                                fatal!("Missing argument after `-f`");
-                                exit(1);
-                            },
-                        },
-
-                        a => {
-                            fatal!("Unknown arg `{}`\n{}", a, USAGE);
-                            exit(1);
-                        },
-                    }
-                } 
-                continue;
+                // drain remaining args
+                while let Some(arg) = args.next() {
+                    out.verbs.push(Box::leak(arg.into_boxed_str()) as &str);
+                }
             }
-
-            if arg == "shark" {
-                println!("\x1b[34m{}\x1b[0m", SHARK_ASCII);
-                exit(1);
-            }
-
-            out.verb = Some(Verb {
-                verb: Box::leak(arg.into_boxed_str()), 
-                args: args.clone().fold(Vec::new(), |mut acc, a| {
-                    acc.push(Box::leak(a.into_boxed_str()));
-                    acc
-                }),
-            });
-            break;
-        } 
+        }
         out
     }
 }
 
+const USAGE: &str = "Usage: sharc [-hvd] [-l LEVEL] [-f FILE] [-o FILE] [VERB...]";
+const HELP_MESSAGE: &str = "\x1b[1mDESCRIPTION\x1b[0m
+    The compiler for the Shard Programming Language.
+    Documentation can be found at https://shardlang.org/doc/
 
-const SHARK_ASCII: &str = 
-r#"                                 ,-
+\x1b[1mOPTIONS\x1b[0m
+    -h, --help                  Show only usage with -h
+    -v, --version               Show version
+    -d, --debug                 Print debug information
+        Shows a ton of information not intended for mere mortals.
+    -l, --error-level LEVEL     [fatal|error|warn|note|silent]
+        (default: warn)
+    -f, --file FILE             File to compile
+        (default: main.shd)
+    -o, --output FILE           File to write to
+        (default: main.asm)
+
+        --no-context            Disable code context";
+const SHARK_ASCII: &str = r#"                                 ,-
                                ,'::|
                               /::::|
                             ,'::::o\                                      _..

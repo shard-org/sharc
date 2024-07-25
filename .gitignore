@@ -1,4 +1,6 @@
-/target
-.vscode
 .idea
-Makefile
+.vscode
+/target
+main.shd
+local
+Cargo.lock
