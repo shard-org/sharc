@@ -17,6 +17,7 @@ pub enum TokenKind {
     HexadecimalIntLiteral,
 
     StringLiteral,
+    CharLiteral,
 
     Tilde,
     Bang,

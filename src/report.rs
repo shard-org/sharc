@@ -23,6 +23,7 @@ pub enum ReportKind {
     UnexpectedCharacter,
     UnterminatedMultilineComment,
     UnterminatedStringLiteral,
+    UnterminatedCharLiteral,
 
     // Parser
     UnexpectedToken,
@@ -46,7 +47,8 @@ impl ReportKind {
             // Lexing
             ReportKind::UnexpectedCharacter
             | ReportKind::UnterminatedMultilineComment
-            | ReportKind::UnterminatedStringLiteral => Level::Error,
+            | ReportKind::UnterminatedStringLiteral 
+            | ReportKind::UnterminatedCharLiteral => Level::Error,
 
             // Parsing
             ReportKind::UnexpectedToken | ReportKind::UnexpectedEOF => Level::Error,

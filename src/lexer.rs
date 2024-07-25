@@ -69,7 +69,7 @@ impl<'source> Lexer<'source> {
         );
     }
     pub fn lex_tokens(&mut self) {
-        while let Some(current) = self.current {
+        'main: while let Some(current) = self.current {
             let (_line_number, start_index) = (self.line_number, self.index);
 
             macro_rules! span_to {
@@ -231,12 +231,11 @@ impl<'source> Lexer<'source> {
                             },
                             '\n' => {
                                 self.report(
-                                    ReportKind::UnterminatedStringLiteral
-                                        .new("")
+                                    ReportKind::UnterminatedStringLiteral.new("")
                                         .with_label(ReportLabel::new(span_to!(self.index)))
                                         .into(),
                                 );
-                                break;
+                                continue 'main;
                             },
                             _ => self.advance(),
                         }
@@ -248,7 +247,48 @@ impl<'source> Lexer<'source> {
                     );
                     continue;
                 },
-                '.' => (TokenKind::Dot, 1),
+                '`' => {
+                    self.advance();
+                    while let Some(char) = self.current {
+                        match char {
+                            '`' => {
+                                self.advance();
+                                break;
+                            },
+                            '\\' => {
+                                self.advance();
+
+                                dbg!(self.current, self.peek());
+                                if self.current == Some('`') && self.peek() != Some('`') {
+                                    self.advance();
+                                    self.report(
+                                        ReportKind::UnterminatedCharLiteral.new("")
+                                            .with_label(ReportLabel::new(span_to!(self.index)))
+                                            .into(),
+                                    );
+                                    continue 'main;
+                                }
+                                
+                                self.advance();
+                            },
+                            '\n' => {
+                                self.report(
+                                    ReportKind::UnterminatedCharLiteral.new("")
+                                        .with_label(ReportLabel::new(span_to!(self.index)))
+                                        .into(),
+                                );
+                                continue 'main;
+                            },
+                            _ => self.advance(),
+                        }
+                    }
+                    self.push_token(
+                        TokenKind::CharLiteral,
+                        span_to!(self.index),
+                        self.slice_source(start_index + 1, self.index - 1),
+                    );
+                    continue;
+                },
                 // '.' => match self.peek() {
                 //     Some('0'..='9') => {
                 //         self.advance();
@@ -282,6 +322,7 @@ impl<'source> Lexer<'source> {
 
                 //
                 // Characters
+                '.' => (TokenKind::Dot, 1),
                 '~' => match self.peek() {
                     Some('=') => (TokenKind::NotEquals, 2),
                     _ => (TokenKind::Tilde, 1),
