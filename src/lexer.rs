@@ -331,8 +331,14 @@ impl<'source> Lexer<'source> {
                 '#' => (TokenKind::Pound, 1),
                 '$' => (TokenKind::Dollar, 1),
                 '%' => (TokenKind::Percent, 1),
-                '^' => (TokenKind::Caret, 1),
-                '&' => (TokenKind::Ampersand, 1),
+                '^' => match self.peek() {
+                    Some('^') => (TokenKind::CaretCaret, 2),
+                    _ => (TokenKind::Caret, 1),
+                },
+                '&' => match self.peek() {
+                    Some('&') => (TokenKind::AmpersandAmpersand, 2),
+                    _ => (TokenKind::Ampersand, 1),
+                },
                 '*' => (TokenKind::Star, 1),
                 '(' => (TokenKind::LParen, 1),
                 ')' => (TokenKind::RParen, 1),
@@ -350,7 +356,10 @@ impl<'source> Lexer<'source> {
                 ']' => (TokenKind::RBracket, 1),
                 '{' => (TokenKind::LBrace, 1),
                 '}' => (TokenKind::RBrace, 1),
-                '|' => (TokenKind::Pipe, 1),
+                '|' => match self.peek() {
+                    Some('|') => (TokenKind::PipePipe, 2),
+                    _ => (TokenKind::Pipe, 1),
+                },
                 ';' => (TokenKind::Semicolon, 1),
                 ':' => (TokenKind::Colon, 1),
                 ',' => (TokenKind::Comma, 1),
