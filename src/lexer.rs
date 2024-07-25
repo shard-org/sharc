@@ -257,8 +257,6 @@ impl<'source> Lexer<'source> {
                             },
                             '\\' => {
                                 self.advance();
-
-                                dbg!(self.current, self.peek());
                                 if self.current == Some('`') && self.peek() != Some('`') {
                                     self.advance();
                                     self.report(
