@@ -262,7 +262,8 @@ impl<'source> Lexer<'source> {
                                     self.report(
                                         ReportKind::UnterminatedCharLiteral.new("")
                                             .with_label(ReportLabel::new(span_to!(self.index)))
-                                            .into(),
+                                            .with_note("help: Remove the escape character")
+                                            .into()
                                     );
                                     continue 'main;
                                 }
