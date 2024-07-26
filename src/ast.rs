@@ -7,12 +7,32 @@ pub struct Program {
 }
 
 pub enum ASTKind {
+    Tag(Tag),
+
     IntegerLiteral(usize),
     Identifier(String),
 
     StringLiteral(String),
     CharLiteral(char),
     Block(Vec<Box<AST>>),
+
+    TypeAnnotation(Type, Box<AST>),
+}
+
+#[derive(Debug)]
+pub enum Type {
+    Size(usize),
+    Heap {
+        is_pointer: bool,
+        contents: Vec<(Type, Option<usize>)>,
+    },
+    Struct(String),
+}
+
+#[derive(Debug)]
+pub enum Tag {
+    Name(String),
+    Arch(Vec<String>),
 }
 
 impl ASTKind {
@@ -35,11 +55,13 @@ impl AST {
 impl Display for AST {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match &self.kind {
-            ASTKind::IntegerLiteral(val) => write!(f, "<IntegerLiteral: {}>", val)?,
-            ASTKind::Identifier(ident) => write!(f, "<Identifier: {}>", ident)?,
-            ASTKind::Block(stmts) => write!(f, "<Block: {} statements>", stmts.len())?,
-            ASTKind::StringLiteral(val) => write!(f, "<StringLiteral: {:?}>", val)?,
-            ASTKind::CharLiteral(val) => write!(f, "<CharLiteral: {:?}>", val)?,
+            ASTKind::IntegerLiteral(val) => write!(f, "(IntegerLiteral: {})", val)?,
+            ASTKind::Identifier(ident) => write!(f, "(Identifier: {})", ident)?,
+            ASTKind::Block(stmts) => write!(f, "(Block: {} statements)", stmts.len())?,
+            ASTKind::StringLiteral(val) => write!(f, "(StringLiteral: {:?})", val)?,
+            ASTKind::CharLiteral(val) => write!(f, "(CharLiteral: {:?})", val)?,
+            ASTKind::TypeAnnotation(ty, ast) => write!(f, "(TypeAnnotation: {:?}: {})", ty, ast)?,
+            ASTKind::Tag(tag) => write!(f, "(Tag: {:?})", tag)?,
         }
         Ok(())
     }

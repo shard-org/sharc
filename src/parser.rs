@@ -1,4 +1,4 @@
-use crate::ast::{ASTKind, Program, AST};
+use crate::ast::{ASTKind, Program, AST, Type, Tag};
 use crate::report::{Report, ReportKind, ReportLabel, ReportSender, Result, Unbox};
 use crate::token::{Token, TokenKind};
 use std::cmp::PartialEq;
@@ -29,6 +29,10 @@ impl<'t, 'contents> Parser<'t, 'contents> {
         self.current = &self.tokens[self.index];
     }
 
+    fn nth(&self, index: usize) -> &Token {
+        &self.tokens[self.index + index]
+    }
+
     fn consume(&mut self, kind: TokenKind, msg: &'static str) -> Result<&Token> {
         let Token { kind: actual, span, .. } = self.current;
         match actual {
@@ -46,7 +50,10 @@ impl<'t, 'contents> Parser<'t, 'contents> {
     fn consume_newline(&mut self) -> Result<()> {
         let Token { kind, span, .. } = self.current;
         match kind {
-            TokenKind::NewLine | TokenKind::EOF => Ok(()),
+            TokenKind::NewLine | TokenKind::EOF => {
+                self.advance();
+                Ok(())
+            },
             _ => ReportKind::UnexpectedToken
                 .new(format!("expected NewLine got '{kind:?}'"))
                 .with_label(ReportLabel::new(span.clone()))
@@ -90,7 +97,7 @@ impl<'t, 'contents> Parser<'t, 'contents> {
         let start = self.current.span.clone();
 
         while self.current.kind != until {
-            match self.parse_expression() {
+            match self.parse_statement() {
                 Ok(val) => {
                     stmts.push(val.into());
                     self.consume_newline().map_err(|err| {
@@ -109,9 +116,84 @@ impl<'t, 'contents> Parser<'t, 'contents> {
             self.consume(until, "block not terminated");
         };
 
-        let end = start.clone().extend(stmts.last().map_or_else(|| &start, |ast| &ast.span));
+        let end = start.clone()
+            .extend(stmts.last()
+            .map_or_else(|| &start, |ast| &ast.span));
 
         Ok(ASTKind::Block(stmts).into_ast(start.extend(&end)))
+    }
+
+    fn parse_statement(&mut self) -> Result<AST> {
+        match self.current.kind {
+            TokenKind::Colon => self.parse_tag(),
+            TokenKind::Identifier => self.parse_label(),
+            _ => self.parse_expression(),
+        }
+    }
+
+    fn parse_tag(&mut self) -> Result<AST> {
+        self.advance();
+        if self.current.kind != TokenKind::Identifier {
+            return ReportKind::UnexpectedToken
+                .new("Expected Identifier")
+                .with_label(ReportLabel::new(self.current.span.clone()))
+                .into();
+        }
+
+        match self.current.text {
+            "name" => {
+                self.advance();
+                match self.current.kind {
+                    TokenKind::StringLiteral => {
+                        let Token { text, span, .. } = self.current;
+                        self.advance();
+                        Ok(ASTKind::Tag(Tag::Name(text.to_string())).into_ast(span.clone()))
+                    },
+                    _ => ReportKind::UnexpectedToken
+                        .new("Expected String Literal")
+                        .with_label(ReportLabel::new(self.current.span.clone()))
+                        .into(),
+                }
+            },
+
+            "arch" => {
+                let mut arch_args = Vec::new();
+                loop {
+                    match self.nth(1).kind {
+                        TokenKind::Identifier => arch_args.push(self.nth(1).text.to_string()),
+                        TokenKind::NewLine => break,
+                        _ => {
+                            let span = self.nth(1).span.clone();
+                            self.advance();
+                            return ReportKind::SyntaxError
+                                .new("Expected Identifier")
+                                .with_label(ReportLabel::new(span))
+                                .into();
+                        },
+                    }
+                    self.advance();
+                }
+                self.advance();
+
+                if arch_args.is_empty() {
+                    return ReportKind::SyntaxError
+                        .new("Expected at least one argument")
+                        .with_label(ReportLabel::new(self.current.span.clone()))
+                        .into();
+                }
+
+                Ok(ASTKind::Tag(Tag::Arch(arch_args)).into_ast(self.current.span.clone()))
+            },
+
+            text => ReportKind::InvalidTag
+                .new(format!("{text:?}"))
+                .with_label(ReportLabel::new(self.current.span.clone()))
+                .into(),
+        }
+    }
+
+    fn parse_label(&mut self, ) -> Result<AST> {
+        
     }
 
     fn parse_expression(&mut self) -> Result<AST> {

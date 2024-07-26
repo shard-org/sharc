@@ -53,7 +53,7 @@ fn main() {
     let mut reports = Vec::<Report>::new();
     let (sender, receiver) = std::sync::mpsc::channel::<Box<Report>>();
 
-    println!("LEXING");
+    println!("\nLEXING");
     let tokens = {
         let mut lexer =
             Lexer::new(&args.file.field, Scanner::get_file(&args.file.field), ReportSender::new(sender.clone()));
@@ -70,7 +70,7 @@ fn main() {
         lexer.tokens
     };
 
-    println!("PARSING");
+    println!("\nPARSING");
     let program = {
         let mut parser = Parser::new(&args.file.field, &tokens, ReportSender::new(sender));
         let result = parser.parse();

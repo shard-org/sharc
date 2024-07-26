@@ -29,6 +29,7 @@ pub enum ReportKind {
     UnexpectedToken,
     UnexpectedEOF,
     InvalidEscapeSequence,
+    InvalidTag,
 
     // General
     IOError,
@@ -54,7 +55,8 @@ impl ReportKind {
             // Parsing
             ReportKind::UnexpectedToken 
             | ReportKind::UnexpectedEOF 
-            | ReportKind::InvalidEscapeSequence => Level::Error,
+            | ReportKind::InvalidEscapeSequence
+            | ReportKind::InvalidTag => Level::Error,
 
             // General
             ReportKind::IOError | ReportKind::SyntaxError => Level::Error,
