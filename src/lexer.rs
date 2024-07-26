@@ -231,7 +231,8 @@ impl<'source> Lexer<'source> {
                             },
                             '\n' => {
                                 self.report(
-                                    ReportKind::UnterminatedStringLiteral.new("")
+                                    ReportKind::UnterminatedStringLiteral
+                                        .new("")
                                         .with_label(ReportLabel::new(span_to!(self.index)))
                                         .into(),
                                 );
@@ -260,19 +261,21 @@ impl<'source> Lexer<'source> {
                                 if self.current == Some('`') && self.peek() != Some('`') {
                                     self.advance();
                                     self.report(
-                                        ReportKind::UnterminatedCharLiteral.new("")
+                                        ReportKind::UnterminatedCharLiteral
+                                            .new("")
                                             .with_label(ReportLabel::new(span_to!(self.index)))
                                             .with_note("help: Remove the escape character")
-                                            .into()
+                                            .into(),
                                     );
                                     continue 'main;
                                 }
-                                
+
                                 self.advance();
                             },
                             '\n' => {
                                 self.report(
-                                    ReportKind::UnterminatedCharLiteral.new("")
+                                    ReportKind::UnterminatedCharLiteral
+                                        .new("")
                                         .with_label(ReportLabel::new(span_to!(self.index)))
                                         .into(),
                                 );

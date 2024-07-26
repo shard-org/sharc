@@ -49,12 +49,12 @@ impl ReportKind {
             // Lexing
             ReportKind::UnexpectedCharacter
             | ReportKind::UnterminatedMultilineComment
-            | ReportKind::UnterminatedStringLiteral 
+            | ReportKind::UnterminatedStringLiteral
             | ReportKind::UnterminatedCharLiteral => Level::Error,
 
             // Parsing
-            ReportKind::UnexpectedToken 
-            | ReportKind::UnexpectedEOF 
+            ReportKind::UnexpectedToken
+            | ReportKind::UnexpectedEOF
             | ReportKind::InvalidEscapeSequence
             | ReportKind::InvalidTag => Level::Error,
 
@@ -196,7 +196,7 @@ impl Display for ReportFormatter<'_> {
                         label
                             .text
                             .as_ref()
-                            .unwrap_or(&String::with_capacity(0))
+                            .unwrap_or(&String::new())
                             .color(secondary_color),
                     )?;
 
