@@ -1,4 +1,4 @@
-use crate::ast::{ASTKind, Program, AST, Type, Tag};
+use crate::ast::{ASTKind, Program, AST, Type, Tag, LabelAttribute};
 use crate::report::{Report, ReportKind, ReportLabel, ReportSender, Result, Unbox};
 use crate::token::{Token, TokenKind};
 use std::cmp::PartialEq;
@@ -126,10 +126,43 @@ impl<'t, 'contents> Parser<'t, 'contents> {
     fn parse_statement(&mut self) -> Result<AST> {
         match self.current.kind {
             TokenKind::Colon => self.parse_tag(),
-            TokenKind::Identifier => self.parse_label(),
+            TokenKind::Star  => self.parse_interrupt(),
+            // TokenKind::Identifier => self.parse_label(),
+            TokenKind::Ret   => self.parse_return(),
             _ => self.parse_expression(),
         }
     }
+
+    fn parse_return(&mut self) -> Result<AST> {
+        if self.nth(1).kind == TokenKind::NewLine {
+            self.advance();
+            return Ok(ASTKind::Return(None).into_ast(self.current.span.clone()));
+        }
+
+        self.advance();
+        let expr = self.parse_expression()?;
+        Ok(ASTKind::Return(Some(expr.into())).into_ast(self.current.span.clone()))
+    }
+
+    fn parse_interrupt(&mut self) -> Result<AST> {
+        // syscall
+        if self.nth(1).kind == TokenKind::Identifier {
+            self.advance();
+            todo!("parse syscall")
+        }
+
+        self.advance();
+        match self.parse_expression()? {
+            AST { kind: ASTKind::IntegerLiteral(val), .. } => {
+                Ok(ASTKind::Interrupt(val).into_ast(self.current.span.clone()))
+            },
+            _ => ReportKind::SyntaxError
+                .new("Expected Integer Literal")
+                .with_label(ReportLabel::new(self.current.span.clone()))
+                .into(),
+        }
+    }
+
 
     fn parse_tag(&mut self) -> Result<AST> {
         self.advance();
@@ -157,11 +190,12 @@ impl<'t, 'contents> Parser<'t, 'contents> {
             },
 
             "arch" => {
-                let mut arch_args = Vec::new();
-                loop {
-                    match self.nth(1).kind {
-                        TokenKind::Identifier => arch_args.push(self.nth(1).text.to_string()),
-                        TokenKind::NewLine => break,
+                self.advance();
+
+                let mut arch_args = Vec::with_capacity(2);
+                while self.current.kind != TokenKind::NewLine{
+                    match self.current.kind {
+                        TokenKind::Identifier => arch_args.push(self.current.text.to_string()),
                         _ => {
                             let span = self.nth(1).span.clone();
                             self.advance();
@@ -173,7 +207,6 @@ impl<'t, 'contents> Parser<'t, 'contents> {
                     }
                     self.advance();
                 }
-                self.advance();
 
                 if arch_args.is_empty() {
                     return ReportKind::SyntaxError
@@ -190,10 +223,6 @@ impl<'t, 'contents> Parser<'t, 'contents> {
                 .with_label(ReportLabel::new(self.current.span.clone()))
                 .into(),
         }
-    }
-
-    fn parse_label(&mut self, ) -> Result<AST> {
-        
     }
 
     fn parse_expression(&mut self) -> Result<AST> {

@@ -9,14 +9,27 @@ pub struct Program {
 pub enum ASTKind {
     Tag(Tag),
 
-    IntegerLiteral(usize),
     Identifier(String),
 
+    IntegerLiteral(usize),
     StringLiteral(String),
     CharLiteral(char),
+
     Block(Vec<Box<AST>>),
 
+    LabelDefinition(String, Vec<LabelAttribute>),
+    FunctionDefinition(String, Vec<LabelAttribute>, Box<AST>),
+
+    Interrupt(usize),
+    Syscall(),
+
     TypeAnnotation(Type, Box<AST>),
+
+    Return(Option<Box<AST>>),
+}
+
+pub enum LabelAttribute {
+    Entry,
 }
 
 #[derive(Debug)]
@@ -62,6 +75,17 @@ impl Display for AST {
             ASTKind::CharLiteral(val) => write!(f, "(CharLiteral: {:?})", val)?,
             ASTKind::TypeAnnotation(ty, ast) => write!(f, "(TypeAnnotation: {:?}: {})", ty, ast)?,
             ASTKind::Tag(tag) => write!(f, "(Tag: {:?})", tag)?,
+            ASTKind::LabelDefinition(name, attrs) => {
+                write!(f, "(LabelDefinition: {} with {} attributes)", name, attrs.len())?
+            },
+            ASTKind::FunctionDefinition(name, attrs, ast) => {
+                write!(f, "(FunctionDefinition: {} with {} attributes)", name, attrs.len())?
+            },
+
+            ASTKind::Return(val) if val.is_some() => write!(f, "(Return: {})", val.as_ref().unwrap())?,
+            ASTKind::Return(_) => write!(f, "(Return)")?,
+            ASTKind::Interrupt(val) => write!(f, "(Interrupt: {})", val)?,
+            ASTKind::Syscall() => todo!(),
         }
         Ok(())
     }
