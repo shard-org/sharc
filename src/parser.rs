@@ -1,4 +1,4 @@
-use crate::ast::{ASTKind, Program, Tag, Type, AST};
+use crate::ast::{ASTKind, Program, Tag, Type, AST, LabelAttribute};
 use crate::report::{Report, ReportKind, ReportLabel, ReportSender, Result, Unbox};
 use crate::token::{Token, TokenKind};
 use std::cmp::PartialEq;
@@ -201,10 +201,12 @@ impl<'t, 'contents> Parser<'t, 'contents> {
         }
     }
 
-    fn attributes_fill(attributes: &mut Vec<LabelAttribute>) {
+    fn attributes_fill(&mut self, attributes: &mut Vec<LabelAttribute>) {
         while self.current.kind != TokenKind::NewLine {
             self.advance();
-            attributes.push(self.parse_label_attribute()?);
+            if let Some(attribute) = self.parse_label_attribute() {
+                attributes.push(attribute);
+            }
         }
     }
 
@@ -218,14 +220,14 @@ impl<'t, 'contents> Parser<'t, 'contents> {
 
         let mut attributes = Vec::with_capacity(std::mem::variant_count::<LabelAttribute>());
 
-        match text {
+        match self.current.text {
             "entry" => {
-                attributes_fill(&mut attributes);
+                self.attributes_fill(&mut attributes);
 
                 Ok(ASTKind::LabelDefinition(None, attributes).into_ast(self.current.span.clone()))
             },
             _ => {
-                attributes_fill(&mut attributes);
+                self.attributes_fill(&mut attributes);
 
                 Ok(ASTKind::LabelDefinition(Some(self.current.text.to_string()), attributes)
                     .into_ast(self.current.span.clone()))

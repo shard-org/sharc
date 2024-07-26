@@ -17,7 +17,7 @@ pub enum ASTKind {
     Block(Vec<Box<AST>>),
 
     LabelDefinition(Option<String>, Vec<LabelAttribute>),
-    FunctionDefinition(String, Vec<FunctionAttribute>, Box<AST>),
+    FunctionDefinition(String, Vec<LabelAttribute>, Box<AST>),
 
     TypeAnnotation(Type, Box<AST>),
 }
@@ -67,10 +67,10 @@ impl Display for AST {
             ASTKind::TypeAnnotation(ty, ast) => write!(f, "(TypeAnnotation: {:?}: {})", ty, ast)?,
             ASTKind::Tag(tag) => write!(f, "(Tag: {:?})", tag)?,
             ASTKind::LabelDefinition(name, attrs) => {
-                write!(f, "(LabelDefinition: {} with {} attributes)", name.unwrap(), attrs.len())?
+                write!(f, "(LabelDefinition: {:?} with {} attributes)", name, attrs.len())?
             },
             ASTKind::FunctionDefinition(name, attrs, ast) => {
-                write!(f, "(FunctionDefinition: {} with {} attributes)", name, attrs.len())?
+                write!(f, "(FunctionDefinition: {:?} with {} attributes)", name, attrs.len())?
             },
         }
         Ok(())
