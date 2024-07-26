@@ -2,6 +2,7 @@ use crate::ast::{ASTKind, Program, AST};
 use crate::report::{Report, ReportKind, ReportLabel, ReportSender, Result, Unbox};
 use crate::token::{Token, TokenKind};
 use std::cmp::PartialEq;
+use std::str;
 use std::slice::Iter;
 
 pub struct Parser<'t, 'contents> {
@@ -29,12 +30,13 @@ impl<'t, 'contents> Parser<'t, 'contents> {
     }
 
     fn consume(&mut self, kind: TokenKind, msg: &'static str) -> Result<&Token> {
-        match self.current {
-            token if token.kind == kind => {
+        let Token { kind: actual, span, .. } = self.current;
+        match actual {
+            k if k == &kind => {
                 self.advance();
-                Ok(token)
+                Ok(self.current)
             },
-            Token { kind: actual, span, .. } => ReportKind::UnexpectedToken
+            actual => ReportKind::UnexpectedToken
                 .new(format!("expected '{kind:?}' got '{actual:?}'"))
                 .with_label(ReportLabel::new(span.clone()).with_text(msg))
                 .into(),
@@ -42,9 +44,10 @@ impl<'t, 'contents> Parser<'t, 'contents> {
     }
 
     fn consume_newline(&mut self) -> Result<()> {
-        match self.current {
-            Token { kind: TokenKind::NewLine | TokenKind::EOF, .. } => Ok(()),
-            Token { kind, span, .. } => ReportKind::UnexpectedToken
+        let Token { kind, span, .. } = self.current;
+        match kind {
+            TokenKind::NewLine | TokenKind::EOF => Ok(()),
+            _ => ReportKind::UnexpectedToken
                 .new(format!("expected NewLine got '{kind:?}'"))
                 .with_label(ReportLabel::new(span.clone()))
                 .into(),
@@ -145,7 +148,34 @@ impl<'t, 'contents> Parser<'t, 'contents> {
                 }
             },
 
+            TokenKind::StringLiteral => { // FIXME: this prob isnt the best way to do this :/
+                let text_bytes = text.as_bytes();
+                let text_len = text_bytes.len();
+
+                let mut text = String::with_capacity(text_len);
+                for (i, window) in text_bytes.windows(2).enumerate() {
+                    match window[0] as char {
+                        '\\' => text.push(Self::parse_escape(str::from_utf8(window).unwrap(), span)?),
+                        _ if i+1*2 >= text_len => text.push_str(str::from_utf8(window).unwrap()),
+                        _ => text.push(window[0] as char),
+                    }
+                }
+
+                if text_len == 1 {
+                    text.push(text_bytes[0] as char);
+                }
+
+                self.advance();
+                Ok(ASTKind::StringLiteral(text).into_ast(span.clone()))
+            },
+
+            TokenKind::CharLiteral => {
+                self.advance();
+                Ok(ASTKind::CharLiteral(Self::parse_escape(text, span)?).into_ast(span.clone()))
+            },
+
             TokenKind::EOF => ReportKind::UnexpectedEOF.new("").into(),
+
             kind => {
                 self.advance();
                 ReportKind::UnexpectedToken
@@ -154,5 +184,52 @@ impl<'t, 'contents> Parser<'t, 'contents> {
                     .into()
             },
         }
+    }
+
+
+    fn parse_escape(text: &str, span: &crate::span::Span) -> Result<char> {
+        Ok((match text {
+            "\\0" | "\\@" => 0,
+            "\\A"         => 1,
+            "\\B"         => 2,
+            "\\C"         => 3,
+            "\\D"         => 4,
+            "\\E"         => 5,
+            "\\F"         => 6,
+            "\\G" | "\\a" => 7,
+            "\\H" | "\\b" => 8,
+            "\\I" | "\\t" => 9,
+            "\\J" | "\\n" => 10,
+            "\\K" | "\\v" => 11,
+            "\\L" | "\\f" => 12,
+            "\\M" | "\\r" => 13,
+            "\\N"         => 14,
+            "\\O"         => 15,
+            "\\P"         => 16,
+            "\\Q"         => 17,
+            "\\R"         => 18,
+            "\\S"         => 19,
+            "\\T"         => 20,
+            "\\U"         => 21,
+            "\\V"         => 22,
+            "\\W"         => 23,
+            "\\X"         => 24,
+            "\\Y"         => 25,
+            "\\Z"         => 26,
+            "\\[" | "\\e" => 27,
+            "\\/"         => 28,
+            "\\]"         => 29,
+            "\\^"         => 30,
+            "\\_"         => 31,
+            "\\?"         => 32,
+            "\\"          => '\\' as u8,
+            "\\`"         => '`'  as u8,
+            s if s.len() > 1 => 
+                return ReportKind::InvalidEscapeSequence
+                    .new("")
+                    .with_label(ReportLabel::new(span.clone()))
+                    .into(),
+            s => s.as_bytes()[0],
+        }) as char)
     }
 }

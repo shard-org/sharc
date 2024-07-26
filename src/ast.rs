@@ -9,8 +9,9 @@ pub struct Program {
 pub enum ASTKind {
     IntegerLiteral(usize),
     Identifier(String),
-    // StringLiteral(String),
-    // CharLiteral(char),
+
+    StringLiteral(String),
+    CharLiteral(char),
     Block(Vec<Box<AST>>),
 }
 
@@ -37,6 +38,8 @@ impl Display for AST {
             ASTKind::IntegerLiteral(val) => write!(f, "<IntegerLiteral: {}>", val)?,
             ASTKind::Identifier(ident) => write!(f, "<Identifier: {}>", ident)?,
             ASTKind::Block(stmts) => write!(f, "<Block: {} statements>", stmts.len())?,
+            ASTKind::StringLiteral(val) => write!(f, "<StringLiteral: {:?}>", val)?,
+            ASTKind::CharLiteral(val) => write!(f, "<CharLiteral: {:?}>", val)?,
         }
         Ok(())
     }
