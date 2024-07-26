@@ -17,7 +17,7 @@ pub enum ASTKind {
 
     Block(Vec<Box<AST>>),
 
-    LabelDefinition(String, Vec<LabelAttribute>),
+    LabelDefinition(Option<String>, Vec<LabelAttribute>),
     FunctionDefinition(String, Vec<LabelAttribute>, Box<AST>),
 
     Interrupt(usize),
@@ -28,6 +28,7 @@ pub enum ASTKind {
     Return(Option<Box<AST>>),
 }
 
+#[derive(Debug)]
 pub enum LabelAttribute {
     Entry,
 }
@@ -35,10 +36,7 @@ pub enum LabelAttribute {
 #[derive(Debug)]
 pub enum Type {
     Size(usize),
-    Heap {
-        is_pointer: bool,
-        contents: Vec<(Type, Option<usize>)>,
-    },
+    Heap { is_pointer: bool, contents: Vec<(Type, Option<usize>)> },
     Struct(String),
 }
 
@@ -75,15 +73,32 @@ impl Display for AST {
             ASTKind::CharLiteral(val) => write!(f, "(CharLiteral: {:?})", val)?,
             ASTKind::TypeAnnotation(ty, ast) => write!(f, "(TypeAnnotation: {:?}: {})", ty, ast)?,
             ASTKind::Tag(tag) => write!(f, "(Tag: {:?})", tag)?,
-            ASTKind::LabelDefinition(name, attrs) => {
-                write!(f, "(LabelDefinition: {} with {} attributes)", name, attrs.len())?
-            },
+
+            ASTKind::LabelDefinition(Some(name), attrs) => write!(
+                f,
+                "(LabelDefinition: {} ({}))",
+                name,
+                attrs.iter().fold(String::new(), |mut acc, attr| {
+                    acc.push_str(&format!("{:?} ", attr));
+                    acc
+                })
+            )?,
+            ASTKind::LabelDefinition(_, attrs) => write!(
+                f,
+                "(LabelDefinition: ({}))",
+                attrs.iter().fold(String::new(), |mut acc, attr| {
+                    acc.push_str(&format!("{:?} ", attr));
+                    acc
+                })
+            )?,
+
             ASTKind::FunctionDefinition(name, attrs, ast) => {
                 write!(f, "(FunctionDefinition: {} with {} attributes)", name, attrs.len())?
             },
 
-            ASTKind::Return(val) if val.is_some() => write!(f, "(Return: {})", val.as_ref().unwrap())?,
+            ASTKind::Return(Some(val)) => write!(f, "(Return: {})", val)?,
             ASTKind::Return(_) => write!(f, "(Return)")?,
+
             ASTKind::Interrupt(val) => write!(f, "(Interrupt: {})", val)?,
             ASTKind::Syscall() => todo!(),
         }
