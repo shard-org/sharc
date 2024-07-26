@@ -218,7 +218,7 @@ impl<'t, 'contents> Parser<'t, 'contents> {
                 .into();
         }
 
-        let mut attributes = Vec::with_capacity(std::mem::variant_count::<LabelAttribute>());
+        let mut attributes = Vec::with_capacity(5); // Could be adjusted
 
         match self.current.text {
             "entry" => {

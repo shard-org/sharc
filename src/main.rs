@@ -1,5 +1,4 @@
 #![allow(dead_code, unused)]
-#![feature(variant_count)]
 
 use crate::lexer::Lexer;
 use crate::parser::Parser;
