@@ -4,14 +4,14 @@ use crate::token::{Token, TokenKind};
 use std::fmt::Display;
 
 pub struct Lexer<'source> {
-    filename: &'static str,
-    contents: &'source str,
-    chars: std::iter::Peekable<std::str::Chars<'source>>,
-    current: Option<char>,
+    filename:    &'static str,
+    contents:    &'source str,
+    chars:       std::iter::Peekable<std::str::Chars<'source>>,
+    current:     Option<char>,
     line_number: usize,
-    index: usize,
-    sender: ReportSender,
-    pub tokens: Vec<Token<'source>>,
+    index:       usize,
+    sender:      ReportSender,
+    pub tokens:  Vec<Token<'source>>,
 }
 
 impl<'source> Lexer<'source> {

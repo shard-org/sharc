@@ -7,10 +7,10 @@ use std::str;
 
 pub struct Parser<'t, 'contents> {
     filename: &'static str,
-    tokens: &'t [Token<'contents>],
-    current: &'t Token<'contents>,
-    index: usize,
-    sender: ReportSender,
+    tokens:   &'t [Token<'contents>],
+    current:  &'t Token<'contents>,
+    index:    usize,
+    sender:   ReportSender,
 }
 
 impl<'t, 'contents> Parser<'t, 'contents> {

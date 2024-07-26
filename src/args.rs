@@ -16,8 +16,8 @@ macro_rules! error {
 #[derive(Default)]
 pub struct Arg<T> {
     pub field: Box<T>,
-    name: &'static str,
-    set: bool,
+    name:      &'static str,
+    set:       bool,
 }
 
 impl<T> Arg<T> {
@@ -41,23 +41,23 @@ impl<T: Debug> Debug for Arg<T> {
 
 #[derive(Debug)]
 pub struct Args {
-    pub file: Arg<&'static str>,
-    pub output: Arg<&'static str>,
-    pub debug: Arg<bool>,
+    pub file:         Arg<&'static str>,
+    pub output:       Arg<&'static str>,
+    pub debug:        Arg<bool>,
     pub code_context: Arg<bool>,
-    pub level: Arg<Level>,
-    pub verbs: Vec<&'static str>,
+    pub level:        Arg<Level>,
+    pub verbs:        Vec<&'static str>,
 }
 
 impl Args {
     pub fn default() -> Self {
         Self {
-            file: Arg::new("main.shd", "--file"),
-            output: Arg::new("main.asm", "--output"),
-            debug: Arg::new(false, "--debug"),
+            file:         Arg::new("main.shd", "--file"),
+            output:       Arg::new("main.asm", "--output"),
+            debug:        Arg::new(false, "--debug"),
             code_context: Arg::new(true, "--code-context"),
-            level: Arg::new(Level::Warn, "--error-level"),
-            verbs: Vec::new(),
+            level:        Arg::new(Level::Warn, "--error-level"),
+            verbs:        Vec::new(),
         }
     }
 
