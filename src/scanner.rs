@@ -8,9 +8,9 @@ use once_cell::sync::Lazy;
 
 pub struct Scanner {
     filename: &'static str,
-    index: usize,
+    index:    usize,
     contents: String,
-    reader: BufReader<File>,
+    reader:   BufReader<File>,
 }
 
 static CACHE: Lazy<RwLock<HashMap<&'static str, &'static str>>> =

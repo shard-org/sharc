@@ -1,16 +1,16 @@
-use crate::ast::{ASTKind, Program, AST, Type, Tag};
+use crate::ast::{ASTKind, Program, Tag, Type, AST, LabelAttribute};
 use crate::report::{Report, ReportKind, ReportLabel, ReportSender, Result, Unbox};
 use crate::token::{Token, TokenKind};
 use std::cmp::PartialEq;
-use std::str;
 use std::slice::Iter;
+use std::str;
 
 pub struct Parser<'t, 'contents> {
     filename: &'static str,
-    tokens: &'t [Token<'contents>],
-    current: &'t Token<'contents>,
-    index: usize,
-    sender: ReportSender,
+    tokens:   &'t [Token<'contents>],
+    current:  &'t Token<'contents>,
+    index:    usize,
+    sender:   ReportSender,
 }
 
 impl<'t, 'contents> Parser<'t, 'contents> {
@@ -116,9 +116,7 @@ impl<'t, 'contents> Parser<'t, 'contents> {
             self.consume(until, "block not terminated");
         };
 
-        let end = start.clone()
-            .extend(stmts.last()
-            .map_or_else(|| &start, |ast| &ast.span));
+        let end = start.clone().extend(stmts.last().map_or_else(|| &start, |ast| &ast.span));
 
         Ok(ASTKind::Block(stmts).into_ast(start.extend(&end)))
     }
@@ -158,6 +156,7 @@ impl<'t, 'contents> Parser<'t, 'contents> {
 
             "arch" => {
                 let mut arch_args = Vec::new();
+
                 loop {
                     match self.nth(1).kind {
                         TokenKind::Identifier => arch_args.push(self.nth(1).text.to_string()),
@@ -192,8 +191,48 @@ impl<'t, 'contents> Parser<'t, 'contents> {
         }
     }
 
-    fn parse_label(&mut self, ) -> Result<AST> {
-        
+    fn parse_label_attribute(&mut self) -> Option<LabelAttribute> {
+        match self.current.text {
+            "entry" => {
+                self.advance();
+                Some(LabelAttribute::Entry)
+            },
+            _ => None,
+        }
+    }
+
+    fn attributes_fill(&mut self, attributes: &mut Vec<LabelAttribute>) {
+        while self.current.kind != TokenKind::NewLine {
+            self.advance();
+            if let Some(attribute) = self.parse_label_attribute() {
+                attributes.push(attribute);
+            }
+        }
+    }
+
+    fn parse_label(&mut self) -> Result<AST> {
+        if self.current.kind != TokenKind::Identifier {
+            return ReportKind::UnexpectedToken
+                .new("Expected Identifier")
+                .with_label(ReportLabel::new(self.current.span.clone()))
+                .into();
+        }
+
+        let mut attributes = Vec::with_capacity(5); // Could be adjusted
+
+        match self.current.text {
+            "entry" => {
+                self.attributes_fill(&mut attributes);
+
+                Ok(ASTKind::LabelDefinition(None, attributes).into_ast(self.current.span.clone()))
+            },
+            _ => {
+                self.attributes_fill(&mut attributes);
+
+                Ok(ASTKind::LabelDefinition(Some(self.current.text.to_string()), attributes)
+                    .into_ast(self.current.span.clone()))
+            },
+        }
     }
 
     fn parse_expression(&mut self) -> Result<AST> {
@@ -201,7 +240,7 @@ impl<'t, 'contents> Parser<'t, 'contents> {
     }
 
     fn parse_atom(&mut self) -> Result<AST> {
-        let Token{kind, span, text} = self.current;
+        let Token { kind, span, text } = self.current;
 
         match &kind {
             TokenKind::Identifier => {
@@ -230,15 +269,20 @@ impl<'t, 'contents> Parser<'t, 'contents> {
                 }
             },
 
-            TokenKind::StringLiteral => { // FIXME: this prob isnt the best way to do this :/
+            TokenKind::StringLiteral => {
+                // FIXME: this prob isnt the best way to do this :/
                 let text_bytes = text.as_bytes();
                 let text_len = text_bytes.len();
 
                 let mut text = String::with_capacity(text_len);
                 for (i, window) in text_bytes.windows(2).enumerate() {
                     match window[0] as char {
-                        '\\' => text.push(Self::parse_escape(str::from_utf8(window).unwrap(), span)?),
-                        _ if i+1*2 >= text_len => text.push_str(str::from_utf8(window).unwrap()),
+                        '\\' => {
+                            text.push(Self::parse_escape(str::from_utf8(window).unwrap(), span)?)
+                        },
+                        _ if i + 1 * 2 >= text_len => {
+                            text.push_str(str::from_utf8(window).unwrap())
+                        },
                         _ => text.push(window[0] as char),
                     }
                 }
@@ -268,16 +312,15 @@ impl<'t, 'contents> Parser<'t, 'contents> {
         }
     }
 
-
     fn parse_escape(text: &str, span: &crate::span::Span) -> Result<char> {
         Ok((match text {
             "\\0" | "\\@" => 0,
-            "\\A"         => 1,
-            "\\B"         => 2,
-            "\\C"         => 3,
-            "\\D"         => 4,
-            "\\E"         => 5,
-            "\\F"         => 6,
+            "\\A" => 1,
+            "\\B" => 2,
+            "\\C" => 3,
+            "\\D" => 4,
+            "\\E" => 5,
+            "\\F" => 6,
             "\\G" | "\\a" => 7,
             "\\H" | "\\b" => 8,
             "\\I" | "\\t" => 9,
@@ -285,32 +328,33 @@ impl<'t, 'contents> Parser<'t, 'contents> {
             "\\K" | "\\v" => 11,
             "\\L" | "\\f" => 12,
             "\\M" | "\\r" => 13,
-            "\\N"         => 14,
-            "\\O"         => 15,
-            "\\P"         => 16,
-            "\\Q"         => 17,
-            "\\R"         => 18,
-            "\\S"         => 19,
-            "\\T"         => 20,
-            "\\U"         => 21,
-            "\\V"         => 22,
-            "\\W"         => 23,
-            "\\X"         => 24,
-            "\\Y"         => 25,
-            "\\Z"         => 26,
+            "\\N" => 14,
+            "\\O" => 15,
+            "\\P" => 16,
+            "\\Q" => 17,
+            "\\R" => 18,
+            "\\S" => 19,
+            "\\T" => 20,
+            "\\U" => 21,
+            "\\V" => 22,
+            "\\W" => 23,
+            "\\X" => 24,
+            "\\Y" => 25,
+            "\\Z" => 26,
             "\\[" | "\\e" => 27,
-            "\\/"         => 28,
-            "\\]"         => 29,
-            "\\^"         => 30,
-            "\\_"         => 31,
-            "\\?"         => 32,
-            "\\"          => '\\' as u8,
-            "\\`"         => '`'  as u8,
-            s if s.len() > 1 => 
+            "\\/" => 28,
+            "\\]" => 29,
+            "\\^" => 30,
+            "\\_" => 31,
+            "\\?" => 32,
+            "\\" => '\\' as u8,
+            "\\`" => '`' as u8,
+            s if s.len() > 1 => {
                 return ReportKind::InvalidEscapeSequence
                     .new("")
                     .with_label(ReportLabel::new(span.clone()))
-                    .into(),
+                    .into()
+            },
             s => s.as_bytes()[0],
         }) as char)
     }

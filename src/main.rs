@@ -28,7 +28,9 @@ fn check_reports(receiver: &Receiver<Box<Report>>, reports: &mut Vec<Report>) ->
 }
 
 fn print_reports_and_exit(reports: &mut Vec<Report>, args: &args::Args) {
-    if *args.level.field == Level::Silent { exit(1); }
+    if *args.level.field == Level::Silent {
+        exit(1);
+    }
 
     reports.sort_by(|left, right| {
         left.level().partial_cmp(&right.level()).expect("Failed to order report kinds.")
@@ -55,8 +57,11 @@ fn main() {
 
     println!("\nLEXING");
     let tokens = {
-        let mut lexer =
-            Lexer::new(&args.file.field, Scanner::get_file(&args.file.field), ReportSender::new(sender.clone()));
+        let mut lexer = Lexer::new(
+            &args.file.field,
+            Scanner::get_file(&args.file.field),
+            ReportSender::new(sender.clone()),
+        );
 
         lexer.lex_tokens();
         if *args.debug.field {

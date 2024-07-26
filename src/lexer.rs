@@ -4,14 +4,14 @@ use crate::token::{Token, TokenKind};
 use std::fmt::Display;
 
 pub struct Lexer<'source> {
-    filename: &'static str,
-    contents: &'source str,
-    chars: std::iter::Peekable<std::str::Chars<'source>>,
-    current: Option<char>,
+    filename:    &'static str,
+    contents:    &'source str,
+    chars:       std::iter::Peekable<std::str::Chars<'source>>,
+    current:     Option<char>,
     line_number: usize,
-    index: usize,
-    sender: ReportSender,
-    pub tokens: Vec<Token<'source>>,
+    index:       usize,
+    sender:      ReportSender,
+    pub tokens:  Vec<Token<'source>>,
 }
 
 impl<'source> Lexer<'source> {
@@ -231,7 +231,8 @@ impl<'source> Lexer<'source> {
                             },
                             '\n' => {
                                 self.report(
-                                    ReportKind::UnterminatedStringLiteral.new("")
+                                    ReportKind::UnterminatedStringLiteral
+                                        .new("")
                                         .with_label(ReportLabel::new(span_to!(self.index)))
                                         .into(),
                                 );
@@ -260,19 +261,21 @@ impl<'source> Lexer<'source> {
                                 if self.current == Some('`') && self.peek() != Some('`') {
                                     self.advance();
                                     self.report(
-                                        ReportKind::UnterminatedCharLiteral.new("")
+                                        ReportKind::UnterminatedCharLiteral
+                                            .new("")
                                             .with_label(ReportLabel::new(span_to!(self.index)))
                                             .with_note("help: Remove the escape character")
-                                            .into()
+                                            .into(),
                                     );
                                     continue 'main;
                                 }
-                                
+
                                 self.advance();
                             },
                             '\n' => {
                                 self.report(
-                                    ReportKind::UnterminatedCharLiteral.new("")
+                                    ReportKind::UnterminatedCharLiteral
+                                        .new("")
                                         .with_label(ReportLabel::new(span_to!(self.index)))
                                         .into(),
                                 );

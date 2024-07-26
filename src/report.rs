@@ -49,12 +49,12 @@ impl ReportKind {
             // Lexing
             ReportKind::UnexpectedCharacter
             | ReportKind::UnterminatedMultilineComment
-            | ReportKind::UnterminatedStringLiteral 
+            | ReportKind::UnterminatedStringLiteral
             | ReportKind::UnterminatedCharLiteral => Level::Error,
 
             // Parsing
-            ReportKind::UnexpectedToken 
-            | ReportKind::UnexpectedEOF 
+            ReportKind::UnexpectedToken
+            | ReportKind::UnexpectedEOF
             | ReportKind::InvalidEscapeSequence
             | ReportKind::InvalidTag => Level::Error,
 
@@ -83,10 +83,10 @@ impl ReportLabel {
 
 #[derive(Clone)]
 pub struct Report {
-    kind: ReportKind,
+    kind:  ReportKind,
     title: String,
     label: Option<ReportLabel>,
-    note: Option<String>,
+    note:  Option<String>,
 }
 
 impl Report {
@@ -132,7 +132,7 @@ impl PartialOrd<Self> for Report {
 }
 
 struct ReportFormatter<'e> {
-    report: &'e Report,
+    report:       &'e Report,
     show_context: bool,
 }
 
@@ -193,11 +193,7 @@ impl Display for ReportFormatter<'_> {
                         "|".cyan().dimmed(),
                         " ".repeat(span.start_index - line_index),
                         "^".repeat(span.end_index - span.start_index).color(primary_color).bold(),
-                        label
-                            .text
-                            .as_ref()
-                            .unwrap_or(&String::with_capacity(0))
-                            .color(secondary_color),
+                        label.text.as_ref().unwrap_or(&String::new()).color(secondary_color),
                     )?;
 
                     if let Some(note) = &report.note {

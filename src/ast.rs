@@ -3,7 +3,7 @@ use std::fmt::{Display, Formatter};
 
 pub struct Program {
     pub filename: &'static str,
-    pub stmts: Vec<Box<AST>>,
+    pub stmts:    Vec<Box<AST>>,
 }
 
 pub enum ASTKind {
@@ -16,16 +16,20 @@ pub enum ASTKind {
     CharLiteral(char),
     Block(Vec<Box<AST>>),
 
+    LabelDefinition(Option<String>, Vec<LabelAttribute>),
+    FunctionDefinition(String, Vec<LabelAttribute>, Box<AST>),
+
     TypeAnnotation(Type, Box<AST>),
+}
+
+pub enum LabelAttribute {
+    Entry,
 }
 
 #[derive(Debug)]
 pub enum Type {
     Size(usize),
-    Heap {
-        is_pointer: bool,
-        contents: Vec<(Type, Option<usize>)>,
-    },
+    Heap { is_pointer: bool, contents: Vec<(Type, Option<usize>)> },
     Struct(String),
 }
 
@@ -62,6 +66,12 @@ impl Display for AST {
             ASTKind::CharLiteral(val) => write!(f, "(CharLiteral: {:?})", val)?,
             ASTKind::TypeAnnotation(ty, ast) => write!(f, "(TypeAnnotation: {:?}: {})", ty, ast)?,
             ASTKind::Tag(tag) => write!(f, "(Tag: {:?})", tag)?,
+            ASTKind::LabelDefinition(name, attrs) => {
+                write!(f, "(LabelDefinition: {:?} with {} attributes)", name, attrs.len())?
+            },
+            ASTKind::FunctionDefinition(name, attrs, ast) => {
+                write!(f, "(FunctionDefinition: {:?} with {} attributes)", name, attrs.len())?
+            },
         }
         Ok(())
     }
