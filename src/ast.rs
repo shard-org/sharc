@@ -1,14 +1,24 @@
 use crate::span::Span;
 use std::fmt::{Display, Formatter};
 
+
 pub struct Program {
     pub filename: &'static str,
     pub stmts: Vec<Box<AST>>,
 }
 
+#[derive(Debug)]
 pub enum ASTKind {
-    Tag(Tag),
+    // Definitions
+    LabelDefinition(Option<String>, Vec<LabelAttribute>),
+    FunctionDefinition(String, Vec<LabelAttribute>, Box<AST>),
 
+    // Keywords
+    Return(Option<Box<AST>>),
+
+
+    //
+    // Expressions
     Identifier(String),
 
     IntegerLiteral(usize),
@@ -17,15 +27,11 @@ pub enum ASTKind {
 
     Block(Vec<Box<AST>>),
 
-    LabelDefinition(Option<String>, Vec<LabelAttribute>),
-    FunctionDefinition(String, Vec<LabelAttribute>, Box<AST>),
+    TypeAnnotation(Type, Option<Box<AST>>),
 
+    // Calls
     Interrupt(usize),
-    Syscall(),
-
-    TypeAnnotation(Type, Box<AST>),
-
-    Return(Option<Box<AST>>),
+    Syscall(String, Vec<AST>),
 }
 
 #[derive(Debug)]
@@ -33,17 +39,16 @@ pub enum LabelAttribute {
     Entry,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub enum Type {
     Size(usize),
     Heap { is_pointer: bool, contents: Vec<(Type, Option<usize>)> },
     Struct(String),
-}
-
-#[derive(Debug)]
-pub enum Tag {
-    Name(String),
-    Arch(Vec<String>),
+    Register { 
+        inner: Option<Box<Type>>, 
+        ident: usize,
+        size: usize 
+    },
 }
 
 impl ASTKind {
@@ -52,6 +57,7 @@ impl ASTKind {
     }
 }
 
+#[derive(Debug)]
 pub struct AST {
     pub span: Span,
     pub kind: ASTKind,
@@ -71,8 +77,8 @@ impl Display for AST {
             ASTKind::Block(stmts) => write!(f, "(Block: {} statements)", stmts.len())?,
             ASTKind::StringLiteral(val) => write!(f, "(StringLiteral: {:?})", val)?,
             ASTKind::CharLiteral(val) => write!(f, "(CharLiteral: {:?})", val)?,
-            ASTKind::TypeAnnotation(ty, ast) => write!(f, "(TypeAnnotation: {:?}: {})", ty, ast)?,
-            ASTKind::Tag(tag) => write!(f, "(Tag: {:?})", tag)?,
+            ASTKind::TypeAnnotation(ty, Some(ast)) => write!(f, "(TypeAnnotation: {:?} ({}))", ty, ast)?,
+            ASTKind::TypeAnnotation(ty, None) => write!(f, "(TypeAnnotation: {:?})", ty)?,
 
             ASTKind::LabelDefinition(Some(name), attrs) => write!(
                 f,
@@ -92,15 +98,19 @@ impl Display for AST {
                 })
             )?,
 
-            ASTKind::FunctionDefinition(name, attrs, ast) => {
-                write!(f, "(FunctionDefinition: {} with {} attributes)", name, attrs.len())?
-            },
+            ASTKind::FunctionDefinition(name, attrs, ast) => todo!(),
 
             ASTKind::Return(Some(val)) => write!(f, "(Return: {})", val)?,
             ASTKind::Return(_) => write!(f, "(Return)")?,
 
             ASTKind::Interrupt(val) => write!(f, "(Interrupt: {})", val)?,
-            ASTKind::Syscall() => todo!(),
+            ASTKind::Syscall(name, args) => write!(f, "(Syscall: {} ({}))",
+                name,
+                args.iter().fold(String::new(), |mut acc, arg| {
+                    acc.push_str(&format!("{} ", arg));
+                    acc
+                })
+            )?,
         }
         Ok(())
     }
