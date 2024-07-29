@@ -31,7 +31,6 @@ impl<'contents> PreProcessor<'contents> {
     pub fn new(filename: &'static str, tokens: Vec<Token<'contents>>, sender: ReportSender) -> Self {
         let tokens_len = tokens.len();
         let mut tokens = tokens.into_iter().peekable();
-        let current = tokens.next().unwrap();
 
         Self {
             filename, tokens, sender,
@@ -70,7 +69,7 @@ impl<'contents> PreProcessor<'contents> {
     }
 
     pub fn process(mut self) -> (Vec<Token<'contents>>, HashSet<Tag>) {
-        match self.index_all().and_then(|_| self.handle_macros()) {
+        match self.index_all().and_then(|_| self.macro_expand(1)) {
             Ok(()) => (self.output, self.tags),
             Err(err) => {
                 self.report(err);
@@ -79,25 +78,74 @@ impl<'contents> PreProcessor<'contents> {
         }
     }
 
-    fn handle_macros(&mut self) -> Result<()> {
+    fn macro_expand(&mut self, pass: usize) -> Result<()> {
+        if pass > 10 {
+            return ReportKind::ExceededRecursionLimit
+                .new("reached over 10 macro expansion passes")
+                .into();
+        }
+
+        let mut index = 0;
+        let mut is_done = true;
+
+        while let token = &self.output[index] {
+            index += 1;
+            match token.kind {
+                TokenKind::Pound
+                    if self.output[index].kind == TokenKind::Identifier => {
+                        let ident = self.output[index].text;
+                        match self.macro_defs.get(ident) {
+                            Some(tokens) => {
+                                is_done = false;
+                                self.output.splice(index-1..index+1, tokens.iter().cloned());
+                            },
+                            None => return ReportKind::UndefinedMacro
+                                .new(format!("Undefined macro: {ident}"))
+                                .with_label(ReportLabel::new(token.span.clone()))
+                                .into(),
+                        }
+                    },
+                TokenKind::EOF => break,
+                _ => {},
+            }
+        }
+
+        if !is_done {
+            self.macro_expand(pass + 1)?;
+        }
+
         Ok(())
     }
 
     fn index_all(&mut self) -> Result<()> {
+        let mut is_line_start = true;
+
         while let token = self.next()? {
             match token.kind {
-                TokenKind::EOF => break,
+                TokenKind::EOF => {
+                    self.output.push(token);
+                    break
+                },
+                TokenKind::Colon if is_line_start => {
+                    self.index_tag()?;
+                    is_line_start = true;
+                },
                 TokenKind::NewLine 
-                    if self.peek().kind == TokenKind::Colon
-                    => self.index_tag()?,
-                _ => continue,
+                    if self.peek().kind == TokenKind::Colon => {
+                        self.next()?;
+                        self.index_tag()?;
+                        is_line_start = true;
+                    },
+                _ => {
+                    is_line_start = false;
+                    self.output.push(token)
+                },
             }
         }
         Ok(())
     }
 
     fn index_tag(&mut self) -> Result<()> {
-        self.next()?;
         let token = self.next()?;
         match token.text.to_lowercase().as_str() {
             "name" => {

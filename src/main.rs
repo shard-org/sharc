@@ -7,6 +7,8 @@ use crate::scanner::Scanner;
 use std::process::exit;
 use std::sync::mpsc::Receiver;
 
+use colored::Colorize;
+
 mod args;
 mod ast;
 mod lexer;
@@ -56,7 +58,7 @@ fn main() {
     let mut reports = Vec::<Report>::new();
     let (sender, receiver) = std::sync::mpsc::channel::<Box<Report>>();
 
-    println!("\nLEXER");
+    println!("\n{}", "LEXER".bold());
     let tokens = {
         let mut lexer = Lexer::new(
             &args.file.field,
@@ -76,7 +78,7 @@ fn main() {
         lexer.tokens
     };
 
-    println!("\nPREPROCESSOR");
+    println!("\n{}", "PREPROCESSOR".bold());
     let (tokens, tags) = {
         let mut preprocessor = preprocessor::PreProcessor::new(
             &args.file.field, tokens, ReportSender::new(sender.clone()),
@@ -86,7 +88,8 @@ fn main() {
 
         if *args.debug.field {
             tokens.iter().for_each(|token| println!("{:#}", token));
-            tags.iter().for_each(|tag| println!("{:#?}", tag));
+            println!("");
+            tags.iter().for_each(|tag| println!("{:?}", tag));
         }
 
         if check_reports(&receiver, &mut reports) {
@@ -96,7 +99,7 @@ fn main() {
         (tokens, tags)
     };
 
-    println!("\nPARSER");
+    println!("\n{}", "PARSER".bold());
     let program = {
         let mut parser = Parser::new(&args.file.field, &tokens, ReportSender::new(sender));
         let result = parser.parse();
