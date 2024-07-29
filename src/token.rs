@@ -61,7 +61,7 @@ pub enum TokenKind {
     EqualsEquals,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Token<'source> {
     pub kind: TokenKind,
     pub span: Span,

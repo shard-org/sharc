@@ -15,6 +15,7 @@ mod report;
 mod scanner;
 mod span;
 mod token;
+mod preprocessor;
 
 fn check_reports(receiver: &Receiver<Box<Report>>, reports: &mut Vec<Report>) -> bool {
     let mut had_error = false;
@@ -55,7 +56,7 @@ fn main() {
     let mut reports = Vec::<Report>::new();
     let (sender, receiver) = std::sync::mpsc::channel::<Box<Report>>();
 
-    println!("\nLEXING");
+    println!("\nLEXER");
     let tokens = {
         let mut lexer = Lexer::new(
             &args.file.field,
@@ -75,7 +76,27 @@ fn main() {
         lexer.tokens
     };
 
-    println!("\nPARSING");
+    println!("\nPREPROCESSOR");
+    let (tokens, tags) = {
+        let mut preprocessor = preprocessor::PreProcessor::new(
+            &args.file.field, tokens, ReportSender::new(sender.clone()),
+        );
+
+        let (tokens, tags) = preprocessor.process();
+
+        if *args.debug.field {
+            tokens.iter().for_each(|token| println!("{:#}", token));
+            tags.iter().for_each(|tag| println!("{:#?}", tag));
+        }
+
+        if check_reports(&receiver, &mut reports) {
+            print_reports_and_exit(&mut reports, &args);
+        }
+
+        (tokens, tags)
+    };
+
+    println!("\nPARSER");
     let program = {
         let mut parser = Parser::new(&args.file.field, &tokens, ReportSender::new(sender));
         let result = parser.parse();

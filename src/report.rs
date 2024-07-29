@@ -25,11 +25,16 @@ pub enum ReportKind {
     UnterminatedStringLiteral,
     UnterminatedCharLiteral,
 
+    // Preprocessor
+    UndefinedMacroInvocation,
+    InvalidTag,
+    SelfReferencingMacro,
+    InfinitelyRecursiveMacro,
+
     // Parser
     UnexpectedToken,
     UnexpectedEOF,
     InvalidEscapeSequence,
-    InvalidTag,
 
     // General
     IOError,
@@ -52,11 +57,16 @@ impl ReportKind {
             | ReportKind::UnterminatedStringLiteral
             | ReportKind::UnterminatedCharLiteral => Level::Error,
 
+            // Preprocessing
+            ReportKind::UndefinedMacroInvocation
+            | ReportKind::SelfReferencingMacro
+            | ReportKind::InfinitelyRecursiveMacro
+            | ReportKind::InvalidTag => Level::Error,
+
             // Parsing
             ReportKind::UnexpectedToken
             | ReportKind::UnexpectedEOF
-            | ReportKind::InvalidEscapeSequence
-            | ReportKind::InvalidTag => Level::Error,
+            | ReportKind::InvalidEscapeSequence => Level::Error,
 
             // General
             ReportKind::IOError | ReportKind::SyntaxError => Level::Error,
