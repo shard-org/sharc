@@ -58,7 +58,6 @@ fn main() {
     let mut reports = Vec::<Report>::new();
     let (sender, receiver) = std::sync::mpsc::channel::<Box<Report>>();
 
-    println!("\n{}", "LEXER".bold());
     let tokens = {
         let mut lexer = Lexer::new(
             &args.file.field,
@@ -68,6 +67,7 @@ fn main() {
 
         lexer.lex_tokens();
         if *args.debug.field {
+            println!("\n{}", "LEXER".bold());
             lexer.tokens.iter().for_each(|token| println!("{:#}", token))
         }
 
@@ -78,7 +78,6 @@ fn main() {
         lexer.tokens
     };
 
-    println!("\n{}", "PREPROCESSOR".bold());
     let (tokens, tags) = {
         let mut preprocessor = preprocessor::PreProcessor::new(
             &args.file.field, tokens, ReportSender::new(sender.clone()),
@@ -87,6 +86,7 @@ fn main() {
         let (tokens, tags) = preprocessor.process();
 
         if *args.debug.field {
+            println!("\n{}", "PREPROCESSOR".bold());
             tokens.iter().for_each(|token| println!("{:#}", token));
             println!("");
             tags.iter().for_each(|tag| println!("{:?}", tag));
@@ -99,12 +99,12 @@ fn main() {
         (tokens, tags)
     };
 
-    println!("\n{}", "PARSER".bold());
     let program = {
         let mut parser = Parser::new(&args.file.field, &tokens, ReportSender::new(sender));
         let result = parser.parse();
 
         if *args.debug.field {
+            println!("\n{}", "PARSER".bold());
             result.stmts.iter().for_each(|stmt| println!("{:#}", stmt))
         }
 
