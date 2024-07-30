@@ -42,7 +42,7 @@ pub struct SpanPrinter<'s> {
 
 impl std::fmt::Display for SpanPrinter<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let column = self.span.start_index - self.line_index; // .saturating_sub(self.line_index);
+        let column = self.span.start_index.saturating_sub(self.line_index);
         write!(f, "{}:{}:{}", self.span.filename, self.span.line_number, column)
     }
 }
