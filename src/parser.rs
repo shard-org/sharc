@@ -61,12 +61,9 @@ impl<'t, 'contents> Parser<'t, 'contents> {
         let Token { kind, span, .. } = self.current;
         match kind {
             TokenKind::NewLine => {
-                loop {
-                    if self.current.kind == TokenKind::NewLine {
-                        self.advance();
-                        continue;
-                    }
-                    break;
+                self.advance();
+                while self.current.kind == TokenKind::NewLine {
+                    self.advance();
                 }
                 Ok(())
             },
