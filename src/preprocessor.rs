@@ -99,7 +99,7 @@ impl<'contents> PreProcessor<'contents> {
             .map(|_| self.expand_tag_defs())
             .and_then(|_| self.expand_macros())
             .and_then(|tokens| self.into_tags_map().map(|tags| (tokens, tags)))
-            // .map_err(|err| self.sender.send(err))
+            .map_err(|err| self.sender.send(err))
             {
             Ok(t) => {
                 println!("\nMACRO-DEFS:");
