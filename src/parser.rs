@@ -17,7 +17,16 @@ impl<'t, 'contents> Parser<'t, 'contents> {
     pub fn new(
         filename: &'static str, tokens: &'t [Token<'contents>], sender: ReportSender,
     ) -> Self {
-        Self { filename, tokens, current: &tokens[0], index: 0, sender }
+        let mut index = 0;
+        while tokens.get(index).is_some_and(|t| t.kind == TokenKind::NewLine) {
+            index += 1;
+        }
+
+        Self { 
+            filename, sender, index,
+            tokens: &tokens[index..], 
+            current: &tokens[index], 
+        }
     }
 
     fn report(&mut self, report: Box<Report>) {
