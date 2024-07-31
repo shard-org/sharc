@@ -48,6 +48,12 @@ Example:
 ```
 feat: function call parsing
 ```
+<br>
+
+For commits refrerring to issues, pull requests, or other commits, use the following format:
+```
+fix(#20): buffer overflow on consecutive tags
+```
 
 
 # Exit Codes
