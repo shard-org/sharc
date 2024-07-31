@@ -1,7 +1,6 @@
 use crate::span::Span;
 use std::fmt::{Display, Formatter};
 
-
 pub struct Program {
     pub filename: &'static str,
     pub stmts: Vec<Box<AST>>,
@@ -15,7 +14,6 @@ pub enum ASTKind {
 
     // Keywords
     Return(Option<Box<AST>>),
-
 
     //
     // Expressions
@@ -44,11 +42,7 @@ pub enum Type {
     Size(usize),
     Heap { is_pointer: bool, contents: Vec<(Type, Option<usize>)> },
     Struct(String),
-    Register { 
-        inner: Option<Box<Type>>, 
-        ident: usize,
-        size: usize 
-    },
+    Register { inner: Option<Box<Type>>, ident: usize, size: usize },
 }
 
 impl ASTKind {
@@ -77,7 +71,9 @@ impl Display for AST {
             ASTKind::Block(stmts) => write!(f, "(Block: {} statements)", stmts.len())?,
             ASTKind::StringLiteral(val) => write!(f, "(StringLiteral: {:?})", val)?,
             ASTKind::CharLiteral(val) => write!(f, "(CharLiteral: {:?})", val)?,
-            ASTKind::TypeAnnotation(ty, Some(ast)) => write!(f, "(TypeAnnotation: {:?} ({}))", ty, ast)?,
+            ASTKind::TypeAnnotation(ty, Some(ast)) => {
+                write!(f, "(TypeAnnotation: {:?} ({}))", ty, ast)?
+            },
             ASTKind::TypeAnnotation(ty, None) => write!(f, "(TypeAnnotation: {:?})", ty)?,
 
             ASTKind::LabelDefinition(Some(name), attrs) => write!(
@@ -104,7 +100,9 @@ impl Display for AST {
             ASTKind::Return(_) => write!(f, "(Return)")?,
 
             ASTKind::Interrupt(val) => write!(f, "(Interrupt: {})", val)?,
-            ASTKind::Syscall(name, args) => write!(f, "(Syscall: {} ({}))",
+            ASTKind::Syscall(name, args) => write!(
+                f,
+                "(Syscall: {} ({}))",
                 name,
                 args.iter().fold(String::new(), |mut acc, arg| {
                     acc.push_str(&format!("{} ", arg));

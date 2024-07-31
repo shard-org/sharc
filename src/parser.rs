@@ -26,15 +26,12 @@ impl<'t, 'contents> Parser<'t, 'contents> {
 
     fn advance(&mut self) {
         self.index += 1;
-        self.current = &self.tokens
-            .get(self.index)
-            .expect("Failed to advance token: out of bounds");
+        self.current =
+            &self.tokens.get(self.index).expect("Failed to advance token: out of bounds");
     }
 
     fn peek(&self, offset: usize) -> &Token {
-        &self.tokens
-            .get(self.index + offset)
-            .expect("Failed to peek token: out of bounds")
+        &self.tokens.get(self.index + offset).expect("Failed to peek token: out of bounds")
     }
 
     fn consume(&mut self, kind: TokenKind, msg: &'static str) -> Result<&Token> {
@@ -54,7 +51,17 @@ impl<'t, 'contents> Parser<'t, 'contents> {
     fn consume_newline(&mut self) -> Result<()> {
         let Token { kind, span, .. } = self.current;
         match kind {
-            TokenKind::NewLine | TokenKind::EOF => {
+            TokenKind::NewLine => {
+                loop {
+                    if self.current.kind == TokenKind::NewLine {
+                        self.advance();
+                        continue;
+                    }
+                    break;
+                }
+                Ok(())
+            },
+            TokenKind::EOF => {
                 self.advance();
                 Ok(())
             },
@@ -128,9 +135,9 @@ impl<'t, 'contents> Parser<'t, 'contents> {
     fn parse_statement(&mut self) -> Result<AST> {
         match self.current.kind {
             // TokenKind::Colon      => self.parse_tag(),
-            TokenKind::Star       => self.parse_interrupt(),
+            TokenKind::Star => self.parse_interrupt(),
             TokenKind::Identifier => self.parse_label(),
-            TokenKind::Ret        => self.parse_return(),
+            TokenKind::Ret => self.parse_return(),
             _ => self.parse_expression(),
         }
     }
@@ -157,8 +164,8 @@ impl<'t, 'contents> Parser<'t, 'contents> {
             while self.current.kind != TokenKind::NewLine {
                 args.push(self.parse_expression()?);
 
-                if self.current.kind != TokenKind::Comma { 
-                    break; 
+                if self.current.kind != TokenKind::Comma {
+                    break;
                 }
                 self.advance();
             }
