@@ -9,12 +9,12 @@ env:
 
 jobs:
     build:
-        name: Build
+        name: Check
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
             - run: rustup update stable && rustup default stable
-            - run: cargo build
+            - run: cargo check 
 
     clippy:
         name: Clippy
