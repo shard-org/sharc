@@ -5,8 +5,10 @@ use crate::span::Span;
 use crate::token::{Token, TokenKind};
 use std::collections::{HashMap, HashSet};
 
+
 // use index_list::{IndexList, ListIndex};
 use std::collections::VecDeque;
+
 // ! USE LINKED LISTTTTTTT
 
 #[derive(Debug, PartialEq, Eq, Hash)]
@@ -16,27 +18,39 @@ pub enum Tag {
     Macro(String),
 
     SyscallConv(Vec<Type>, Option<Box<Type>>), // expect registers
-                                               // Syscall(Vec<Box<AST>>, String), // expect TypeAnnotation
+    // Syscall(Vec<Box<AST>>, String),         // expect TypeAnnotation
 }
 
 #[derive(Debug, Clone)]
 enum TokenWrap<'contents> {
     Token(Token<'contents>),
-    Macro(String),
+    Macro(Macro),
+}
+
+#[derive(Debug, Clone)]
+struct Macro {
+    span: Span,
+    text: String
+}
+
+impl Macro {
+    fn new(span: Span, text: String) -> Self {
+        Self { span, text }
+    }
 }
 
 impl<'contents> TokenWrap<'contents> {
     fn token(&self) -> Option<&Token<'contents>> {
         match self {
             TokenWrap::Token(token) => Some(token),
-            TokenWrap::Macro(_) => None,
+            TokenWrap::Macro(..) => None,
         }
     }
 
-    fn to_macro(&self) -> Option<&str> {
+    fn as_macro(&self) -> Option<&Macro> {
         match self {
             TokenWrap::Token(_) => None,
-            TokenWrap::Macro(name) => Some(name),
+            TokenWrap::Macro(m) => Some(m),
         }
     }
 }
@@ -87,7 +101,9 @@ impl<'contents> PreProcessor<'contents> {
         match token.kind {
             TokenKind::Pound if self.current().kind == TokenKind::Identifier => {
                 let token = self.consume();
-                TokenWrap::Macro(token.text.to_string())
+                let mut span = token.span.clone();
+                span.start_index = span.start_index - 1;
+                TokenWrap::Macro(Macro::new(span, token.text.to_string()))
             },
             _ => TokenWrap::Token(token),
         }
@@ -171,7 +187,16 @@ impl<'contents> PreProcessor<'contents> {
                         .with_label(ReportLabel::new(token.span.clone()))
                         .into();
                 },
-                Some(token) => self.add_macro_def(token.text, args[1..].to_vec()),
+                Some(token) => {
+                    if let Some(token) = args[1..].iter().find(|t| t.as_macro().is_some_and(|t| t.text == token.text)) {
+                        return ReportKind::SelfReferentialMacro
+                            .new("")
+                            .with_label(ReportLabel::new(token.as_macro().unwrap().span.clone()))
+                            .into();
+                    }
+
+                    self.add_macro_def(token.text, args[1..].to_vec())
+                },
                 None => {
                     return ReportKind::SyntaxError
                         .new("Expected Identifier")
@@ -195,7 +220,7 @@ impl<'contents> PreProcessor<'contents> {
         if let Some(existing) = self.macro_defs.get_mut(name) {
             let mut index = 0;
             while let Some(i) =
-                tokens[index..].iter().position(|t| t.to_macro().is_some_and(|n| n == name))
+                tokens[index..].iter().position(|t| t.as_macro().is_some_and(|m| m.text == name))
             {
                 tokens.splice(index + i..index + i + 1, existing.iter().cloned());
                 index += i + 1;
@@ -204,9 +229,9 @@ impl<'contents> PreProcessor<'contents> {
 
         // if `tokens` has a macro already defined, replace with current definition
         let mut index = 0;
-        while let Some(i) = tokens[index..].iter().position(|t| t.to_macro().is_some()) {
+        while let Some(i) = tokens[index..].iter().position(|t| t.as_macro().is_some()) {
             if let Some(existing) =
-                tokens[index + 1 - 1].to_macro().and_then(|name| self.macro_defs.get(name))
+                tokens[index + 1 - 1].as_macro().and_then(|mac| self.macro_defs.get(&mac.text))
             {
                 tokens.splice(index + i..index + i + 1, existing.iter().cloned());
             }
@@ -220,9 +245,9 @@ impl<'contents> PreProcessor<'contents> {
         self.macro_defs.keys().cloned().collect::<Vec<_>>().iter().for_each(|key| {
             let tokens = self.macro_defs.get_mut(key).unwrap() as *mut Vec<TokenWrap<'contents>>;
             let mut index = 0;
-            while let Some(i) = (*tokens)[index..].iter().position(|t| t.to_macro().is_some()) {
+            while let Some(i) = (*tokens)[index..].iter().position(|t| t.as_macro().is_some()) {
                 if let Some(existing) =
-                    (*tokens)[index + i].to_macro().and_then(|n| self.macro_defs.get(n))
+                    (*tokens)[index + i].as_macro().and_then(|m| self.macro_defs.get(&m.text))
                 {
                     (*tokens).splice(index + i..index + i + 1, existing.iter().cloned());
                 }
@@ -234,9 +259,9 @@ impl<'contents> PreProcessor<'contents> {
     fn expand_tag_defs(&mut self) {
         self.tag_defs.iter_mut().for_each(|(_, (_, tokens))| {
             let mut index = 0;
-            while let Some(i) = tokens[index..].iter().position(|t| t.to_macro().is_some()) {
+            while let Some(i) = tokens[index..].iter().position(|t| t.as_macro().is_some()) {
                 if let Some(existing) =
-                    tokens[index + i].to_macro().and_then(|n| self.macro_defs.get(n))
+                    tokens[index + i].as_macro().and_then(|m| self.macro_defs.get(&m.text))
                 {
                     tokens.splice(index + i..index + i + 1, existing.iter().cloned());
                 }

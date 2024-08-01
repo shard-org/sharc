@@ -29,6 +29,7 @@ pub enum ReportKind {
     UndefinedMacro,
     InvalidTag,
     ExceededRecursionLimit,
+    SelfReferentialMacro,
 
     // Parser
     UnexpectedToken,
@@ -60,6 +61,7 @@ impl ReportKind {
             // Preprocessing
             ReportKind::UndefinedMacro
             | ReportKind::ExceededRecursionLimit
+            | ReportKind::SelfReferentialMacro
             | ReportKind::InvalidTag => Level::Error,
 
             // Parsing
