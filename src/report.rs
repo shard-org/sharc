@@ -217,10 +217,8 @@ impl Display for ReportFormatter<'_> {
                             note.bright_black().italic()
                         )?;
                     }
-                } else {
-                    if let Some(note) = &report.note {
-                        writeln!(f, " {}", note.bright_black().italic())?;
-                    }
+                } else if let Some(note) = &report.note {
+                    writeln!(f, " {}", note.bright_black().italic())?;
                 }
             },
             None => {
