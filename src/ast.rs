@@ -32,7 +32,7 @@ pub enum ASTKind {
     Syscall(String, Vec<AST>),
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum LabelAttribute {
     Entry,
 }
