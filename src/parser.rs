@@ -379,7 +379,10 @@ impl<'t, 'contents> Parser<'t, 'contents> {
             TokenKind::Identifier => Ok(()),
             TokenKind::DecimalIntLiteral => ReportKind::SyntaxError
                 .new("Expected register starting with r")
-                .with_note(format!("HINT: You forgot the r prefix. Do: r{}", self.current.text))
+                .with_note(format!(
+                        "HINT: You forgot the r prefix. Do: r{}",
+                        self.current.text
+                ))
                 .with_label(ReportLabel::new(self.current.span.clone()))
                 .into(),
             _ => ReportKind::UnexpectedToken
@@ -389,7 +392,7 @@ impl<'t, 'contents> Parser<'t, 'contents> {
                 .into(),
         }?;
 
-        if !self.current.text.starts_with('r') {
+        if !self.current.text.starts_with("r") {
             return ReportKind::SyntaxError
                 .new("Register identifier format is incorrect!")
                 .with_label(ReportLabel::new(self.current.span.clone()))
@@ -397,12 +400,14 @@ impl<'t, 'contents> Parser<'t, 'contents> {
                 .into();
         }
 
-        match self.current.text.strip_prefix('r').unwrap().parse::<usize>() {
+        match self.current.text.strip_prefix("r").unwrap().parse::<usize>() {
             Err(e) => match e.kind() {
                 IntErrorKind::Empty => ReportKind::SyntaxError
                     .new("Expected register identifier after r prefix")
                     .with_label(ReportLabel::new(self.current.span.clone()))
-                    .with_note("HINT: Registers follow the format r<ident>. e.g r8 r32"),
+                    .with_note(
+                        "HINT: Registers follow the format r<ident>. e.g r8 r32",
+                    ),
                 IntErrorKind::InvalidDigit => {
                     let mut span = self.current.span.clone();
                     span.start_index += 1;
@@ -411,15 +416,16 @@ impl<'t, 'contents> Parser<'t, 'contents> {
                     ReportKind::SyntaxError
                         .new("Register number contains an invalid digit")
                         .with_label(ReportLabel::new(self.current.span.clone()))
-                        .with_note("HINT: Registers follow the format r<ident>. e.g r8 r32")
+                        .with_note(
+                            "HINT: Registers follow the format r<ident>. e.g r8 r32",
+                        )
                 },
                 _ => ReportKind::SyntaxError
                     .new("Register identifier intager overflows")
                     .with_label(ReportLabel::new(self.current.span.clone()))
                     .with_note("HINT: You dont have this many registers. Trust me"),
-            }
-            .into(),
-            Ok(i) => Ok(Type::Register { inner: inner.map(|t| Box::new(t)), ident: i }),
+            }.into(),
+            Ok(i) => Ok(Type::Register { inner: inner.map(|t| Box::new(t)), ident: i })
         }
     }
 
@@ -453,7 +459,7 @@ impl<'t, 'contents> Parser<'t, 'contents> {
                             if n == Some(0) {
                                 return ReportKind::SyntaxError
                                     .new("Array size cannot be zero.")
-                                    .with_note(format!("HINT: Did you mean [{t}:]"))
+                                    .with_note(format!("HINT: Did you mean [{}:]", t))
                                     .with_label(ReportLabel::new(self.current.span.clone()))
                                     .into();
                             }
@@ -472,8 +478,8 @@ impl<'t, 'contents> Parser<'t, 'contents> {
                 // We should fail earlier but we wait to gather the element size
                 // n before logging for clearer error logging
                 if let Type::Register { inner, ident } = t {
-                    let mut inner_str = String::new();
-                    let mut n_str = String::new();
+                    let mut inner_str = "".to_string();
+                    let mut n_str = "".to_string();
                     if inner.is_some() {
                         inner_str = format!("{}", inner.unwrap());
                     }
@@ -531,13 +537,14 @@ impl<'t, 'contents> Parser<'t, 'contents> {
                                 if n == Some(0) {
                                     return ReportKind::SyntaxError
                                         .new("Array size cannot be zero.")
-                                        .with_note(format!("HINT: Did you mean {t}:"))
+                                        .with_note(format!("HINT: Did you mean {}:", t))
                                         .with_label(ReportLabel::new(self.current.span.clone()))
                                         .into();
                                 }
                                 self.advance();
                             },
-                            TokenKind::Comma | TokenKind::RBrace => {},
+                            TokenKind::Comma => {},
+                            TokenKind::RBrace => {},
                             _ => {
                                 self.advance();
                                 return ReportKind::UnexpectedToken
