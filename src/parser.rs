@@ -377,10 +377,7 @@ impl<'t, 'contents> Parser<'t, 'contents> {
             TokenKind::Identifier => Ok(()),
             TokenKind::DecimalIntLiteral => ReportKind::SyntaxError
                 .new("Expected register starting with r")
-                .with_note(format!(
-                        "HINT: You forgot the r prefix. Do: r{}",
-                        self.current.text
-                ))
+                .with_note(format!("HINT: You forgot the r prefix. Do: r{}", self.current.text))
                 .with_label(ReportLabel::new(self.current.span.clone()))
                 .into(),
             _ => ReportKind::UnexpectedToken
@@ -403,9 +400,7 @@ impl<'t, 'contents> Parser<'t, 'contents> {
                 IntErrorKind::Empty => ReportKind::SyntaxError
                     .new("Expected register identifier after r prefix")
                     .with_label(ReportLabel::new(self.current.span.clone()))
-                    .with_note(
-                        "HINT: Registers follow the format r<ident>. e.g r8 r32",
-                    ),
+                    .with_note("HINT: Registers follow the format r<ident>. e.g r8 r32"),
                 IntErrorKind::InvalidDigit => {
                     let mut span = self.current.span.clone();
                     span.start_index += 1;
@@ -414,9 +409,7 @@ impl<'t, 'contents> Parser<'t, 'contents> {
                     ReportKind::SyntaxError
                         .new("Register number contains an invalid digit")
                         .with_label(ReportLabel::new(self.current.span.clone()))
-                        .with_note(
-                            "HINT: Registers follow the format r<ident>. e.g r8 r32",
-                        )
+                        .with_note("HINT: Registers follow the format r<ident>. e.g r8 r32")
                 },
                 // Here only positive overflow can be omitted by parse::<usize>()
                 // It also doesnt omit Zero because usize can store 0.
@@ -424,8 +417,9 @@ impl<'t, 'contents> Parser<'t, 'contents> {
                     .new("Register identifier intager overflows")
                     .with_label(ReportLabel::new(self.current.span.clone()))
                     .with_note("HINT: You dont have this many registers. Trust me"),
-            }.into(),
-            Ok(i) => Ok(Type::Register { inner: inner.map(|t| Box::new(t)), ident: i })
+            }
+            .into(),
+            Ok(i) => Ok(Type::Register { inner: inner.map(|t| Box::new(t)), ident: i }),
         }
     }
 
