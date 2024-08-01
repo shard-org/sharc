@@ -40,9 +40,51 @@ pub enum LabelAttribute {
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub enum Type {
     Size(usize),
+    //NOTE: a size of 0 represents an array of undetermined length e.g [1:]
     Heap { is_pointer: bool, contents: Vec<(Type, Option<usize>)> },
     Struct(String),
-    Register { inner: Option<Box<Type>>, ident: usize, size: usize },
+    Register { inner: Option<Box<Type>>, ident: usize },
+}
+
+impl Display for Type {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Size(s) => write!(f, "{}", s.to_string())?,
+            Self::Heap { is_pointer: true, contents } => {
+                // contents length is always 1 for pointers
+                write!(f, "[{}", &contents[0].0)?;
+                match contents[0].1 {
+                    Some(0) => write!(f, ":")?,
+                    Some(size) => write!(f, ":{}", size)?,
+                    None => {},
+                };
+
+                write!(f, "]")?;
+            },
+            Self::Heap { is_pointer: false, contents } => {
+                write!(f, "{{")?;
+                for (t, elems) in contents {
+                    write!(f, "{}", t)?;
+                    match elems {
+                        Some(0) => write!(f, ":")?,
+                        Some(size) => write!(f, ":{}", size)?,
+                        None => {},
+                    };
+
+                    write!(f, ", ")?;
+                }
+                write!(f, "}}")?;
+            },
+            Self::Register { inner: t, ident } => {
+                if t.is_some() {
+                    write!(f, "{}", t.as_ref().unwrap())?;
+                }
+                write!(f, ";r{}", ident)?;
+            },
+            Self::Struct(ident) => write!(f, "{ident}")?,
+        };
+        Ok(())
+    }
 }
 
 impl ASTKind {
