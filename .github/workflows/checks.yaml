@@ -1,24 +1,33 @@
-name: Checks
+name: Cargo
 run-name: "Checks #${{ github.event.number }}"
 
 on:
+  push:
   pull_request:
 
-jobs:
-  build:
-    name: Build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Build
-        run: cargo build -v
+env:
+  CARGO_TERM_COLOR: always
 
-  clippy:
-    name: Clippy
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Clippy
-        run: cargo clippy -v
+jobs:
+    build:
+        name: Build
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - run: rustup update stable && rustup default stable
+            - run: cargo build
+
+    clippy:
+        name: Clippy
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - run: rustup update stable && rustup default stable
+            - run: cargo clippy
+    format:
+        name: Format
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - run: rustup update stable && rustup default stable
+            - run: cargo fmt --check

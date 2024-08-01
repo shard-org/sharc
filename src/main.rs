@@ -1,3 +1,4 @@
+#![forbid(clippy::all)]
 #![allow(dead_code, unused)]
 
 use crate::lexer::Lexer;
