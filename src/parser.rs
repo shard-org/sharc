@@ -377,7 +377,10 @@ impl<'t, 'contents> Parser<'t, 'contents> {
             TokenKind::Identifier => Ok(()),
             TokenKind::DecimalIntLiteral => ReportKind::SyntaxError
                 .new("Expected register starting with r")
-                .with_note(format!("HINT: You forgot the r prefix. Do: r{}", self.current.text))
+                .with_note(format!(
+                        "HINT: You forgot the r prefix. Do: r{}",
+                        self.current.text
+                ))
                 .with_label(ReportLabel::new(self.current.span.clone()))
                 .into(),
             _ => ReportKind::UnexpectedToken
@@ -387,7 +390,7 @@ impl<'t, 'contents> Parser<'t, 'contents> {
                 .into(),
         }?;
 
-        if !self.current.text.starts_with('r') {
+        if !self.current.text.starts_with("r") {
             return ReportKind::SyntaxError
                 .new("Register identifier format is incorrect!")
                 .with_label(ReportLabel::new(self.current.span.clone()))
@@ -400,7 +403,9 @@ impl<'t, 'contents> Parser<'t, 'contents> {
                 IntErrorKind::Empty => ReportKind::SyntaxError
                     .new("Expected register identifier after r prefix")
                     .with_label(ReportLabel::new(self.current.span.clone()))
-                    .with_note("HINT: Registers follow the format r<ident>. e.g r8 r32"),
+                    .with_note(
+                        "HINT: Registers follow the format r<ident>. e.g r8 r32",
+                    ),
                 IntErrorKind::InvalidDigit => {
                     let mut span = self.current.span.clone();
                     span.start_index += 1;
@@ -409,7 +414,9 @@ impl<'t, 'contents> Parser<'t, 'contents> {
                     ReportKind::SyntaxError
                         .new("Register number contains an invalid digit")
                         .with_label(ReportLabel::new(self.current.span.clone()))
-                        .with_note("HINT: Registers follow the format r<ident>. e.g r8 r32")
+                        .with_note(
+                            "HINT: Registers follow the format r<ident>. e.g r8 r32",
+                        )
                 },
                 // Here only positive overflow can be omitted by parse::<usize>()
                 // It also doesnt omit Zero because usize can store 0.
@@ -417,9 +424,8 @@ impl<'t, 'contents> Parser<'t, 'contents> {
                     .new("Register identifier intager overflows")
                     .with_label(ReportLabel::new(self.current.span.clone()))
                     .with_note("HINT: You dont have this many registers. Trust me"),
-            }
-            .into(),
-            Ok(i) => Ok(Type::Register { inner: inner.map(|t| Box::new(t)), ident: i }),
+            }.into(),
+            Ok(i) => Ok(Type::Register { inner: inner.map(|t| Box::new(t)), ident: i })
         }
     }
 
@@ -506,6 +512,133 @@ impl<'t, 'contents> Parser<'t, 'contents> {
 
                 //NOTE: idk if 5 is the right number. To be determined
                 let mut vec: Vec<(Type, Option<usize>)> = Vec::with_capacity(5);
+                self.advance();
+                if self.current.kind == TokenKind::Colon {
+                    self.advance();
+                    match self.current.kind {
+                        TokenKind::DecimalIntLiteral => {
+                            n = Some(self.current.text.parse::<usize>().unwrap());
+                            if n == Some(0) {
+                                return ReportKind::SyntaxError
+                                    .new("Array size cannot be zero.")
+                                    .with_note(format!("HINT: Did you mean [{}:]", t))
+                                    .with_label(ReportLabel::new(self.current.span.clone()))
+                                    .into();
+                            }
+                            self.advance();
+                        },
+                        TokenKind::RBracket => {},
+                        _ => {
+                            self.advance();
+                            return ReportKind::UnexpectedToken
+                                .new(format!("got {:?}", self.current.kind))
+                                .with_label(ReportLabel::new(self.current.span.clone()))
+                                .into();
+                        },
+                    }
+                }
+                // We should fail earlier but we wait to gather the element size
+                // n before logging for clearer error logging
+                if let Type::Register { inner, ident } = t {
+                    let mut inner_str = "".to_string();
+                    let mut n_str = "".to_string();
+                    if inner.is_some() {
+                        inner_str = format!("{}", inner.unwrap());
+                    }
+
+                    if n.is_some() && n.unwrap() != 0 {
+                        n_str = format!("{}", n.unwrap());
+                    }
+
+                    self.advance();
+                    return ReportKind::SyntaxError
+                        .new("Heap types cannot contain register bindings")
+                        .with_label(ReportLabel::new(self.current.span.clone()))
+                        .with_note(format!("HINT: Did you want to bind the pointer to the register? [{inner_str}:{n_str}];r{ident}"))
+                        .into();
+                }
+
+                if self.current.kind != TokenKind::RBracket {
+                    self.advance();
+                    return ReportKind::SyntaxError
+                        .new(format!("Expected closing bracket. Got {:?}", self.current.text))
+                        .with_label(ReportLabel::new(self.current.span.clone()))
+                        .into();
+                };
+
+                Ok(Type::Heap { is_pointer: true, contents: vec![(t, n)] })
+            },
+            TokenKind::LBrace => {
+                self.advance();
+                if self.current.kind == TokenKind::RBrace {
+                    let mut span = self.current.span.clone();
+                    span.start_index -= 1;
+
+                    return ReportKind::SyntaxError
+                        .new("Empty heaps are disallowed")
+                        .with_label(ReportLabel::new(span))
+                        .with_note("HINT: Did you want to create a void pointer: []")
+                        .into();
+                }
+                //NOTE: idk if 5 is the right number. To be determined
+                let mut vec: Vec<(Type, Option<usize>)> = Vec::with_capacity(5);
+                loop {
+                    let start = self.current.span.clone();
+                    let t = self.parse_type()?;
+                    let mut n = None;
+
+                    let end = self.current.span.clone();
+                    let span = start.extend(&end);
+                    self.advance();
+
+                    if self.current.kind == TokenKind::Colon {
+                        self.advance();
+                        match self.current.kind {
+                            TokenKind::DecimalIntLiteral => {
+                                n = Some(self.current.text.parse::<usize>().unwrap());
+                                if n == Some(0) {
+                                    return ReportKind::SyntaxError
+                                        .new("Array size cannot be zero.")
+                                        .with_note(format!("HINT: Did you mean {}:", t))
+                                        .with_label(ReportLabel::new(self.current.span.clone()))
+                                        .into();
+                                }
+                                self.advance();
+                            },
+                            TokenKind::Comma => {},
+                            TokenKind::RBrace => {},
+                            _ => {
+                                self.advance();
+                                return ReportKind::UnexpectedToken
+                                    .new(format!(
+                                        "Expected either `,` `}}` or a intager, got {:?}",
+                                        self.current.kind
+                                    ))
+                                    .with_label(ReportLabel::new(self.current.span.clone()))
+                                    .into();
+                            },
+                        }
+                    }
+
+                    if self.current.kind != TokenKind::Comma {
+                        if self.current.kind == TokenKind::RBrace {
+                            vec.push((t, n));
+                            break;
+                        }
+                        return ReportKind::SyntaxError
+                            .new("Expected comma to separate heap types")
+                            .with_label(ReportLabel::new(self.current.span.clone()))
+                            .into();
+                    }
+                    self.advance();
+                    if let Type::Register { ident, .. } = t {
+                        return ReportKind::SyntaxError
+                            .new("Heap types cannot contain register bindings")
+                            .with_label(ReportLabel::new(span))
+                            .with_note(format!("HINT: Did you want to bind the pointer to the register? {};r{ident}", Type::Heap { is_pointer: false, contents: vec }))
+                            .into();
+                    }
+>>>>>>> f5e4b92 (feat(#23): Added type parsing and logging)
 
                 while self.current.kind != end_kind {
                     // let start = self.current.span.clone();
