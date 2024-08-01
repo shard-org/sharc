@@ -3,7 +3,7 @@ use std::fmt::{Display, Formatter};
 
 pub struct Program {
     pub filename: &'static str,
-    pub stmts: Vec<Box<AST>>,
+    pub stmts: Vec<AST>,
 }
 
 #[derive(Debug)]
@@ -23,7 +23,7 @@ pub enum ASTKind {
     StringLiteral(String),
     CharLiteral(char),
 
-    Block(Vec<Box<AST>>),
+    Block(Vec<AST>),
 
     TypeAnnotation(Type, Option<Box<AST>>),
 

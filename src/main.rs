@@ -1,4 +1,10 @@
-#![forbid(clippy::all)]
+#![forbid(
+    clippy::complexity,
+    clippy::suspicious,
+    clippy::correctness,
+    clippy::cargo
+)]
+#![allow(clippy::style, clippy::perf, clippy::pedantic, clippy::restriction)]
 #![allow(dead_code, unused)]
 
 use crate::lexer::Lexer;

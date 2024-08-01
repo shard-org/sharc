@@ -114,7 +114,7 @@ impl<'t, 'contents> Parser<'t, 'contents> {
     }
 
     fn parse_block(&mut self, global: bool) -> Result<AST> {
-        let mut stmts = Vec::<Box<AST>>::new();
+        let mut stmts: Vec<AST> = Vec::new();
         let until = if global { TokenKind::EOF } else { TokenKind::RBrace };
         let start = self.current.span.clone();
 

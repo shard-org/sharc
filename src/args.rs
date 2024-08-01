@@ -156,7 +156,7 @@ impl Args {
             out.verbs.push(Box::leak(arg.into_boxed_str()) as &str);
 
             // drain remaining args
-            while let Some(arg) = args.next() {
+            for arg in args.by_ref() {
                 out.verbs.push(Box::leak(arg.into_boxed_str()) as &str);
             }
         }
