@@ -5,6 +5,8 @@ edition = "2021"
 description = "The compiler for the Shard Programming Language."
 license = "MIT"
 repository = "https://github.com/shard-org/sharc"
+keywords = ["shard", "compiler", "language", "assembly"]
+categories = ["compiler", "development-tools"]
 
 
 [dependencies]

@@ -32,8 +32,8 @@ impl<'t, 'contents> Parser<'t, 'contents> {
         }
     }
 
-    fn report(&mut self, report: Box<Report>) {
-        self.sender.send(report)
+    fn report(&self, report: Box<Report>) {
+        self.sender.send(report);
     }
 
     fn advance(&mut self) {
@@ -103,18 +103,13 @@ impl<'t, 'contents> Parser<'t, 'contents> {
     }
 
     pub fn parse(&mut self) -> Program {
-        let stmts = match self.parse_block(true) {
-            Ok(AST { kind: ASTKind::Block(stmts), .. }) => stmts,
-            Err(err) => {
-                self.report(err);
-                Vec::new()
-            },
-            _ => unreachable!("Can't happen nerds"),
+        let AST { kind: ASTKind::Block(stmts), .. } = self.parse_block(true) else {
+            unreachable!("Can't happen nerds!")
         };
         Program { stmts, filename: self.filename }
     }
 
-    fn parse_block(&mut self, global: bool) -> Result<AST> {
+    fn parse_block(&mut self, global: bool) -> AST {
         let mut stmts: Vec<AST> = Vec::new();
         let until = if global { TokenKind::EOF } else { TokenKind::RBrace };
         let start = self.current.span.clone();
@@ -122,7 +117,7 @@ impl<'t, 'contents> Parser<'t, 'contents> {
         while self.current.kind != until {
             match self.parse_statement() {
                 Ok(val) => {
-                    stmts.push(val.into());
+                    stmts.push(val);
                     self.consume_newline().map_err(|err| {
                         self.report(err);
                         self.synchronize(until);
@@ -139,9 +134,9 @@ impl<'t, 'contents> Parser<'t, 'contents> {
             self.consume(until, "block not terminated");
         };
 
-        let end = start.clone().extend(stmts.last().map_or_else(|| &start, |ast| &ast.span));
+        let end = start.extend(stmts.last().map_or_else(|| &start, |ast| &ast.span));
 
-        Ok(ASTKind::Block(stmts).into_ast(start.extend(&end)))
+        ASTKind::Block(stmts).into_ast(start.extend(&end))
     }
 
     fn parse_statement(&mut self) -> Result<AST> {
@@ -206,7 +201,7 @@ impl<'t, 'contents> Parser<'t, 'contents> {
         }
     }
 
-    fn parse_label_attribute(&mut self) -> Option<LabelAttribute> {
+    fn parse_label_attribute(&self) -> Option<LabelAttribute> {
         match self.current.text {
             "entry" => Some(LabelAttribute::Entry),
             _ => None,
@@ -264,7 +259,7 @@ impl<'t, 'contents> Parser<'t, 'contents> {
         match &kind {
             TokenKind::Identifier => {
                 self.advance();
-                Ok(ASTKind::Identifier(text.to_string()).into_ast(span.clone()))
+                Ok(ASTKind::Identifier((*text).to_string()).into_ast(span.clone()))
             },
 
             TokenKind::DecimalIntLiteral
@@ -282,7 +277,7 @@ impl<'t, 'contents> Parser<'t, 'contents> {
                 match usize::from_str_radix(text, base) {
                     Ok(val) => Ok(ASTKind::IntegerLiteral(val).into_ast(span.clone())),
                     Err(_) => ReportKind::SyntaxError
-                        .new("Invalid {} Integer Literal")
+                        .new("Invalid Integer Literal")
                         .with_label(ReportLabel::new(span.clone()))
                         .into(),
                 }
@@ -297,11 +292,9 @@ impl<'t, 'contents> Parser<'t, 'contents> {
                 for (i, window) in text_bytes.windows(2).enumerate() {
                     match window[0] as char {
                         '\\' => {
-                            text.push(Self::parse_escape(str::from_utf8(window).unwrap(), span)?)
+                            text.push(Self::parse_escape(str::from_utf8(window).unwrap(), span)?);
                         },
-                        _ if i + 1 * 2 >= text_len => {
-                            text.push_str(str::from_utf8(window).unwrap())
-                        },
+                        _ if i + 2 >= text_len => text.push_str(str::from_utf8(window).unwrap()),
                         _ => text.push(window[0] as char),
                     }
                 }
@@ -366,8 +359,8 @@ impl<'t, 'contents> Parser<'t, 'contents> {
             "\\^" => 30,
             "\\_" => 31,
             "\\?" => 32,
-            "\\" => '\\' as u8,
-            "\\`" => '`' as u8,
+            "\\" => b'\\',
+            "\\`" => b'`',
             s if s.len() > 1 => {
                 return ReportKind::InvalidEscapeSequence
                     .new("")
@@ -396,7 +389,7 @@ impl<'t, 'contents> Parser<'t, 'contents> {
                 .into(),
         }?;
 
-        if !self.current.text.starts_with("r") {
+        if !self.current.text.starts_with('r') {
             return ReportKind::SyntaxError
                 .new("Register identifier format is incorrect!")
                 .with_label(ReportLabel::new(self.current.span.clone()))
@@ -404,7 +397,7 @@ impl<'t, 'contents> Parser<'t, 'contents> {
                 .into();
         }
 
-        match self.current.text.strip_prefix("r").unwrap().parse::<usize>() {
+        match self.current.text.strip_prefix('r').unwrap().parse::<usize>() {
             Err(e) => match e.kind() {
                 IntErrorKind::Empty => ReportKind::SyntaxError
                     .new("Expected register identifier after r prefix")
@@ -460,7 +453,7 @@ impl<'t, 'contents> Parser<'t, 'contents> {
                             if n == Some(0) {
                                 return ReportKind::SyntaxError
                                     .new("Array size cannot be zero.")
-                                    .with_note(format!("HINT: Did you mean [{}:]", t))
+                                    .with_note(format!("HINT: Did you mean [{t}:]"))
                                     .with_label(ReportLabel::new(self.current.span.clone()))
                                     .into();
                             }
@@ -479,8 +472,8 @@ impl<'t, 'contents> Parser<'t, 'contents> {
                 // We should fail earlier but we wait to gather the element size
                 // n before logging for clearer error logging
                 if let Type::Register { inner, ident } = t {
-                    let mut inner_str = "".to_string();
-                    let mut n_str = "".to_string();
+                    let mut inner_str = String::new();
+                    let mut n_str = String::new();
                     if inner.is_some() {
                         inner_str = format!("{}", inner.unwrap());
                     }
@@ -538,14 +531,13 @@ impl<'t, 'contents> Parser<'t, 'contents> {
                                 if n == Some(0) {
                                     return ReportKind::SyntaxError
                                         .new("Array size cannot be zero.")
-                                        .with_note(format!("HINT: Did you mean {}:", t))
+                                        .with_note(format!("HINT: Did you mean {t}:"))
                                         .with_label(ReportLabel::new(self.current.span.clone()))
                                         .into();
                                 }
                                 self.advance();
                             },
-                            TokenKind::Comma => {},
-                            TokenKind::RBrace => {},
+                            TokenKind::Comma | TokenKind::RBrace => {},
                             _ => {
                                 self.advance();
                                 return ReportKind::UnexpectedToken

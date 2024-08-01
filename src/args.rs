@@ -69,11 +69,11 @@ impl Args {
         let args_len = args.len();
 
         for (i, arg) in args.into_iter().enumerate() {
-            let _is_end = i == args_len - 1;
+            let is_end = i == args_len - 1;
 
             macro_rules! is_end {
                 () => {
-                    if !_is_end {
+                    if !is_end {
                         error!("flags with parameters must be at the end of a group, or defined separately");
                     }
                 };
@@ -81,11 +81,11 @@ impl Args {
 
             match arg.as_str() {
                 "-h" => {
-                    println!("{}", USAGE);
+                    println!("{USAGE}");
                     exit(0);
                 },
                 "--help" => {
-                    println!("{}\n\n{}", USAGE, HELP_MESSAGE);
+                    println!("{USAGE}\n\n{HELP_MESSAGE}");
                     exit(0);
                 },
                 "-V" | "--version" => {
@@ -125,14 +125,14 @@ impl Args {
                         "n" | "note" => Level::Note,
                         "s" | "silent" => Level::Silent,
                         _ => {
-                            error!("invalid level `{}`", level);
+                            error!("invalid level `{level}`");
                         },
                     });
                 },
                 "--no-context" => self.code_context.try_mut(false),
 
                 _ => {
-                    error!("unrecognized argument '{}'", arg);
+                    error!("unrecognized argument '{arg}'");
                 },
             }
         }
@@ -143,13 +143,13 @@ impl Args {
         let mut args = args.into_iter();
 
         while let Some(arg) = args.next() {
-            if arg.starts_with("-") {
+            if arg.starts_with('-') {
                 out.handle_arg(&arg, &mut args);
                 continue;
             }
 
             if arg == "shark" {
-                println!("\x1b[34m{}\x1b[0m", SHARK_ASCII);
+                println!("\x1b[34m{SHARK_ASCII}\x1b[0m");
                 exit(1);
             }
 

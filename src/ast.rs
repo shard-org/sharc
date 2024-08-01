@@ -49,13 +49,13 @@ pub enum Type {
 impl Display for Type {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Size(s) => write!(f, "{}", s.to_string())?,
+            Self::Size(s) => write!(f, "{s}")?,
             Self::Heap { is_pointer: true, contents } => {
                 // contents length is always 1 for pointers
                 write!(f, "[{}", &contents[0].0)?;
                 match contents[0].1 {
                     Some(0) => write!(f, ":")?,
-                    Some(size) => write!(f, ":{}", size)?,
+                    Some(size) => write!(f, ":{size}")?,
                     None => {},
                 };
 
@@ -64,10 +64,10 @@ impl Display for Type {
             Self::Heap { is_pointer: false, contents } => {
                 write!(f, "{{")?;
                 for (t, elems) in contents {
-                    write!(f, "{}", t)?;
+                    write!(f, "{t}")?;
                     match elems {
                         Some(0) => write!(f, ":")?,
-                        Some(size) => write!(f, ":{}", size)?,
+                        Some(size) => write!(f, ":{size}")?,
                         None => {},
                     };
 
@@ -79,7 +79,7 @@ impl Display for Type {
                 if t.is_some() {
                     write!(f, "{}", t.as_ref().unwrap())?;
                 }
-                write!(f, ";r{}", ident)?;
+                write!(f, ";r{ident}")?;
             },
             Self::Struct(ident) => write!(f, "{ident}")?,
         };
@@ -108,22 +108,21 @@ impl AST {
 impl Display for AST {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match &self.kind {
-            ASTKind::IntegerLiteral(val) => write!(f, "(IntegerLiteral: {})", val)?,
-            ASTKind::Identifier(ident) => write!(f, "(Identifier: {})", ident)?,
+            ASTKind::IntegerLiteral(val) => write!(f, "(IntegerLiteral: {val})")?,
+            ASTKind::Identifier(ident) => write!(f, "(Identifier: {ident})")?,
             ASTKind::Block(stmts) => write!(f, "(Block: {} statements)", stmts.len())?,
-            ASTKind::StringLiteral(val) => write!(f, "(StringLiteral: {:?})", val)?,
-            ASTKind::CharLiteral(val) => write!(f, "(CharLiteral: {:?})", val)?,
+            ASTKind::StringLiteral(val) => write!(f, "(StringLiteral: {val:?})")?,
+            ASTKind::CharLiteral(val) => write!(f, "(CharLiteral: {val:?})")?,
             ASTKind::TypeAnnotation(ty, Some(ast)) => {
-                write!(f, "(TypeAnnotation: {:?} ({}))", ty, ast)?
+                write!(f, "(TypeAnnotation: {ty:?} ({ast}))")?;
             },
-            ASTKind::TypeAnnotation(ty, None) => write!(f, "(TypeAnnotation: {:?})", ty)?,
+            ASTKind::TypeAnnotation(ty, None) => write!(f, "(TypeAnnotation: {ty:?})")?,
 
             ASTKind::LabelDefinition(Some(name), attrs) => write!(
                 f,
-                "(LabelDefinition: {} ({}))",
-                name,
+                "(LabelDefinition: {name} ({}))",
                 attrs.iter().fold(String::new(), |mut acc, attr| {
-                    acc.push_str(&format!("{:?} ", attr));
+                    acc.push_str(&format!("{attr:?} "));
                     acc
                 })
             )?,
@@ -131,23 +130,22 @@ impl Display for AST {
                 f,
                 "(LabelDefinition: ({}))",
                 attrs.iter().fold(String::new(), |mut acc, attr| {
-                    acc.push_str(&format!("{:?} ", attr));
+                    acc.push_str(&format!("{attr:?} "));
                     acc
                 })
             )?,
 
             ASTKind::FunctionDefinition(name, attrs, ast) => todo!(),
 
-            ASTKind::Return(Some(val)) => write!(f, "(Return: {})", val)?,
+            ASTKind::Return(Some(val)) => write!(f, "(Return: {val})")?,
             ASTKind::Return(_) => write!(f, "(Return)")?,
 
-            ASTKind::Interrupt(val) => write!(f, "(Interrupt: {})", val)?,
+            ASTKind::Interrupt(val) => write!(f, "(Interrupt: {val})")?,
             ASTKind::Syscall(name, args) => write!(
                 f,
-                "(Syscall: {} ({}))",
-                name,
+                "(Syscall: {name} ({}))",
                 args.iter().fold(String::new(), |mut acc, arg| {
-                    acc.push_str(&format!("{} ", arg));
+                    acc.push_str(&format!("{arg} "));
                     acc
                 })
             )?,

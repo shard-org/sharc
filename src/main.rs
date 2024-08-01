@@ -1,5 +1,27 @@
-#![forbid(clippy::complexity, clippy::suspicious, clippy::correctness, clippy::cargo)]
-#![allow(clippy::style, clippy::perf, clippy::pedantic, clippy::restriction)]
+#![allow(forbidden_lint_groups)]
+#![forbid(
+    clippy::complexity,
+    clippy::suspicious,
+    clippy::correctness,
+    clippy::cargo,
+    clippy::perf,
+    clippy::pedantic,
+    clippy::nursery
+)]
+#![allow(
+    clippy::style,
+    clippy::restriction,
+    clippy::match_bool,
+    clippy::too_many_lines,
+    clippy::single_match_else,
+    clippy::ignored_unit_patterns,
+    clippy::module_name_repetitions,
+    clippy::needless_for_each,
+    clippy::derive_partial_eq_without_eq,
+    clippy::missing_const_for_fn,
+    clippy::cognitive_complexity,
+    clippy::option_if_let_else
+)]
 #![allow(dead_code, unused)]
 
 use crate::lexer::Lexer;
@@ -28,7 +50,7 @@ fn check_reports(receiver: &Receiver<Box<Report>>, reports: &mut Vec<Report>) ->
         if report.level() >= Level::Error {
             had_error = true;
         }
-        reports.push(report.unbox())
+        reports.push(report.unbox());
     });
     had_error
 }
@@ -55,7 +77,7 @@ fn main() {
     let args = args::Args::parse(std::env::args().skip(1).collect());
 
     if *args.debug.field {
-        println!("{:#?}", args);
+        println!("{args:#?}");
     }
 
     let mut reports = Vec::<Report>::new();
@@ -71,7 +93,7 @@ fn main() {
         lexer.lex_tokens();
         if *args.debug.field {
             println!("\n{}", "LEXER".bold());
-            lexer.tokens.iter().for_each(|token| println!("{:#}", token))
+            lexer.tokens.iter().for_each(|token| println!("{token:#}"));
         }
 
         if check_reports(&receiver, &mut reports) {
@@ -92,9 +114,9 @@ fn main() {
 
         if *args.debug.field {
             println!("\n{}", "PREPROCESSOR".bold());
-            tokens.iter().for_each(|token| println!("{:#}", token));
+            tokens.iter().for_each(|token| println!("{token:#}"));
             println!("");
-            tags.iter().for_each(|tag| println!("{:?}", tag));
+            tags.iter().for_each(|tag| println!("{tag:?}"));
         }
 
         if check_reports(&receiver, &mut reports) {
@@ -110,7 +132,7 @@ fn main() {
 
         if *args.debug.field {
             println!("\n{}", "PARSER".bold());
-            result.stmts.iter().for_each(|stmt| println!("{:#}", stmt))
+            result.stmts.iter().for_each(|stmt| println!("{stmt:#}"));
         }
 
         if check_reports(&receiver, &mut reports) {

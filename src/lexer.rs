@@ -29,8 +29,8 @@ impl<'source> Lexer<'source> {
         }
     }
 
-    fn report(&mut self, report: Box<Report>) {
-        self.sender.send(report)
+    fn report(&self, report: Box<Report>) {
+        self.sender.send(report);
     }
 
     fn span(&self, line_number: usize, start_index: usize, end_index: usize) -> Span {
@@ -50,11 +50,11 @@ impl<'source> Lexer<'source> {
     }
 
     fn peek(&mut self) -> Option<char> {
-        self.chars.peek().cloned()
+        self.chars.peek().copied()
     }
 
     fn push_token(&mut self, kind: TokenKind, span: Span, text: &'source str) {
-        self.tokens.push(Token { kind, span, text })
+        self.tokens.push(Token { kind, span, text });
     }
 
     fn push_simple_token(&mut self, kind: TokenKind, length: usize) {
@@ -70,11 +70,11 @@ impl<'source> Lexer<'source> {
     }
     pub fn lex_tokens(&mut self) {
         'main: while let Some(current) = self.current {
-            let (_line_number, start_index) = (self.line_number, self.index);
+            let (line_number, start_index) = (self.line_number, self.index);
 
             macro_rules! span_to {
                 ($end:expr) => {
-                    self.span(_line_number, start_index, $end)
+                    self.span(line_number, start_index, $end)
                 };
             }
 
@@ -99,18 +99,19 @@ impl<'source> Lexer<'source> {
                 '/' => match self.peek() {
                     Some('/') => {
                         while Some('\n') != self.current {
-                            self.advance()
+                            self.advance();
                         }
                         continue;
                     },
                     Some('*') => {
                         let mut depth = 0;
                         loop {
-                            match self.current.clone() {
+                            let current = self.current;
+                            match current {
                                 Some('/') if Some('*') == self.peek() => {
                                     self.advance();
                                     self.advance();
-                                    depth += 1
+                                    depth += 1;
                                 },
                                 Some('*') if Some('/') == self.peek() => {
                                     self.advance();
@@ -127,10 +128,10 @@ impl<'source> Lexer<'source> {
                         if depth > 0 {
                             self.report(
                                 ReportKind::UnterminatedMultilineComment
-                                    .new(format!("{} comments never terminated", depth))
+                                    .new(format!("{depth} comments never terminated"))
                                     .with_label(ReportLabel::new(span_to!(self.index)))
                                     .into(),
-                            )
+                            );
                         }
                         continue;
                     },
@@ -181,18 +182,18 @@ impl<'source> Lexer<'source> {
                         self.report(report);
                         continue;
                     }
-                    if let Some('.') = self.current {
+                    if self.current == Some('.') {
                         self.advance();
                         if let Err(report) = self.lex_integer(Base::Decimal) {
                             self.report(report);
                             continue;
                         }
-                        if let Some('.') = self.current {
+                        if self.current == Some('.') {
                             self.report(
                                 ReportKind::SyntaxError
                                     .new("Invalid Float Literal")
                                     .with_label(ReportLabel::new(self.span(
-                                        _line_number,
+                                        line_number,
                                         self.index,
                                         self.index + 1,
                                     )))
@@ -225,7 +226,7 @@ impl<'source> Lexer<'source> {
                             },
                             '\\' => {
                                 self.advance();
-                                if let Some('"') = self.current {
+                                if self.current == Some('"') {
                                     self.advance();
                                 }
                             },
@@ -386,7 +387,7 @@ impl<'source> Lexer<'source> {
                     self.advance();
                     self.report(
                         ReportKind::UnexpectedCharacter
-                            .new(format!("{}", c))
+                            .new(format!("{c}"))
                             .with_label(ReportLabel::new(span_to!(self.index)))
                             .into(),
                     );
@@ -418,10 +419,7 @@ impl<'source> Lexer<'source> {
                                 self.index,
                                 self.index + 1,
                             ))
-                            .with_text(format!(
-                                "'{}' not valid for {} Integer Literal",
-                                char, base
-                            )),
+                            .with_text(format!("'{char}' not valid for {base} Integer Literal")),
                         )
                         .into();
                 },
@@ -444,13 +442,13 @@ enum Base {
 impl Display for Base {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let str = match self {
-            Base::Binary => "Binary",
-            Base::Octal => "Octal",
-            Base::Decimal => "Decimal",
-            Base::Hexadecimal => "Hexadecimal",
+            Self::Binary => "Binary",
+            Self::Octal => "Octal",
+            Self::Decimal => "Decimal",
+            Self::Hexadecimal => "Hexadecimal",
         }
         .to_string();
-        write!(f, "{}", str)
+        write!(f, "{str}")
     }
 }
 

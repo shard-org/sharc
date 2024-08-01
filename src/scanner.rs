@@ -24,17 +24,17 @@ impl Scanner {
     }
 
     pub fn get_file(filename: &'static str) -> &str {
-        if let Some(contents) = Scanner::get_cached(filename) {
+        if let Some(contents) = Self::get_cached(filename) {
             return contents;
         }
 
-        let contents = Scanner::new(filename)
+        let contents = Self::new(filename)
             .unwrap_or_fatal(
-                ReportKind::IOError.new(format!("Failed to open file: '{}'", filename)).into(),
+                ReportKind::IOError.new(format!("Failed to open file: '{filename}'")).into(),
             )
             .read()
             .unwrap_or_fatal(
-                ReportKind::IOError.new(format!("Failed to read file: '{}'", filename)).into(),
+                ReportKind::IOError.new(format!("Failed to read file: '{filename}'")).into(),
             )
             .leak();
 
@@ -46,7 +46,7 @@ impl Scanner {
 
     fn new(filename: &'static str) -> io::Result<Self> {
         let file = File::open(filename)?;
-        let file_size = file.metadata()?.len() as usize;
+        let file_size = usize::try_from(file.metadata()?.len()).unwrap();
 
         Ok(Self {
             filename,

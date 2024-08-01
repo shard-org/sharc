@@ -4,7 +4,7 @@ use std::fmt::{Display, Formatter};
 use std::io::ErrorKind;
 use std::sync::mpsc::Sender;
 
-use colored::*;
+use colored::{Color, Colorize};
 
 #[derive(Debug, PartialEq, PartialOrd, Copy, Clone)]
 pub enum Level {
@@ -50,28 +50,28 @@ impl ReportKind {
     pub fn level(&self) -> Level {
         match self {
             // Argument Parsing
-            ReportKind::ArgumentParserError => Level::Error,
+            Self::ArgumentParserError
 
             // Lexing
-            ReportKind::UnexpectedCharacter
-            | ReportKind::UnterminatedMultilineComment
-            | ReportKind::UnterminatedStringLiteral
-            | ReportKind::UnterminatedCharLiteral => Level::Error,
+            | Self::UnexpectedCharacter
+            | Self::UnterminatedMultilineComment
+            | Self::UnterminatedStringLiteral
+            | Self::UnterminatedCharLiteral
 
             // Preprocessing
-            ReportKind::UndefinedMacro
-            | ReportKind::ExceededRecursionLimit
-            | ReportKind::SelfReferentialMacro
-            | ReportKind::InvalidTag => Level::Error,
+            | Self::UndefinedMacro
+            | Self::ExceededRecursionLimit
+            | Self::SelfReferentialMacro
+            | Self::InvalidTag
 
             // Parsing
-            ReportKind::UnexpectedToken
-            | ReportKind::UnexpectedEOF
-            | ReportKind::DuplicateAttribute
-            | ReportKind::InvalidEscapeSequence => Level::Error,
+            | Self::UnexpectedToken
+            | Self::UnexpectedEOF
+            | Self::DuplicateAttribute
+            | Self::InvalidEscapeSequence
 
             // General
-            ReportKind::IOError | ReportKind::SyntaxError => Level::Error,
+            | Self::IOError | Self::SyntaxError => Level::Error,
         }
     }
 }
@@ -121,7 +121,7 @@ impl Report {
     }
 
     pub fn display(&self, show_context: bool) {
-        eprint!("{}", ReportFormatter { report: self, show_context })
+        eprint!("{}", ReportFormatter { report: self, show_context });
     }
 }
 
@@ -157,7 +157,7 @@ impl Display for ReportFormatter<'_> {
             Level::Error => ("Error", Color::Red, Color::BrightRed),
             Level::Warn => ("Warning", Color::Yellow, Color::BrightYellow),
             Level::Note => ("Note", Color::White, Color::White),
-            _ => unreachable!("Why does a report have the level of silent you idiot."),
+            Level::Silent => unreachable!("Why does a report have the level of silent you idiot."),
         };
 
         writeln!(
@@ -232,7 +232,7 @@ impl Display for ReportFormatter<'_> {
     }
 }
 
-pub(crate) trait Unbox<T> {
+pub trait Unbox<T> {
     type InnerValue;
     fn unbox(&self) -> Self::InnerValue;
 }
@@ -257,7 +257,7 @@ impl ReportSender {
     }
 
     pub fn send(&self, report: Box<Report>) {
-        self.sender.send(report).expect("Error sender failed to send report.")
+        self.sender.send(report).expect("Error sender failed to send report.");
     }
 }
 

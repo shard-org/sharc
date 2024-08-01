@@ -119,14 +119,13 @@ impl<'contents> PreProcessor<'contents> {
                 println!("\nMACRO-DEFS:");
                 self.macro_defs.iter().for_each(|(k, v)| {
                     let v = v.iter().fold(String::new(), |mut acc, t| {
-                        acc = acc
-                            + &match t {
-                                TokenWrap::Macro(m) => format!("Macro({:?})", m),
-                                TokenWrap::Token(t) => format!("{:?} ", t.text),
-                            };
+                        acc.push_str(&match t {
+                            TokenWrap::Macro(m) => format!("Macro({m:?})"),
+                            TokenWrap::Token(t) => format!("{:?} ", t.text),
+                        });
                         acc
                     });
-                    println!("{}: {}", k, v);
+                    println!("{k}: {v}");
                 });
                 t
             },
@@ -197,7 +196,7 @@ impl<'contents> PreProcessor<'contents> {
                             .into();
                     }
 
-                    self.add_macro_def(token.text, args[1..].to_vec())
+                    self.add_macro_def(token.text, args[1..].to_vec());
                 },
                 None => {
                     return ReportKind::SyntaxError
@@ -224,7 +223,7 @@ impl<'contents> PreProcessor<'contents> {
             while let Some(i) =
                 tokens[index..].iter().position(|t| t.as_macro().is_some_and(|m| m.text == name))
             {
-                tokens.splice(index + i..index + i + 1, existing.iter().cloned());
+                tokens.splice(index + i..=index + i, existing.iter().cloned());
                 index += i + 1;
             }
         }
@@ -235,7 +234,7 @@ impl<'contents> PreProcessor<'contents> {
             if let Some(existing) =
                 tokens[index + 1 - 1].as_macro().and_then(|mac| self.macro_defs.get(&mac.text))
             {
-                tokens.splice(index + i..index + i + 1, existing.iter().cloned());
+                tokens.splice(index + i..=index + i, existing.iter().cloned());
             }
             index += i + 1;
         }
@@ -251,11 +250,11 @@ impl<'contents> PreProcessor<'contents> {
                 if let Some(existing) =
                     (*tokens)[index + i].as_macro().and_then(|m| self.macro_defs.get(&m.text))
                 {
-                    (*tokens).splice(index + i..index + i + 1, existing.iter().cloned());
+                    (*tokens).splice(index + i..=index + i, existing.iter().cloned());
                 }
                 index += i + 1;
             }
-        })
+        });
     }
 
     fn expand_tag_defs(&mut self) {
@@ -265,11 +264,11 @@ impl<'contents> PreProcessor<'contents> {
                 if let Some(existing) =
                     tokens[index + i].as_macro().and_then(|m| self.macro_defs.get(&m.text))
                 {
-                    tokens.splice(index + i..index + i + 1, existing.iter().cloned());
+                    tokens.splice(index + i..=index + i, existing.iter().cloned());
                 }
                 index += i + 1;
             }
-        })
+        });
     }
 
     fn expand_macros(&mut self) -> Result<Vec<Token<'contents>>> {
@@ -291,7 +290,7 @@ impl<'contents> PreProcessor<'contents> {
 
                     return ReportKind::InvalidTag
                         .new(format!("{:?}", token.text))
-                        .with_label(ReportLabel::new(token.span.clone()))
+                        .with_label(ReportLabel::new(token.span))
                         .into();
                 },
                 _ => tokens.push(token),
@@ -303,7 +302,7 @@ impl<'contents> PreProcessor<'contents> {
     fn into_tags_map(&self) -> Result<HashSet<Tag>> {
         let mut tags = HashSet::new();
 
-        for (key, (span, tokens)) in self.tag_defs.iter() {
+        for (key, (span, tokens)) in &self.tag_defs {
             match key.as_str() {
                 "NAME" => {
                     let name = match tokens.first().and_then(|t| t.token()) {
