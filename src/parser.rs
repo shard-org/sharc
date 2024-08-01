@@ -22,10 +22,12 @@ impl<'t, 'contents> Parser<'t, 'contents> {
             index += 1;
         }
 
-        Self { 
-            filename, sender, index: index.saturating_sub(1),
-            tokens: &tokens[index..], 
-            current: &tokens[index], 
+        Self {
+            filename,
+            sender,
+            index: index.saturating_sub(1),
+            tokens: &tokens[index..],
+            current: &tokens[index],
         }
     }
 
@@ -195,9 +197,7 @@ impl<'t, 'contents> Parser<'t, 'contents> {
 
     fn parse_label_attribute(&mut self) -> Option<LabelAttribute> {
         match self.current.text {
-            "entry" => {
-                Some(LabelAttribute::Entry)
-            },
+            "entry" => Some(LabelAttribute::Entry),
             _ => None,
         }
     }
@@ -234,7 +234,7 @@ impl<'t, 'contents> Parser<'t, 'contents> {
                         .new("Invalid Label Attribute")
                         .with_label(ReportLabel::new(self.current.span.clone()))
                         .into();
-                    },
+                },
             }
         }
         self.advance();
