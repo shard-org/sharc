@@ -2,6 +2,7 @@ use crate::ast::{ASTKind, LabelAttribute, Program, Type, AST};
 use crate::report::{Report, ReportKind, ReportLabel, ReportSender, Result, Unbox};
 use crate::token::{Token, TokenKind};
 use std::cmp::PartialEq;
+use std::num::IntErrorKind;
 use std::slice::Iter;
 use std::str;
 
@@ -149,6 +150,16 @@ impl<'t, 'contents> Parser<'t, 'contents> {
             TokenKind::Star => self.parse_interrupt(),
             TokenKind::Identifier => self.parse_label(),
             TokenKind::Ret => self.parse_return(),
+            //HACK: this is temporary, this should parse assignments
+            TokenKind::Percent => {
+                self.advance();
+                let ret = Ok(AST {
+                    kind: ASTKind::TypeAnnotation(self.parse_type()?, None),
+                    span: self.current.span.clone(),
+                });
+                self.advance();
+                return ret;
+            },
             _ => self.parse_expression(),
         }
     }
@@ -269,7 +280,7 @@ impl<'t, 'contents> Parser<'t, 'contents> {
                 };
                 self.advance();
                 match usize::from_str_radix(text, base) {
-                    Ok(val) => Ok((ASTKind::IntegerLiteral(val).into_ast(span.clone()))),
+                    Ok(val) => Ok(ASTKind::IntegerLiteral(val).into_ast(span.clone())),
                     Err(_) => ReportKind::SyntaxError
                         .new("Invalid {} Integer Literal")
                         .with_label(ReportLabel::new(span.clone()))
@@ -365,5 +376,231 @@ impl<'t, 'contents> Parser<'t, 'contents> {
             },
             s => s.as_bytes()[0],
         }) as char)
+    }
+
+    fn parse_register_binding(&mut self, inner: Option<Type>) -> Result<Type> {
+        // register binding
+        self.advance();
+
+        match self.current.kind {
+            TokenKind::Identifier => Ok(()),
+            TokenKind::DecimalIntLiteral => ReportKind::SyntaxError
+                .new("Expected register starting with r")
+                .with_note(format!("HINT: You forgot the r prefix. Do: r{}", self.current.text))
+                .with_label(ReportLabel::new(self.current.span.clone()))
+                .into(),
+            _ => ReportKind::UnexpectedToken
+                .new(format!("Expected register, got {}", self.current.text))
+                .with_note("HINT: Registers follow the format r<ident>. e.g r8 r32")
+                .with_label(ReportLabel::new(self.current.span.clone()))
+                .into(),
+        }?;
+
+        if !self.current.text.starts_with("r") {
+            return ReportKind::SyntaxError
+                .new("Register identifier format is incorrect!")
+                .with_label(ReportLabel::new(self.current.span.clone()))
+                .with_note("HINT: Registers follow the format r<ident>. e.g r8 r32")
+                .into();
+        }
+
+        match self.current.text.strip_prefix("r").unwrap().parse::<usize>() {
+            Err(e) => match e.kind() {
+                IntErrorKind::Empty => ReportKind::SyntaxError
+                    .new("Expected register identifier after r prefix")
+                    .with_label(ReportLabel::new(self.current.span.clone()))
+                    .with_note("HINT: Registers follow the format r<ident>. e.g r8 r32"),
+                IntErrorKind::InvalidDigit => {
+                    let mut span = self.current.span.clone();
+                    span.start_index += 1;
+                    span.end_index += self.current.text.len();
+
+                    ReportKind::SyntaxError
+                        .new("Register number contains an invalid digit")
+                        .with_label(ReportLabel::new(self.current.span.clone()))
+                        .with_note("HINT: Registers follow the format r<ident>. e.g r8 r32")
+                },
+                _ => ReportKind::SyntaxError
+                    .new("Register identifier intager overflows")
+                    .with_label(ReportLabel::new(self.current.span.clone()))
+                    .with_note("HINT: You dont have this many registers. Trust me"),
+            }
+            .into(),
+            Ok(i) => Ok(Type::Register { inner: inner.map(|t| Box::new(t)), ident: i }),
+        }
+    }
+
+    fn parse_type(&mut self) -> Result<Type> {
+        match self.current.kind {
+            TokenKind::Semicolon => self.parse_register_binding(None),
+            TokenKind::DecimalIntLiteral => {
+                // We know it lexed so this has to pass, so we can unwrap
+                let size = self.current.text.parse::<usize>().unwrap();
+                if size == 0 {
+                    return ReportKind::SyntaxError
+                        .new("Size cannot be zero")
+                        .with_label(ReportLabel::new(self.current.span.clone()))
+                        .into();
+                };
+
+                Ok(Type::Size(size))
+            },
+            TokenKind::Identifier => Ok(Type::Struct(self.current.text.to_string())),
+            TokenKind::LBracket => {
+                self.advance();
+                let t = self.parse_type()?;
+                let mut n = None;
+
+                self.advance();
+                if self.current.kind == TokenKind::Colon {
+                    self.advance();
+                    match self.current.kind {
+                        TokenKind::DecimalIntLiteral => {
+                            n = Some(self.current.text.parse::<usize>().unwrap());
+                            if n == Some(0) {
+                                return ReportKind::SyntaxError
+                                    .new("Array size cannot be zero.")
+                                    .with_note(format!("HINT: Did you mean [{}:]", t))
+                                    .with_label(ReportLabel::new(self.current.span.clone()))
+                                    .into();
+                            }
+                            self.advance();
+                        },
+                        TokenKind::RBracket => {},
+                        _ => {
+                            self.advance();
+                            return ReportKind::UnexpectedToken
+                                .new(format!("got {:?}", self.current.kind))
+                                .with_label(ReportLabel::new(self.current.span.clone()))
+                                .into();
+                        },
+                    }
+                }
+                // We should fail earlier but we wait to gather the element size
+                // n before logging for clearer error logging
+                if let Type::Register { inner, ident } = t {
+                    let mut inner_str = "".to_string();
+                    let mut n_str = "".to_string();
+                    if inner.is_some() {
+                        inner_str = format!("{}", inner.unwrap());
+                    }
+
+                    if n.is_some() && n.unwrap() != 0 {
+                        n_str = format!("{}", n.unwrap());
+                    }
+
+                    self.advance();
+                    return ReportKind::SyntaxError
+                        .new("Heap types cannot contain register bindings")
+                        .with_label(ReportLabel::new(self.current.span.clone()))
+                        .with_note(format!("HINT: Did you want to bind the pointer to the register? [{inner_str}:{n_str}];r{ident}"))
+                        .into();
+                }
+
+                if self.current.kind != TokenKind::RBracket {
+                    self.advance();
+                    return ReportKind::SyntaxError
+                        .new(format!("Expected closing bracket. Got {:?}", self.current.text))
+                        .with_label(ReportLabel::new(self.current.span.clone()))
+                        .into();
+                };
+
+                Ok(Type::Heap { is_pointer: true, contents: vec![(t, n)] })
+            },
+            TokenKind::LBrace => {
+                self.advance();
+                if self.current.kind == TokenKind::RBrace {
+                    let mut span = self.current.span.clone();
+                    span.start_index -= 1;
+
+                    return ReportKind::SyntaxError
+                        .new("Empty heaps are disallowed")
+                        .with_label(ReportLabel::new(span))
+                        .with_note("HINT: Did you want to create a void pointer: []")
+                        .into();
+                }
+                //NOTE: idk if 5 is the right number. To be determined
+                let mut vec: Vec<(Type, Option<usize>)> = Vec::with_capacity(5);
+                loop {
+                    let start = self.current.span.clone();
+                    let t = self.parse_type()?;
+                    let mut n = None;
+
+                    let end = self.current.span.clone();
+                    let span = start.extend(&end);
+                    self.advance();
+
+                    if self.current.kind == TokenKind::Colon {
+                        self.advance();
+                        match self.current.kind {
+                            TokenKind::DecimalIntLiteral => {
+                                n = Some(self.current.text.parse::<usize>().unwrap());
+                                if n == Some(0) {
+                                    return ReportKind::SyntaxError
+                                        .new("Array size cannot be zero.")
+                                        .with_note(format!("HINT: Did you mean {}:", t))
+                                        .with_label(ReportLabel::new(self.current.span.clone()))
+                                        .into();
+                                }
+                                self.advance();
+                            },
+                            TokenKind::Comma => {},
+                            TokenKind::RBrace => {},
+                            _ => {
+                                self.advance();
+                                return ReportKind::UnexpectedToken
+                                    .new(format!(
+                                        "Expected either `,` `}}` or a intager, got {:?}",
+                                        self.current.kind
+                                    ))
+                                    .with_label(ReportLabel::new(self.current.span.clone()))
+                                    .into();
+                            },
+                        }
+                    }
+
+                    if self.current.kind != TokenKind::Comma {
+                        if self.current.kind == TokenKind::RBrace {
+                            vec.push((t, n));
+                            break;
+                        }
+                        return ReportKind::SyntaxError
+                            .new("Expected comma to separate heap types")
+                            .with_label(ReportLabel::new(self.current.span.clone()))
+                            .into();
+                    }
+                    self.advance();
+                    if let Type::Register { ident, .. } = t {
+                        return ReportKind::SyntaxError
+                            .new("Heap types cannot contain register bindings")
+                            .with_label(ReportLabel::new(span))
+                            .with_note(format!("HINT: Did you want to bind the pointer to the register? {};r{ident}", Type::Heap { is_pointer: false, contents: vec }))
+                            .into();
+                    }
+
+                    vec.push((t, n));
+                }
+
+                if self.current.kind != TokenKind::RBrace {
+                    return ReportKind::SyntaxError
+                        .new(format!("Expected closing brace. Got {:?}", self.current.text))
+                        .with_label(ReportLabel::new(self.current.span.clone()))
+                        .into();
+                };
+                Ok(Type::Heap { is_pointer: false, contents: vec })
+            },
+            _ => ReportKind::UnexpectedToken
+                .new(format!("Unexpected token: {}", self.current.text))
+                .with_label(ReportLabel::new(self.current.span.clone()))
+                .with_note("Acceptable tokens are: `[` `{` or an intager")
+                .into(),
+        }.and_then(|t| {
+            if self.peek(1).kind == TokenKind::Semicolon {
+                self.advance();
+                self.parse_register_binding(Some(t))
+            } else {
+                Ok(t)
+            }
+        })
     }
 }
