@@ -4,7 +4,7 @@ use std::io::{self, BufReader, Read};
 use std::sync::RwLock;
 
 use crate::report::{ReportKind, ReportLabel, UnwrapReport};
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 
 pub struct Scanner {
     filename: &'static str,
@@ -13,8 +13,8 @@ pub struct Scanner {
     reader: BufReader<File>,
 }
 
-static CACHE: Lazy<RwLock<HashMap<&'static str, &'static str>>> =
-    Lazy::new(|| RwLock::new(HashMap::new()));
+static CACHE: LazyLock<RwLock<HashMap<&'static str, &'static str>>> =
+    LazyLock::new(|| RwLock::new(HashMap::new()));
 
 impl Scanner {
     pub fn get_cached(filename: &'static str) -> Option<&str> {
