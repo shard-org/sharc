@@ -23,7 +23,7 @@ impl<'t, 'contents> Parser<'t, 'contents> {
         }
 
         Self { 
-            filename, sender, index,
+            filename, sender, index: index.saturating_sub(1),
             tokens: &tokens[index..], 
             current: &tokens[index], 
         }
@@ -61,9 +61,12 @@ impl<'t, 'contents> Parser<'t, 'contents> {
         let Token { kind, span, .. } = self.current;
         match kind {
             TokenKind::NewLine => {
-                self.advance();
-                while self.current.kind == TokenKind::NewLine {
-                    self.advance();
+                loop {
+                    if self.current.kind == TokenKind::NewLine {
+                        self.advance();
+                        continue;
+                    }
+                    break;
                 }
                 Ok(())
             },
@@ -210,42 +213,24 @@ impl<'t, 'contents> Parser<'t, 'contents> {
 
         let mut attributes = Vec::with_capacity(5); // Could be adjusted
 
-        match self.current.text {
-            "entry" => {
-                while self.current.kind != TokenKind::NewLine {
-                    match self.parse_label_attribute() {
-                        Some(attribute) => attributes.push(attribute),
-                        None => {
-                            return ReportKind::SyntaxError
-                                .new("Invalid Label Attribute")
-                                .with_label(ReportLabel::new(self.current.span.clone()))
-                                .into();
-                        },
-                    }
-                    self.advance();
-                }
+        let label = self.current.text;
 
-                Ok(ASTKind::LabelDefinition(None, attributes).into_ast(self.current.span.clone()))
-            },
-            name => {
-                self.advance();
-                while self.current.kind != TokenKind::NewLine {
-                    match self.parse_label_attribute() {
-                        Some(attribute) => attributes.push(attribute),
-                        None => {
-                            return ReportKind::SyntaxError
-                                .new("Invalid Label Attribute")
-                                .with_label(ReportLabel::new(self.current.span.clone()))
-                                .into();
-                        },
-                    }
-                    self.advance();
-                }
-
-                Ok(ASTKind::LabelDefinition(Some(name.to_string()), attributes)
-                    .into_ast(self.current.span.clone()))
-            },
+        self.advance();
+        while !matches!(self.current.kind, TokenKind::Colon | TokenKind::LBrace) {
+            match self.parse_label_attribute() {
+                Some(attribute) => attributes.push(attribute),
+                None => {
+                    return ReportKind::SyntaxError
+                        .new("Invalid Label Attribute")
+                        .with_label(ReportLabel::new(self.current.span.clone()))
+                        .into();
+                    },
+            }
         }
+        self.advance();
+
+        Ok(ASTKind::LabelDefinition(Some(label.to_string()), attributes)
+            .into_ast(self.current.span.clone()))
     }
 
     fn parse_expression(&mut self) -> Result<AST> {
