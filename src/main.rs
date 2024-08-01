@@ -19,6 +19,7 @@ mod report;
 mod scanner;
 mod span;
 mod token;
+// mod linked_list;
 
 fn check_reports(receiver: &Receiver<Box<Report>>, reports: &mut Vec<Report>) -> bool {
     let mut had_error = false;

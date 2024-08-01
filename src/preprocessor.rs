@@ -6,10 +6,8 @@ use crate::token::{Token, TokenKind};
 use std::collections::{HashMap, HashSet};
 
 
-// use index_list::{IndexList, ListIndex};
 use std::collections::VecDeque;
-
-// ! USE LINKED LISTTTTTTT
+// ! USE LINKED LISTTTTTTT //# crate::linked_list::LinkedList;
 
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub enum Tag {
