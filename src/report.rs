@@ -34,6 +34,7 @@ pub enum ReportKind {
     UnexpectedToken,
     UnexpectedEOF,
     InvalidEscapeSequence,
+    DuplicateAttribute,
 
     // General
     IOError,
@@ -64,6 +65,7 @@ impl ReportKind {
             // Parsing
             ReportKind::UnexpectedToken
             | ReportKind::UnexpectedEOF
+            | ReportKind::DuplicateAttribute
             | ReportKind::InvalidEscapeSequence => Level::Error,
 
             // General

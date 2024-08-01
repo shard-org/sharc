@@ -196,7 +196,6 @@ impl<'t, 'contents> Parser<'t, 'contents> {
     fn parse_label_attribute(&mut self) -> Option<LabelAttribute> {
         match self.current.text {
             "entry" => {
-                self.advance();
                 Some(LabelAttribute::Entry)
             },
             _ => None,
@@ -218,8 +217,19 @@ impl<'t, 'contents> Parser<'t, 'contents> {
         self.advance();
         while !matches!(self.current.kind, TokenKind::Colon | TokenKind::LBrace) {
             match self.parse_label_attribute() {
-                Some(attribute) => attributes.push(attribute),
+                Some(attribute) => {
+                    if attributes.contains(&attribute) {
+                        return ReportKind::DuplicateAttribute
+                            .new("Duplicate attribute encountered")
+                            .with_label(ReportLabel::new(self.current.span.clone()))
+                            .into();
+                    };
+
+                    self.advance();
+                    attributes.push(attribute);
+                },
                 None => {
+                    self.advance();
                     return ReportKind::SyntaxError
                         .new("Invalid Label Attribute")
                         .with_label(ReportLabel::new(self.current.span.clone()))
