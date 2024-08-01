@@ -5,7 +5,6 @@ use crate::span::Span;
 use crate::token::{Token, TokenKind};
 use std::collections::{HashMap, HashSet};
 
-
 use std::collections::VecDeque;
 // ! USE LINKED LISTTTTTTT //# crate::linked_list::LinkedList;
 
@@ -16,7 +15,7 @@ pub enum Tag {
     Macro(String),
 
     SyscallConv(Vec<Type>, Option<Box<Type>>), // expect registers
-    // Syscall(Vec<Box<AST>>, String),         // expect TypeAnnotation
+                                               // Syscall(Vec<Box<AST>>, String),         // expect TypeAnnotation
 }
 
 #[derive(Debug, Clone)]
@@ -28,7 +27,7 @@ enum TokenWrap<'contents> {
 #[derive(Debug, Clone)]
 struct Macro {
     span: Span,
-    text: String
+    text: String,
 }
 
 impl Macro {
@@ -108,28 +107,30 @@ impl<'contents> PreProcessor<'contents> {
     }
 
     pub fn process(mut self) -> (Vec<Token<'contents>>, HashSet<Tag>) {
-        match self.macro_processor()
-            .map(|_| unsafe{self.expand_macro_defs()})
+        match self
+            .macro_processor()
+            .map(|_| unsafe { self.expand_macro_defs() })
             .map(|_| self.expand_tag_defs())
             .and_then(|_| self.expand_macros())
             .and_then(|tokens| self.into_tags_map().map(|tags| (tokens, tags)))
             .map_err(|err| self.sender.send(err))
-            {
+        {
             Ok(t) => {
                 println!("\nMACRO-DEFS:");
                 self.macro_defs.iter().for_each(|(k, v)| {
                     let v = v.iter().fold(String::new(), |mut acc, t| {
-                        acc = acc + &match t {
-                            TokenWrap::Macro(m) => format!("Macro({:?})", m),
-                            TokenWrap::Token(t) => format!("{:?} ", t.text),
-                        };
+                        acc = acc
+                            + &match t {
+                                TokenWrap::Macro(m) => format!("Macro({:?})", m),
+                                TokenWrap::Token(t) => format!("{:?} ", t.text),
+                            };
                         acc
                     });
                     println!("{}: {}", k, v);
                 });
                 t
             },
-            Err(_) => (Vec::new(), HashSet::new())
+            Err(_) => (Vec::new(), HashSet::new()),
         }
     }
 
@@ -186,7 +187,10 @@ impl<'contents> PreProcessor<'contents> {
                         .into();
                 },
                 Some(token) => {
-                    if let Some(token) = args[1..].iter().find(|t| t.as_macro().is_some_and(|t| t.text == token.text)) {
+                    if let Some(token) = args[1..]
+                        .iter()
+                        .find(|t| t.as_macro().is_some_and(|t| t.text == token.text))
+                    {
                         return ReportKind::SelfReferentialMacro
                             .new("")
                             .with_label(ReportLabel::new(token.as_macro().unwrap().span.clone()))
