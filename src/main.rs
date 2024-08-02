@@ -56,7 +56,7 @@ fn check_reports(receiver: &Receiver<Box<Report>>, reports: &mut Vec<Report>) ->
     had_error
 }
 
-fn print_reports_and_exit(reports: &mut Vec<Report>, args: &args::Args) {
+fn print_reports_and_exit(reports: &mut Vec<Report>, args: &args::Args) -> ! {
     if *args.level == Level::Silent {
         exit(1);
     }
@@ -69,7 +69,8 @@ fn print_reports_and_exit(reports: &mut Vec<Report>, args: &args::Args) {
             report.display(*args.code_context);
         }
     });
-    exit(1);
+
+    exit(1)
 }
 
 fn main() {
@@ -88,7 +89,6 @@ fn main() {
             Scanner::get_file(*args.file),
             ReportSender::new(sender.clone()),
         );
-
         lexer.lex_tokens();
         lexer.tokens.goto_front();
 
