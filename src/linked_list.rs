@@ -1,108 +1,111 @@
-use std::marker::PhantomData;
 use std::fmt::Debug;
+use std::marker::PhantomData;
+use std::ptr::NonNull;
 
+#[derive(Clone)]
 pub struct LinkedList<T> {
-   pub front: Link<T>,
-   back: Link<T>,
-   len: usize,
-   _boo: PhantomData<T>,
+    front:   Link<T>,
+    back:    Link<T>,
+    current: Link<T>,
+    len:     usize,
+    _boo:    PhantomData<T>,
 }
 
-type Link<T> = Option<*mut Node<T>>;
+type Link<T> = Option<NonNull<Node<T>>>;
 
 #[derive(Debug, Clone)]
 pub struct Node<T> {
-    front: Link<T>,
-    back: Link<T>,
+    next: Link<T>,
+    prev: Link<T>,
     elem: T,
 }
 
 impl<T> LinkedList<T> {
     pub fn new() -> Self {
-        LinkedList {
+        Self { 
             front: None,
             back: None,
+            current: None,
             len: 0,
-            _boo: PhantomData,
+            _boo: PhantomData
         }
     }
 
-    pub fn push(&mut self, elem: T) { unsafe {
-        let new = Box::into_raw(Box::new(Node {
-            back: None,
-            front: None,
-            elem,
-        }));
+    pub fn push(&mut self, elem: T) {
+        unsafe {
+            let new = NonNull::new_unchecked(Box::into_raw(Box::new(Node { prev: None, next: None, elem })));
 
-        match self.back {
-            Some(old) => {
-                (*old).back = Some(new);
-                (*new).front = Some(old);
-            }
-            None => self.front = Some(new),
-        }
-
-        self.back = Some(new);
-        self.len += 1;
-    } }
-
-    pub fn pop_front(&mut self) -> Option<T> { unsafe {
-        self.front.map(|node| {
-            let boxed_node = Box::from_raw(node);
-            let result = boxed_node.elem;
-
-            self.front = boxed_node.back;
-            match self.front {
-                Some(new) => (*new).front = None,
-                None => self.back = None,
-            }
-
-            self.len -= 1;
-            result
-        })
-    } }
-
-    pub fn pop_back(&mut self) -> Option<T> { unsafe {
-        self.back.map(|node| {
-            let boxed_node = Box::from_raw(node);
-            let result = boxed_node.elem;
-
-            self.back = boxed_node.front;
             match self.back {
-                Some(new) => (*new).back = None,
-                None => self.front = None,
+                Some(old) => {
+                    (*old.as_ptr()).next = Some(new);
+                    (*new.as_ptr()).prev = Some(old);
+                },
+                None => {
+                    self.front   = Some(new);
+                    self.current = Some(new);
+                },
             }
-            self.len -= 1;
-            result
+
+            self.back = Some(new);
+            self.len += 1;
+        }
+    }
+
+    pub fn pop_front(&mut self) -> Option<T> {
+        self.front.map(|node| {
+            unsafe {
+                let node = Box::from_raw(node.as_ptr());
+
+                match node.next {
+                    Some(next) => (*next.as_ptr()).prev = None,
+                    None => self.back = None,
+                }
+
+                self.front = node.next;
+                self.len -= 1;
+                node.elem
+            }
         })
-    } }
-
-
-    pub fn front_mut(&self) -> Option<*mut Node<T>> {
-        self.front
     }
 
     pub fn front(&self) -> Option<&T> {
-        self.front.map(|node| unsafe { (*node).elem() })
+        self.front.map(|node| unsafe{ &node.as_ref().elem })
     }
 
-    pub unsafe fn remove(&mut self, node: *mut Node<T>) -> Node<T> {
-        match (*node).back {
-            Some(prev) => (*prev).front = (*node).front,
-            None => self.front = (*node).front,
-        }
-
-        match (*node).front {
-            Some(next) => (*next).back = (*node).back,
-            None => self.back = (*node).back,
-        }
-
-        self.len -= 1;
-        *Box::from_raw(node)
+    pub fn advance(&mut self) {
+        self.current.map(|node| unsafe{ self.current = node.as_ref().next; });
     }
 
-    pub fn next(&self, node: *mut Node<T>) -> Option<*mut Node<T>> {
-        unsafe { (*node).back }
+    pub fn current(&self) -> Option<&T> {
+        self.current.map(|node| unsafe{ &node.as_ref().elem })
+    }
+
+    pub fn peek(&self) -> Option<&T> {
+        self.current.and_then(|node| unsafe{ node.as_ref().next })
+            .map(|n| unsafe{ &n.as_ref().elem })
+    }
+
+    pub fn consume(&mut self) -> Option<T> {
+        self.current.map(|node| {
+            unsafe {
+                let node = Box::from_raw(node.as_ptr());
+
+                match node.prev {
+                    Some(prev) => (*prev.as_ptr()).next = node.next,
+                    None => self.front = node.next,
+                }
+
+                match node.next {
+                    Some(next) => (*next.as_ptr()).prev = node.prev,
+                    None => self.back = node.prev,
+                }
+
+                let elem = node.elem;
+                self.current = node.next;
+                self.len -= 1;
+                elem
+            }
+        })
     }
 
     pub fn len(&self) -> usize {
@@ -110,23 +113,9 @@ impl<T> LinkedList<T> {
     }
 }
 
-impl<T> Node<T> {
-    pub fn elem(&self) -> &T {
-        &self.elem
-    }
-
-    pub fn into_elem(self) -> T {
-        self.elem
-    }
-    
-    pub fn next(&self) -> Option<*mut Node<T>> {
-        self.back.map(|node| unsafe { node })
-    }
-}
-
 impl<T> From<Vec<T>> for LinkedList<T> {
     fn from(vec: Vec<T>) -> Self {
-        vec.into_iter().fold(LinkedList::new(), |mut list, elem| {
+        vec.into_iter().fold(Self::new(), |mut list, elem| {
             list.push(elem);
             list
         })
@@ -139,8 +128,8 @@ impl<T: Debug> Debug for LinkedList<T> {
         write!(f, "[")?;
         while let Some(n) = node {
             unsafe {
-                write!(f, "{:?}", (*n).elem)?;
-                node = (*n).back;
+                write!(f, "{:?}", n.as_ref().elem)?;
+                node = n.as_ref().next;
                 if node.is_some() {
                     write!(f, ", ")?;
                 }

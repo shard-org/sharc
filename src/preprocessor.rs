@@ -5,8 +5,8 @@ use crate::span::Span;
 use crate::token::{Token, TokenKind};
 use std::collections::{HashMap, HashSet};
 
-use std::collections::VecDeque;
-// ! USE LINKED LISTTTTTTT //# crate::linked_list::LinkedList;
+// use std::collections::VecDeque;
+use crate::linked_list::LinkedList;
 
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub enum Tag {
@@ -54,8 +54,7 @@ impl<'contents> TokenWrap<'contents> {
 
 pub struct PreProcessor<'contents> {
     filename: &'static str,
-    tokens: VecDeque<Token<'contents>>,
-    index: usize,
+    tokens: LinkedList<Token<'contents>>,
     sender: ReportSender,
 
     tag_defs: HashMap<String, (Span, Vec<TokenWrap<'contents>>)>,
@@ -69,28 +68,26 @@ impl<'contents> PreProcessor<'contents> {
         Self {
             filename,
             sender,
-            tokens: tokens.into(),
-            index: 0,
-            // tags: HashSet::new(),
+            tokens: LinkedList::from(tokens),
             tag_defs: HashMap::new(),
             macro_defs: HashMap::new(),
         }
     }
 
     fn advance(&mut self) {
-        self.index += 1;
+        self.tokens.advance();
     }
 
     fn consume(&mut self) -> Token<'contents> {
-        self.tokens.remove(self.index).unwrap()
+        self.tokens.consume().unwrap()
     }
 
     fn current(&self) -> &Token<'contents> {
-        &self.tokens[self.index]
+        self.tokens.current().unwrap()
     }
 
     fn peek(&self) -> &Token<'contents> {
-        &self.tokens[self.index + 1]
+        self.tokens.peek().unwrap()
     }
 
     fn parse_token(&mut self) -> TokenWrap<'contents> {
