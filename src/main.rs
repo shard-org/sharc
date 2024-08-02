@@ -42,7 +42,7 @@ mod report;
 mod scanner;
 mod span;
 mod token;
-// mod linked_list;
+mod linked_list;
 
 fn check_reports(receiver: &Receiver<Box<Report>>, reports: &mut Vec<Report>) -> bool {
     let mut had_error = false;
@@ -56,27 +56,25 @@ fn check_reports(receiver: &Receiver<Box<Report>>, reports: &mut Vec<Report>) ->
 }
 
 fn print_reports_and_exit(reports: &mut Vec<Report>, args: &args::Args) {
-    if *args.level.field == Level::Silent {
+    if *args.level == Level::Silent {
         exit(1);
     }
 
     reports.sort_by(|left, right| {
         left.level().partial_cmp(&right.level()).expect("Failed to order report kinds.")
     });
-
     reports.iter().for_each(|report| {
-        if *args.level.field <= report.level() {
-            report.display(*args.code_context.field);
+        if *args.level <= report.level() {
+            report.display(*args.code_context);
         }
     });
-
     exit(1);
 }
 
 fn main() {
     let args = args::Args::parse(std::env::args().skip(1).collect());
 
-    if *args.debug.field {
+    if *args.debug {
         println!("{args:#?}");
     }
 
@@ -85,13 +83,13 @@ fn main() {
 
     let tokens = {
         let mut lexer = Lexer::new(
-            &args.file.field,
-            Scanner::get_file(&args.file.field),
+            *args.file,
+            Scanner::get_file(*args.file),
             ReportSender::new(sender.clone()),
         );
 
         lexer.lex_tokens();
-        if *args.debug.field {
+        if *args.debug {
             println!("\n{}", "LEXER".bold());
             lexer.tokens.iter().for_each(|token| println!("{token:#}"));
         }
@@ -105,17 +103,17 @@ fn main() {
 
     let (tokens, tags) = {
         let mut preprocessor = preprocessor::PreProcessor::new(
-            &args.file.field,
+            *args.file,
             tokens,
             ReportSender::new(sender.clone()),
         );
 
         let (tokens, tags) = preprocessor.process();
 
-        if *args.debug.field {
+        if *args.debug {
             println!("\n{}", "PREPROCESSOR".bold());
             tokens.iter().for_each(|token| println!("{token:#}"));
-            println!("");
+            println!();
             tags.iter().for_each(|tag| println!("{tag:?}"));
         }
 
@@ -127,10 +125,10 @@ fn main() {
     };
 
     let program = {
-        let mut parser = Parser::new(&args.file.field, &tokens, ReportSender::new(sender));
+        let mut parser = Parser::new(&args.file, &tokens, ReportSender::new(sender));
         let result = parser.parse();
 
-        if *args.debug.field {
+        if *args.debug {
             println!("\n{}", "PARSER".bold());
             result.stmts.iter().for_each(|stmt| println!("{stmt:#}"));
         }

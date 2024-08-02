@@ -13,29 +13,39 @@ macro_rules! error {
     };
 }
 
-#[derive(Default)]
+#[derive(Copy, Clone)]
 pub struct Arg<T> {
-    pub field: Box<T>,
-    name: &'static str,
+    pub value: T,
     set: bool,
 }
 
 impl<T> Arg<T> {
-    pub fn new(default: T, name: &'static str) -> Self {
-        Self { field: Box::new(default), name, set: false }
+    fn new(default: T) -> Self {
+        Self {
+            value: default,
+            set: false,
+        }
     }
 
-    pub fn try_mut(&mut self, value: T) {
+    fn try_mut<N: std::fmt::Display>(&mut self, name: N, value: T) {
         if self.set {
-            error!("the argument {} cannot be used multiple times", self.name);
+            error!("'{}' may only be used once", name);
         }
-        self.field = Box::new(value);
+        self.value = value;
+    }
+}
+
+impl<T> std::ops::Deref for Arg<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.value
     }
 }
 
 impl<T: Debug> Debug for Arg<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self.field)
+        write!(f, "{:?}", self.value)
     }
 }
 
@@ -52,19 +62,20 @@ pub struct Args {
 impl Args {
     pub fn default() -> Self {
         Self {
-            file: Arg::new("main.shd", "--file"),
-            output: Arg::new("main.asm", "--output"),
-            debug: Arg::new(false, "--debug"),
-            code_context: Arg::new(true, "--code-context"),
-            level: Arg::new(Level::Warn, "--error-level"),
+            file: Arg::new("main.shd"),
+            output: Arg::new("main.asm"),
+            debug: Arg::new(false),
+            code_context: Arg::new(true),
+            level: Arg::new(Level::Warn),
             verbs: Vec::new(),
         }
     }
 
-    fn handle_arg(&mut self, arg: &str, arguments: &mut std::vec::IntoIter<String>) {
-        let args: Vec<String> = match arg.starts_with("--") {
-            true => vec![arg.into()],
-            false => arg.chars().skip(1).map(|c| format!("-{c}")).collect(),
+    fn handle_arg(&mut self, argument: &str, arguments: &mut std::vec::IntoIter<String>) {
+        let args: Vec<String> = if argument.starts_with("--") {
+            vec![argument.into()]
+        } else {
+            argument.chars().skip(1).map(|c| format!("-{c}")).collect()
         };
         let args_len = args.len();
 
@@ -74,11 +85,10 @@ impl Args {
             macro_rules! is_end {
                 () => {
                     if !is_end {
-                        error!("flags with parameters must be at the end of a group, or defined separately");
+                        error!("{} may only be used at the end of a group", arg);
                     }
                 };
             }
-
             match arg.as_str() {
                 "-h" => {
                     println!("{USAGE}");
@@ -92,33 +102,30 @@ impl Args {
                     println!("sharc {}", env!("CARGO_PKG_VERSION"));
                     exit(0);
                 },
-                "-d" | "--debug" => self.debug.try_mut(true),
+                "-d" | "--debug" => self.debug.try_mut(arg, true),
                 "-f" | "--file" => {
                     is_end!();
-
                     let file = arguments.next().unwrap_or_else(|| {
-                        error!("expected file");
+                        error!("{arg} expected FILE");
                     });
 
-                    self.file.try_mut(Box::leak(file.into_boxed_str()));
+                    self.file.try_mut(arg, Box::leak(file.into_boxed_str()));
                 },
                 "-o" | "--output" => {
                     is_end!();
-
                     let output = arguments.next().unwrap_or_else(|| {
                         error!("expected file");
                     });
 
-                    self.output.try_mut(Box::leak(output.into_boxed_str()));
+                    self.output.try_mut(arg, Box::leak(output.into_boxed_str()));
                 },
                 "-l" | "--error-level" => {
                     is_end!();
-
                     let level = arguments.next().unwrap_or_else(|| {
                         error!("expected level");
                     });
 
-                    self.level.try_mut(match level.as_str() {
+                    self.level.try_mut(arg, match level.as_str() {
                         "f" | "fatal" => Level::Fatal,
                         "e" | "error" => Level::Error,
                         "w" | "warn" => Level::Warn,
@@ -129,10 +136,10 @@ impl Args {
                         },
                     });
                 },
-                "--no-context" => self.code_context.try_mut(false),
+                "--no-context" => self.code_context.try_mut(arg, false),
 
                 _ => {
-                    error!("unrecognized argument '{arg}'");
+                    error!("unrecognized argument {arg}");
                 },
             }
         }
@@ -145,21 +152,18 @@ impl Args {
         while let Some(arg) = args.next() {
             if arg.starts_with('-') {
                 out.handle_arg(&arg, &mut args);
-                continue;
-            }
-
-            if arg == "shark" {
-                println!("\x1b[34m{SHARK_ASCII}\x1b[0m");
-                exit(1);
-            }
-
-            out.verbs.push(Box::leak(arg.into_boxed_str()) as &str);
-
-            // drain remaining args
-            for arg in args.by_ref() {
-                out.verbs.push(Box::leak(arg.into_boxed_str()) as &str);
+            } else if arg == "shark" {
+                println!("{SHARK_ASCII}");
+                exit(0);
+            } else {
+                out.verbs.push(Box::leak(arg.into_boxed_str()));
             }
         }
+
+        args.for_each(|arg| {
+            out.verbs.push(Box::leak(arg.into_boxed_str()));
+        });
+
         out
     }
 }
