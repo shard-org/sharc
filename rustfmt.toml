@@ -7,3 +7,27 @@ tab_spaces = 4
 use_field_init_shorthand = true
 use_small_heuristics = "Max"
 use_try_shorthand = true
+
+
+unstable_features = true
+enum_discrim_align_threshold = 10
+struct_field_align_threshold = 10
+brace_style = "PreferSameLine"
+combine_control_expr = true
+comment_width = 100
+condense_wildcard_suffixes = true
+control_brace_style = "ClosingNextLine"
+format_macro_matchers = true
+format_macro_bodies = true
+hex_literal_case = "Lower"
+imports_indent = "Visual"
+# indent_style = "Visual"
+match_arm_blocks = false
+imports_granularity = "Module"
+normalize_comments = true
+overflow_delimited_expr = true
+remove_nested_parens = true
+reorder_impl_items = true
+group_imports = "StdExternalCrate"
+trailing_semicolon = true
+where_single_line = true
