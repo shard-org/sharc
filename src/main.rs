@@ -20,7 +20,8 @@
     clippy::derive_partial_eq_without_eq,
     clippy::missing_const_for_fn,
     clippy::cognitive_complexity,
-    clippy::option_if_let_else
+    clippy::option_if_let_else,
+    clippy::option_map_unit_fn,
 )]
 #![allow(dead_code, unused)]
 
