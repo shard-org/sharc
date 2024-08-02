@@ -1,8 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
+use iterlist::IterList;
+
 use crate::ast::Type;
-// use std::collections::VecDeque;
-use crate::linked_list::LinkedList;
 use crate::report::{Report, ReportKind, ReportLabel, ReportSender, Result, Unbox};
 use crate::scanner::Scanner;
 use crate::span::Span;
@@ -54,7 +54,7 @@ impl<'contents> TokenWrap<'contents> {
 
 pub struct PreProcessor<'contents> {
     filename: &'static str,
-    tokens:   LinkedList<Token<'contents>>,
+    tokens:   IterList<Token<'contents>>,
     sender:   ReportSender,
 
     tag_defs:   HashMap<String, (Span, Vec<TokenWrap<'contents>>)>,
@@ -68,7 +68,7 @@ impl<'contents> PreProcessor<'contents> {
         Self {
             filename,
             sender,
-            tokens: LinkedList::from(tokens),
+            tokens: IterList::from(tokens),
             tag_defs: HashMap::new(),
             macro_defs: HashMap::new(),
         }
@@ -270,16 +270,17 @@ impl<'contents> PreProcessor<'contents> {
 
     fn expand_macros(&mut self) -> Result<Vec<Token<'contents>>> {
         let mut tokens = Vec::with_capacity(self.tokens.len());
-        while let Some(token) = self.tokens.pop_front() {
+        self.tokens.goto_front();
+        while let Some(token) = self.tokens.consume() {
             match token.kind {
                 TokenKind::EOF => {
                     tokens.push(token);
                     break;
                 },
                 TokenKind::Pound
-                    if self.tokens.front().is_some_and(|t| t.kind == TokenKind::Identifier) =>
+                    if self.tokens.current().is_some_and(|t| t.kind == TokenKind::Identifier) =>
                 {
-                    let token = self.tokens.pop_front().unwrap();
+                    let token = self.consume();
                     if let Some(def) = self.macro_defs.get(token.text) {
                         tokens.extend(def.iter().map(|t| t.token().unwrap().clone()));
                         continue;

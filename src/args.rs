@@ -163,11 +163,11 @@ impl Args {
             }
 
             out.verbs.push(Box::leak(arg.into_boxed_str()) as &str); // rm
+        }
 
-            // drain remaining args
-            for arg in args.by_ref() {
-                out.verbs.push(Box::leak(arg.into_boxed_str()));
-            }
+        // drain remaining args
+        for arg in args.by_ref() {
+            out.verbs.push(Box::leak(arg.into_boxed_str()));
         }
         out
     }

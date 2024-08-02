@@ -38,7 +38,6 @@ use crate::scanner::Scanner;
 mod args;
 mod ast;
 mod lexer;
-mod linked_list;
 mod parser;
 mod preprocessor;
 mod report;
@@ -106,11 +105,8 @@ fn main() {
     };
 
     let (tokens, tags) = {
-        let mut preprocessor = preprocessor::PreProcessor::new(
-            &args.file,
-            tokens,
-            ReportSender::new(sender.clone()),
-        );
+        let mut preprocessor =
+            preprocessor::PreProcessor::new(&args.file, tokens, ReportSender::new(sender.clone()));
 
         let (tokens, tags) = preprocessor.process();
 
