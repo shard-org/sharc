@@ -50,8 +50,24 @@ impl Display for Type {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Size(s) => write!(f, "{s}")?,
+<<<<<<< HEAD
             Self::Heap { is_pointer, contents } => {
                 write!(f, "{}", if *is_pointer { "[" } else { "{" })?;
+=======
+            Self::Heap { is_pointer: true, contents } => {
+                // contents length is always 1 for pointers
+                write!(f, "[{}", &contents[0].0)?;
+                match contents[0].1 {
+                    Some(0) => write!(f, ":")?,
+                    Some(size) => write!(f, ":{size}")?,
+                    None => {},
+                };
+
+                write!(f, "]")?;
+            },
+            Self::Heap { is_pointer: false, contents } => {
+                write!(f, "{{")?;
+>>>>>>> 900ce40 (fix: remove trailing comma on heap display printing)
                 for (i, (t, elems)) in contents.iter().enumerate() {
                     write!(f, "{t}")?;
                     match elems {
@@ -60,7 +76,11 @@ impl Display for Type {
                         None => {},
                     };
 
+<<<<<<< HEAD
                     if i != contents.len() - 1 {
+=======
+                    if i != contents.len() -1 {
+>>>>>>> 900ce40 (fix: remove trailing comma on heap display printing)
                         write!(f, ", ")?;
                     }
                 }

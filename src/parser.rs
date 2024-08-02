@@ -631,7 +631,6 @@ impl<'t, 'contents> Parser<'t, 'contents> {
                             .with_note(format!("HINT: Did you want to bind the pointer to the register? {};r{ident}", Type::Heap { is_pointer: false, contents: vec }))
                             .into();
                     }
->>>>>>> f5e4b92 (feat(#23): Added type parsing and logging)
 
                 while self.current.kind != end_kind {
                     // let start = self.current.span.clone();
