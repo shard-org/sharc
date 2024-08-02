@@ -1,10 +1,9 @@
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{self, BufReader, Read};
-use std::sync::RwLock;
+use std::sync::{LazyLock, RwLock};
 
 use crate::report::{ReportKind, ReportLabel, UnwrapReport};
-use once_cell::sync::Lazy;
 
 pub struct Scanner {
     filename: &'static str,
@@ -13,8 +12,8 @@ pub struct Scanner {
     reader: BufReader<File>,
 }
 
-static CACHE: Lazy<RwLock<HashMap<&'static str, &'static str>>> =
-    Lazy::new(|| RwLock::new(HashMap::new()));
+static CACHE: LazyLock<RwLock<HashMap<&'static str, &'static str>>> =
+    LazyLock::new(|| RwLock::new(HashMap::new()));
 
 impl Scanner {
     pub fn get_cached(filename: &'static str) -> Option<&str> {
@@ -24,20 +23,20 @@ impl Scanner {
     }
 
     pub fn get_file(filename: &'static str) -> &str {
-        if let Some(contents) = Scanner::get_cached(filename) {
+        if let Some(contents) = Self::get_cached(filename) {
             return contents;
         }
 
-        let contents = Scanner::new(filename)
+        let contents = Self::new(filename)
             .unwrap_or_fatal(
                 ReportKind::IOError
-                    .new(format!("Failed to open file: '{}'", filename))
+                    .new(format!("Failed to open file: '{filename}'"))
                     .into(),
             )
             .read()
             .unwrap_or_fatal(
                 ReportKind::IOError
-                    .new(format!("Failed to read file: '{}'", filename))
+                    .new(format!("Failed to read file: '{filename}'"))
                     .into(),
             )
             .leak();
@@ -50,6 +49,10 @@ impl Scanner {
 
     fn new(filename: &'static str) -> io::Result<Self> {
         let file = File::open(filename)?;
+
+        // We can forbid this, as files whose size are truncated are large enough that
+        // we can ignore this optimization loss.
+        #[allow(clippy::cast_possible_truncation)]
         let file_size = file.metadata()?.len() as usize;
 
         Ok(Self {
