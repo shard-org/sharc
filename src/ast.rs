@@ -63,7 +63,7 @@ impl Display for Type {
             },
             Self::Heap { is_pointer: false, contents } => {
                 write!(f, "{{")?;
-                for (t, elems) in contents {
+                for (i, (t, elems)) in contents.iter().enumerate() {
                     write!(f, "{t}")?;
                     match elems {
                         Some(0) => write!(f, ":")?,
@@ -71,7 +71,9 @@ impl Display for Type {
                         None => {},
                     };
 
-                    write!(f, ", ")?;
+                    if i != contents.len() -1 {
+                        write!(f, ", ")?;
+                    }
                 }
                 write!(f, "}}")?;
             },
