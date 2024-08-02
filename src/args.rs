@@ -1,7 +1,8 @@
-use crate::report::{Level, ReportKind};
 use std::borrow::Borrow;
 use std::fmt::{Debug, Formatter};
 use std::process::exit;
+
+use crate::report::{Level, ReportKind};
 
 macro_rules! error {
     ($($ident:tt)*) => {
@@ -13,21 +14,21 @@ macro_rules! error {
     };
 }
 
-#[derive(Default)]
+#[derive(Copy, Clone)]
 pub struct Arg<T> {
-    pub field: Box<T>,
-    name: &'static str,
-    set: bool,
+    pub value: T,
+    set:       bool,
 }
 
 impl<T> Arg<T> {
-    pub fn new(default: T, name: &'static str) -> Self {
-        Self { field: Box::new(default), name, set: false }
+    pub fn new(default: T) -> Self {
+        Self { field: default, set: false }
     }
 
-    pub fn try_mut(&mut self, value: T) {
+    pub fn try_mut(&mut self, name: N, value: T)
+    where N: std::fmt::Display {
         if self.set {
-            error!("the argument {} cannot be used multiple times", self.name);
+            error!("'{name}' may only be used once");
         }
         self.field = Box::new(value);
     }
@@ -41,23 +42,23 @@ impl<T: Debug> Debug for Arg<T> {
 
 #[derive(Debug)]
 pub struct Args {
-    pub file: Arg<&'static str>,
-    pub output: Arg<&'static str>,
-    pub debug: Arg<bool>,
+    pub file:         Arg<&'static str>,
+    pub output:       Arg<&'static str>,
+    pub debug:        Arg<bool>,
     pub code_context: Arg<bool>,
-    pub level: Arg<Level>,
-    pub verbs: Vec<&'static str>,
+    pub level:        Arg<Level>,
+    pub verbs:        Vec<&'static str>,
 }
 
 impl Args {
     pub fn default() -> Self {
         Self {
-            file: Arg::new("main.shd", "--file"),
-            output: Arg::new("main.asm", "--output"),
-            debug: Arg::new(false, "--debug"),
+            file:         Arg::new("main.shd", "--file"),
+            output:       Arg::new("main.asm", "--output"),
+            debug:        Arg::new(false, "--debug"),
             code_context: Arg::new(true, "--code-context"),
-            level: Arg::new(Level::Warn, "--error-level"),
-            verbs: Vec::new(),
+            level:        Arg::new(Level::Warn, "--error-level"),
+            verbs:        Vec::new(),
         }
     }
 

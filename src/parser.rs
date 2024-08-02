@@ -1,17 +1,18 @@
-use crate::ast::{ASTKind, LabelAttribute, Program, Type, AST};
-use crate::report::{Report, ReportKind, ReportLabel, ReportSender, Result, Unbox};
-use crate::token::{Token, TokenKind};
 use std::cmp::PartialEq;
 use std::num::IntErrorKind;
 use std::slice::Iter;
 use std::str;
 
+use crate::ast::{ASTKind, LabelAttribute, Program, Type, AST};
+use crate::report::{Report, ReportKind, ReportLabel, ReportSender, Result, Unbox};
+use crate::token::{Token, TokenKind};
+
 pub struct Parser<'t, 'contents> {
     filename: &'static str,
-    tokens: &'t [Token<'contents>],
-    current: &'t Token<'contents>,
-    index: usize,
-    sender: ReportSender,
+    tokens:   &'t [Token<'contents>],
+    current:  &'t Token<'contents>,
+    index:    usize,
+    sender:   ReportSender,
 }
 
 impl<'t, 'contents> Parser<'t, 'contents> {
@@ -103,7 +104,8 @@ impl<'t, 'contents> Parser<'t, 'contents> {
     }
 
     pub fn parse(&mut self) -> Program {
-        let AST { kind: ASTKind::Block(stmts), .. } = self.parse_block(true) else {
+        let AST { kind: ASTKind::Block(stmts), .. } = self.parse_block(true)
+        else {
             unreachable!("Can't happen nerds!")
         };
         Program { stmts, filename: self.filename }
@@ -145,7 +147,7 @@ impl<'t, 'contents> Parser<'t, 'contents> {
             TokenKind::Star => self.parse_interrupt(),
             TokenKind::Identifier => self.parse_label(),
             TokenKind::Ret => self.parse_return(),
-            //HACK: this is temporary, this should parse assignments
+            // HACK: this is temporary, this should parse assignments
             TokenKind::Percent => {
                 self.advance();
                 let ret = Ok(AST {
@@ -191,9 +193,8 @@ impl<'t, 'contents> Parser<'t, 'contents> {
         }
 
         match self.parse_expression()? {
-            AST { kind: ASTKind::IntegerLiteral(val), .. } => {
-                Ok(ASTKind::Interrupt(val).into_ast(self.current.span.clone()))
-            },
+            AST { kind: ASTKind::IntegerLiteral(val), .. } =>
+                Ok(ASTKind::Interrupt(val).into_ast(self.current.span.clone())),
             _ => ReportKind::SyntaxError
                 .new("Expected Integer Literal")
                 .with_label(ReportLabel::new(self.current.span.clone()))
@@ -361,12 +362,11 @@ impl<'t, 'contents> Parser<'t, 'contents> {
             "\\?" => 32,
             "\\" => b'\\',
             "\\`" => b'`',
-            s if s.len() > 1 => {
+            s if s.len() > 1 =>
                 return ReportKind::InvalidEscapeSequence
                     .new("")
                     .with_label(ReportLabel::new(span.clone()))
-                    .into()
-            },
+                    .into(),
             s => s.as_bytes()[0],
         }) as char)
     }

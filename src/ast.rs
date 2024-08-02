@@ -1,9 +1,10 @@
-use crate::span::Span;
 use std::fmt::{Display, Formatter};
+
+use crate::span::Span;
 
 pub struct Program {
     pub filename: &'static str,
-    pub stmts: Vec<AST>,
+    pub stmts:    Vec<AST>,
 }
 
 #[derive(Debug)]
@@ -15,7 +16,6 @@ pub enum ASTKind {
     // Keywords
     Return(Option<Box<AST>>),
 
-    //
     // Expressions
     Identifier(String),
 
@@ -40,7 +40,7 @@ pub enum LabelAttribute {
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub enum Type {
     Size(usize),
-    //NOTE: a size of 0 represents an array of undetermined length e.g [1:]
+    // NOTE: a size of 0 represents an array of undetermined length e.g [1:]
     Heap { is_pointer: bool, contents: Vec<(Type, Option<usize>)> },
     Struct(String),
     Register { inner: Option<Box<Type>>, ident: usize },

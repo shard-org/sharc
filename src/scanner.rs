@@ -1,16 +1,15 @@
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{self, BufReader, Read};
-use std::sync::RwLock;
+use std::sync::{LazyLock, RwLock};
 
 use crate::report::{ReportKind, ReportLabel, UnwrapReport};
-use std::sync::LazyLock;
 
 pub struct Scanner {
     filename: &'static str,
-    index: usize,
+    index:    usize,
     contents: String,
-    reader: BufReader<File>,
+    reader:   BufReader<File>,
 }
 
 static CACHE: LazyLock<RwLock<HashMap<&'static str, &'static str>>> =

@@ -1,12 +1,12 @@
+use std::collections::{HashMap, HashSet};
+
 use crate::ast::Type;
+// use std::collections::VecDeque;
+use crate::linked_list::LinkedList;
 use crate::report::{Report, ReportKind, ReportLabel, ReportSender, Result, Unbox};
 use crate::scanner::Scanner;
 use crate::span::Span;
 use crate::token::{Token, TokenKind};
-use std::collections::{HashMap, HashSet};
-
-// use std::collections::VecDeque;
-use crate::linked_list::LinkedList;
 
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub enum Tag {
@@ -14,8 +14,8 @@ pub enum Tag {
     Arch(Vec<String>),
     Macro(String),
 
-    SyscallConv(Vec<Type>, Option<Box<Type>>), // expect registers
-                                               // Syscall(Vec<Box<AST>>, String),         // expect TypeAnnotation
+    SyscallConv(Vec<Type>, Option<Box<Type>>), /* expect registers
+                                                * Syscall(Vec<Box<AST>>, String),         // expect TypeAnnotation */
 }
 
 #[derive(Debug, Clone)]
@@ -54,10 +54,10 @@ impl<'contents> TokenWrap<'contents> {
 
 pub struct PreProcessor<'contents> {
     filename: &'static str,
-    tokens: LinkedList<Token<'contents>>,
-    sender: ReportSender,
+    tokens:   LinkedList<Token<'contents>>,
+    sender:   ReportSender,
 
-    tag_defs: HashMap<String, (Span, Vec<TokenWrap<'contents>>)>,
+    tag_defs:   HashMap<String, (Span, Vec<TokenWrap<'contents>>)>,
     macro_defs: HashMap<String, Vec<TokenWrap<'contents>>>,
 }
 
@@ -195,12 +195,11 @@ impl<'contents> PreProcessor<'contents> {
 
                     self.add_macro_def(token.text, args[1..].to_vec());
                 },
-                None => {
+                None =>
                     return ReportKind::SyntaxError
                         .new("Expected Identifier")
                         .with_label(ReportLabel::new(init_token.span))
-                        .into()
-                },
+                        .into(),
             },
             _ => {
                 self.tag_defs.insert(init_token.text.to_uppercase(), (init_token.span, args));
@@ -214,7 +213,8 @@ impl<'contents> PreProcessor<'contents> {
     }
 
     fn add_macro_def(&mut self, name: &str, mut tokens: Vec<TokenWrap<'contents>>) {
-        // if macro already exists, replace all instances in `tokens` and set it as the new definition
+        // if macro already exists, replace all instances in `tokens` and set it as the new
+        // definition
         if let Some(existing) = self.macro_defs.get_mut(name) {
             let mut index = 0;
             while let Some(i) =
@@ -303,21 +303,18 @@ impl<'contents> PreProcessor<'contents> {
             match key.as_str() {
                 "NAME" => {
                     let name = match tokens.first().and_then(|t| t.token()) {
-                        Some(token) if token.kind == TokenKind::StringLiteral => {
-                            token.text.to_string()
-                        },
-                        Some(token) => {
+                        Some(token) if token.kind == TokenKind::StringLiteral =>
+                            token.text.to_string(),
+                        Some(token) =>
                             return ReportKind::SyntaxError
                                 .new(format!("Expected StringLiteral; got {:?}", token.kind))
                                 .with_label(ReportLabel::new(token.span.clone()))
-                                .into()
-                        },
-                        None => {
+                                .into(),
+                        None =>
                             return ReportKind::SyntaxError
                                 .new("Expected StringLiteral")
                                 .with_label(ReportLabel::new(self.current().span.clone()))
-                                .into()
-                        },
+                                .into(),
                     };
 
                     if tokens.len() > 1 {

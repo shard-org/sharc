@@ -21,29 +21,30 @@
     clippy::missing_const_for_fn,
     clippy::cognitive_complexity,
     clippy::option_if_let_else,
-    clippy::option_map_unit_fn,
+    clippy::option_map_unit_fn
 )]
 #![allow(dead_code, unused)]
 
-use crate::lexer::Lexer;
-use crate::parser::Parser;
-use crate::report::{Level, Report, ReportSender, Unbox};
-use crate::scanner::Scanner;
 use std::process::exit;
 use std::sync::mpsc::Receiver;
 
 use colored::Colorize;
 
+use crate::lexer::Lexer;
+use crate::parser::Parser;
+use crate::report::{Level, Report, ReportSender, Unbox};
+use crate::scanner::Scanner;
+
 mod args;
 mod ast;
 mod lexer;
+mod linked_list;
 mod parser;
 mod preprocessor;
 mod report;
 mod scanner;
 mod span;
 mod token;
-mod linked_list;
 
 fn check_reports(receiver: &Receiver<Box<Report>>, reports: &mut Vec<Report>) -> bool {
     let mut had_error = false;

@@ -22,18 +22,16 @@ pub struct Node<T> {
 
 impl<T> LinkedList<T> {
     pub fn new() -> Self {
-        Self { 
-            front: None,
-            back: None,
-            current: None,
-            len: 0,
-            _boo: PhantomData
-        }
+        Self { front: None, back: None, current: None, len: 0, _boo: PhantomData }
     }
 
     pub fn push(&mut self, elem: T) {
         unsafe {
-            let new = NonNull::new_unchecked(Box::into_raw(Box::new(Node { prev: None, next: None, elem })));
+            let new = NonNull::new_unchecked(Box::into_raw(Box::new(Node {
+                prev: None,
+                next: None,
+                elem,
+            })));
 
             match self.back {
                 Some(old) => {
@@ -41,7 +39,7 @@ impl<T> LinkedList<T> {
                     (*new.as_ptr()).prev = Some(old);
                 },
                 None => {
-                    self.front   = Some(new);
+                    self.front = Some(new);
                     self.current = Some(new);
                 },
             }
@@ -52,59 +50,58 @@ impl<T> LinkedList<T> {
     }
 
     pub fn pop_front(&mut self) -> Option<T> {
-        self.front.map(|node| {
-            unsafe {
-                let node = Box::from_raw(node.as_ptr());
+        self.front.map(|node| unsafe {
+            let node = Box::from_raw(node.as_ptr());
 
-                match node.next {
-                    Some(next) => (*next.as_ptr()).prev = None,
-                    None => self.back = None,
-                }
-
-                self.front = node.next;
-                self.len -= 1;
-                node.elem
+            match node.next {
+                Some(next) => (*next.as_ptr()).prev = None,
+                None => self.back = None,
             }
+
+            self.front = node.next;
+            self.len -= 1;
+            node.elem
         })
     }
 
     pub fn front(&self) -> Option<&T> {
-        self.front.map(|node| unsafe{ &node.as_ref().elem })
+        self.front.map(|node| unsafe { &node.as_ref().elem })
     }
 
     pub fn advance(&mut self) {
-        self.current.map(|node| unsafe{ self.current = node.as_ref().next; });
+        self.current.map(|node| unsafe {
+            self.current = node.as_ref().next;
+        });
     }
 
     pub fn current(&self) -> Option<&T> {
-        self.current.map(|node| unsafe{ &node.as_ref().elem })
+        self.current.map(|node| unsafe { &node.as_ref().elem })
     }
 
     pub fn peek(&self) -> Option<&T> {
-        self.current.and_then(|node| unsafe{ node.as_ref().next })
-            .map(|n| unsafe{ &n.as_ref().elem })
+        self.current
+            .and_then(|node| unsafe { node.as_ref().next })
+            .map(|n| unsafe { &n.as_ref().elem })
     }
 
     pub fn consume(&mut self) -> Option<T> {
-        self.current.map(|node| {
-            unsafe {
-                let node = Box::from_raw(node.as_ptr());
+        self.current.map(|node| unsafe {
+            let node = Box::from_raw(node.as_ptr());
 
-                match node.prev {
-                    Some(prev) => (*prev.as_ptr()).next = node.next,
-                    None => self.front = node.next,
-                }
-
-                match node.next {
-                    Some(next) => (*next.as_ptr()).prev = node.prev,
-                    None => self.back = node.prev,
-                }
-
-                let elem = node.elem;
-                self.current = node.next;
-                self.len -= 1;
-                elem
+            match node.prev {
+                Some(prev) => (*prev.as_ptr()).next = node.next,
+                None => self.front = node.next,
             }
+
+            match node.next {
+                Some(next) => (*next.as_ptr()).prev = node.prev,
+                None => self.back = node.prev,
+            }
+
+            let elem = node.elem;
+            self.current = node.next;
+            self.len -= 1;
+            elem
         })
     }
 

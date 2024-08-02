@@ -1,10 +1,11 @@
-use crate::span::Span;
 use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
 use std::io::ErrorKind;
 use std::sync::mpsc::Sender;
 
 use colored::{Color, Colorize};
+
+use crate::span::Span;
 
 #[derive(Debug, PartialEq, PartialOrd, Copy, Clone)]
 pub enum Level {
@@ -95,10 +96,10 @@ impl ReportLabel {
 
 #[derive(Clone)]
 pub struct Report {
-    kind: ReportKind,
+    kind:  ReportKind,
     title: String,
     label: Option<ReportLabel>,
-    note: Option<String>,
+    note:  Option<String>,
 }
 
 impl Report {
@@ -144,7 +145,7 @@ impl PartialOrd<Self> for Report {
 }
 
 struct ReportFormatter<'e> {
-    report: &'e Report,
+    report:       &'e Report,
     show_context: bool,
 }
 
@@ -217,15 +218,15 @@ impl Display for ReportFormatter<'_> {
                             note.bright_black().italic()
                         )?;
                     }
-                } else if let Some(note) = &report.note {
+                }
+                else if let Some(note) = &report.note {
                     writeln!(f, " {}", note.bright_black().italic())?;
                 }
             },
-            None => {
+            None =>
                 if let Some(note) = &report.note {
                     writeln!(f, "{}", note.bright_black().italic())?;
-                }
-            },
+                },
         }
 
         Ok(())
