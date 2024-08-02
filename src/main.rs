@@ -92,9 +92,15 @@ fn main() {
         );
 
         lexer.lex_tokens();
+        lexer.tokens.goto_front();
+
         if *args.debug {
             println!("\n{}", "LEXER".bold());
-            lexer.tokens.iter().for_each(|token| println!("{token:#}"));
+            let mut index = 0;
+            while let Some(token) = lexer.tokens.get_offset(index) {
+                println!("{token:#}");
+                index += 1;
+            }
         }
 
         if check_reports(&receiver, &mut reports) {

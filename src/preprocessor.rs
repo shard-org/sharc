@@ -63,15 +63,9 @@ pub struct PreProcessor<'contents> {
 
 impl<'contents> PreProcessor<'contents> {
     pub fn new(
-        filename: &'static str, tokens: Vec<Token<'contents>>, sender: ReportSender,
+        filename: &'static str, tokens: IterList<Token<'contents>>, sender: ReportSender,
     ) -> Self {
-        Self {
-            filename,
-            sender,
-            tokens: IterList::from(tokens),
-            tag_defs: HashMap::new(),
-            macro_defs: HashMap::new(),
-        }
+        Self { filename, sender, tokens, tag_defs: HashMap::new(), macro_defs: HashMap::new() }
     }
 
     fn advance(&mut self) {
