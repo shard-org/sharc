@@ -22,21 +22,29 @@ pub struct Arg<T> {
 
 impl<T> Arg<T> {
     pub fn new(default: T) -> Self {
-        Self { field: default, set: false }
+        Self { value: default, set: false }
     }
 
-    pub fn try_mut(&mut self, name: N, value: T)
+    pub fn try_mut<N>(&mut self, name: N, value: T)
     where N: std::fmt::Display {
         if self.set {
             error!("'{name}' may only be used once");
         }
-        self.field = Box::new(value);
+        self.value = value;
+    }
+}
+
+impl<T> std::ops::Deref for Arg<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.value
     }
 }
 
 impl<T: Debug> Debug for Arg<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self.field)
+        write!(f, "{:?}", self.value)
     }
 }
 
@@ -53,11 +61,11 @@ pub struct Args {
 impl Args {
     pub fn default() -> Self {
         Self {
-            file:         Arg::new("main.shd", "--file"),
-            output:       Arg::new("main.asm", "--output"),
-            debug:        Arg::new(false, "--debug"),
-            code_context: Arg::new(true, "--code-context"),
-            level:        Arg::new(Level::Warn, "--error-level"),
+            file:         Arg::new("main.shd"),
+            output:       Arg::new("main.asm"),
+            debug:        Arg::new(false),
+            code_context: Arg::new(true),
+            level:        Arg::new(Level::Warn),
             verbs:        Vec::new(),
         }
     }
@@ -93,7 +101,7 @@ impl Args {
                     println!("sharc {}", env!("CARGO_PKG_VERSION"));
                     exit(0);
                 },
-                "-d" | "--debug" => self.debug.try_mut(true),
+                "-d" | "--debug" => self.debug.try_mut(arg, true),
                 "-f" | "--file" => {
                     is_end!();
 
@@ -101,7 +109,7 @@ impl Args {
                         error!("expected file");
                     });
 
-                    self.file.try_mut(Box::leak(file.into_boxed_str()));
+                    self.file.try_mut(arg, Box::leak(file.into_boxed_str()));
                 },
                 "-o" | "--output" => {
                     is_end!();
@@ -110,7 +118,7 @@ impl Args {
                         error!("expected file");
                     });
 
-                    self.output.try_mut(Box::leak(output.into_boxed_str()));
+                    self.output.try_mut(arg, Box::leak(output.into_boxed_str()));
                 },
                 "-l" | "--error-level" => {
                     is_end!();
@@ -119,7 +127,7 @@ impl Args {
                         error!("expected level");
                     });
 
-                    self.level.try_mut(match level.as_str() {
+                    self.level.try_mut(arg, match level.as_str() {
                         "f" | "fatal" => Level::Fatal,
                         "e" | "error" => Level::Error,
                         "w" | "warn" => Level::Warn,
@@ -130,7 +138,7 @@ impl Args {
                         },
                     });
                 },
-                "--no-context" => self.code_context.try_mut(false),
+                "--no-context" => self.code_context.try_mut(arg, false),
 
                 _ => {
                     error!("unrecognized argument '{arg}'");
@@ -154,11 +162,11 @@ impl Args {
                 exit(1);
             }
 
-            out.verbs.push(Box::leak(arg.into_boxed_str()) as &str);
+            out.verbs.push(Box::leak(arg.into_boxed_str()) as &str); // rm
 
             // drain remaining args
             for arg in args.by_ref() {
-                out.verbs.push(Box::leak(arg.into_boxed_str()) as &str);
+                out.verbs.push(Box::leak(arg.into_boxed_str()));
             }
         }
         out
