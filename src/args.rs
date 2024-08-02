@@ -17,18 +17,20 @@ macro_rules! error {
 #[derive(Copy, Clone)]
 pub struct Arg<T> {
     pub value: T,
-    set:       bool,
+    set: bool,
 }
 
 impl<T> Arg<T> {
-    pub fn new(default: T) -> Self {
-        Self { value: default, set: false }
+    fn new(default: T) -> Self {
+        Self {
+            value: default,
+            set: false,
+        }
     }
 
-    pub fn try_mut<N>(&mut self, name: N, value: T)
-    where N: std::fmt::Display {
+    fn try_mut<N: std::fmt::Display>(&mut self, name: N, value: T) {
         if self.set {
-            error!("'{name}' may only be used once");
+            error!("'{}' may only be used once", name);
         }
         self.value = value;
     }
@@ -70,10 +72,11 @@ impl Args {
         }
     }
 
-    fn handle_arg(&mut self, arg: &str, arguments: &mut std::vec::IntoIter<String>) {
-        let args: Vec<String> = match arg.starts_with("--") {
-            true => vec![arg.into()],
-            false => arg.chars().skip(1).map(|c| format!("-{c}")).collect(),
+    fn handle_arg(&mut self, argument: &str, arguments: &mut std::vec::IntoIter<String>) {
+        let args: Vec<String> = if argument.starts_with("--") {
+            vec![argument.into()]
+        } else {
+            argument.chars().skip(1).map(|c| format!("-{c}")).collect()
         };
         let args_len = args.len();
 
@@ -83,11 +86,10 @@ impl Args {
             macro_rules! is_end {
                 () => {
                     if !is_end {
-                        error!("flags with parameters must be at the end of a group, or defined separately");
+                        error!("{} may only be used at the end of a group", arg);
                     }
                 };
             }
-
             match arg.as_str() {
                 "-h" => {
                     println!("{USAGE}");
@@ -104,16 +106,14 @@ impl Args {
                 "-d" | "--debug" => self.debug.try_mut(arg, true),
                 "-f" | "--file" => {
                     is_end!();
-
                     let file = arguments.next().unwrap_or_else(|| {
-                        error!("expected file");
+                        error!("{arg} expected FILE");
                     });
 
                     self.file.try_mut(arg, Box::leak(file.into_boxed_str()));
                 },
                 "-o" | "--output" => {
                     is_end!();
-
                     let output = arguments.next().unwrap_or_else(|| {
                         error!("expected file");
                     });
@@ -122,7 +122,6 @@ impl Args {
                 },
                 "-l" | "--error-level" => {
                     is_end!();
-
                     let level = arguments.next().unwrap_or_else(|| {
                         error!("expected level");
                     });
@@ -141,7 +140,7 @@ impl Args {
                 "--no-context" => self.code_context.try_mut(arg, false),
 
                 _ => {
-                    error!("unrecognized argument '{arg}'");
+                    error!("unrecognized argument {arg}");
                 },
             }
         }
@@ -162,13 +161,14 @@ impl Args {
                 exit(1);
             }
 
-            out.verbs.push(Box::leak(arg.into_boxed_str()) as &str); // rm
+            out.verbs.push(Box::leak(arg.into_boxed_str()));
         }
 
         // drain remaining args
         for arg in args.by_ref() {
             out.verbs.push(Box::leak(arg.into_boxed_str()));
         }
+
         out
     }
 }

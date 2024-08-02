@@ -64,13 +64,11 @@ fn print_reports_and_exit(reports: &mut Vec<Report>, args: &args::Args) {
     reports.sort_by(|left, right| {
         left.level().partial_cmp(&right.level()).expect("Failed to order report kinds.")
     });
-
     reports.iter().for_each(|report| {
         if *args.level <= report.level() {
             report.display(*args.code_context);
         }
     });
-
     exit(1);
 }
 
@@ -86,8 +84,8 @@ fn main() {
 
     let tokens = {
         let mut lexer = Lexer::new(
-            &args.file,
-            Scanner::get_file(&args.file),
+            *args.file,
+            Scanner::get_file(*args.file),
             ReportSender::new(sender.clone()),
         );
 
@@ -111,15 +109,18 @@ fn main() {
     };
 
     let (tokens, tags) = {
-        let mut preprocessor =
-            preprocessor::PreProcessor::new(&args.file, tokens, ReportSender::new(sender.clone()));
+        let mut preprocessor = preprocessor::PreProcessor::new(
+            *args.file,
+            tokens,
+            ReportSender::new(sender.clone()),
+        );
 
         let (tokens, tags) = preprocessor.process();
 
         if *args.debug {
             println!("\n{}", "PREPROCESSOR".bold());
             tokens.iter().for_each(|token| println!("{token:#}"));
-            println!("");
+            println!();
             tags.iter().for_each(|tag| println!("{tag:?}"));
         }
 

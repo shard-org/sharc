@@ -23,17 +23,21 @@ impl Scanner {
     }
 
     pub fn get_file(filename: &'static str) -> &str {
-        if let Some(contents) = Self::get_cached(filename) {
+        if let Some(contents) = Scanner::get_cached(filename) {
             return contents;
         }
 
-        let contents = Self::new(filename)
+        let contents = Scanner::new(filename)
             .unwrap_or_fatal(
-                ReportKind::IOError.new(format!("Failed to open file: '{filename}'")).into(),
+                ReportKind::IOError
+                    .new(format!("Failed to open file: '{}'", filename))
+                    .into(),
             )
             .read()
             .unwrap_or_fatal(
-                ReportKind::IOError.new(format!("Failed to read file: '{filename}'")).into(),
+                ReportKind::IOError
+                    .new(format!("Failed to read file: '{}'", filename))
+                    .into(),
             )
             .leak();
 
@@ -45,7 +49,7 @@ impl Scanner {
 
     fn new(filename: &'static str) -> io::Result<Self> {
         let file = File::open(filename)?;
-        let file_size = usize::try_from(file.metadata()?.len()).unwrap();
+        let file_size = file.metadata()?.len() as usize;
 
         Ok(Self {
             filename,
@@ -63,7 +67,7 @@ impl Scanner {
                 Ok(s) => match s {
                     "\r" => {
                         continue;
-                    },
+                    }
                     _ => self.contents.push_str(s),
                 },
                 Err(_) => {
@@ -74,8 +78,8 @@ impl Scanner {
                                 '\n' => {
                                     li = index;
                                     ln += 1;
-                                },
-                                _ => {},
+                                }
+                                _ => {}
                             };
                             (li, ln)
                         },
@@ -87,7 +91,7 @@ impl Scanner {
                         .with_label(ReportLabel::new(span))
                         .display(false);
                     std::process::exit(1);
-                },
+                }
             }
             self.index += 1;
         }
