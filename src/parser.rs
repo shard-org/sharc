@@ -387,7 +387,7 @@ impl<'t, 'contents> Parser<'t, 'contents> {
                 .into(),
         }?;
 
-        if !self.current.text.starts_with("r") {
+        if !self.current.text.starts_with('r') {
             return ReportKind::SyntaxError
                 .new("Register identifier format is incorrect!")
                 .with_label(ReportLabel::new(self.current.span.clone()))
@@ -515,7 +515,7 @@ impl<'t, 'contents> Parser<'t, 'contents> {
                             if n == Some(0) {
                                 return ReportKind::SyntaxError
                                     .new("Array size cannot be zero.")
-                                    .with_note(format!("HINT: Did you mean [{}:]", t))
+                                    .with_note(format!("HINT: Did you mean [{t}:]"))
                                     .with_label(ReportLabel::new(self.current.span.clone()))
                                     .into();
                             }
@@ -534,8 +534,8 @@ impl<'t, 'contents> Parser<'t, 'contents> {
                 // We should fail earlier but we wait to gather the element size
                 // n before logging for clearer error logging
                 if let Type::Register { inner, ident } = t {
-                    let mut inner_str = "".to_string();
-                    let mut n_str = "".to_string();
+                    let mut inner_str = String::new();
+                    let mut n_str = String::new();
                     if inner.is_some() {
                         inner_str = format!("{}", inner.unwrap());
                     }
@@ -593,14 +593,13 @@ impl<'t, 'contents> Parser<'t, 'contents> {
                                 if n == Some(0) {
                                     return ReportKind::SyntaxError
                                         .new("Array size cannot be zero.")
-                                        .with_note(format!("HINT: Did you mean {}:", t))
+                                        .with_note(format!("HINT: Did you mean {t}:"))
                                         .with_label(ReportLabel::new(self.current.span.clone()))
                                         .into();
                                 }
                                 self.advance();
                             },
-                            TokenKind::Comma => {},
-                            TokenKind::RBrace => {},
+                            TokenKind::Comma | TokenKind::RBrace => {},
                             _ => {
                                 self.advance();
                                 return ReportKind::UnexpectedToken
