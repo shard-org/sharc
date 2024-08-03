@@ -420,16 +420,17 @@ impl<'t, 'contents> Parser<'t, 'contents> {
                     .new("Register identifier intager overflows")
                     .with_label(ReportLabel::new(self.current.span.clone()))
                     .with_note("HINT: You dont have this many registers. Trust me"),
-            }.into(),
+            }
+            .into(),
             Ok(i) => Ok(Type::Register { inner: inner.map(|t| Box::new(t)), ident: i }),
         }
     }
 
     // We use box here cause we never grow the terminals, so no need for length/capacity which
     // comes with Vec<TokenKind>
-    fn parse_array_type(&mut self, terminals: Box<[TokenKind]>) -> Result<(Type, Option<usize>)> {
+    fn parse_array_type(&mut self, terminals: &[TokenKind]) -> Result<(Type, Option<usize>)> {
         let elem_type = self.parse_type()?;
-        
+
         if let Type::Register { ident, .. } = elem_type {
             return ReportKind::RegisterWithinHeap
                 .new("Heaps cannot contain register bindings")
@@ -440,7 +441,7 @@ impl<'t, 'contents> Parser<'t, 'contents> {
 
         self.advance();
         if self.current.kind == TokenKind::Colon {
-            for term in &terminals {
+            for term in terminals {
                 if *term == self.peek(1).kind {
                     self.advance();
                     return Ok((elem_type, Some(0)));
@@ -462,7 +463,15 @@ impl<'t, 'contents> Parser<'t, 'contents> {
                 return Ok((elem_type, Some(elem_size)));
             }
             return ReportKind::UnexpectedToken
-                .new(format!("Expected {}, got {:?}", terminals.into_iter().map(|x| format!("{x:?}")).collect::<Vec<String>>().join(" or "), self.current.kind))
+                .new(format!(
+                    "Expected {}, got {:?}",
+                    terminals
+                        .into_iter()
+                        .map(|x| format!("{x:?}"))
+                        .collect::<Vec<String>>()
+                        .join(" or "),
+                    self.current.kind
+                ))
                 .with_label(ReportLabel::new(self.current.span.clone()))
                 .into();
         }
@@ -493,7 +502,7 @@ impl<'t, 'contents> Parser<'t, 'contents> {
             },
             TokenKind::Identifier => Ok(Type::Struct(self.current.text.to_string())),
             TokenKind::LBrace | TokenKind::LBracket => {
-                let is_pointer = if self.current.kind == TokenKind::LBracket {true} else {false};
+                let is_pointer = self.current.kind == TokenKind::LBracket;
                 let start_kind = if is_pointer {TokenKind::LBracket} else {TokenKind::LBrace};
                 let end_kind = if is_pointer {TokenKind::RBracket} else {TokenKind::RBrace};
                 self.advance();
@@ -503,7 +512,7 @@ impl<'t, 'contents> Parser<'t, 'contents> {
 
                 while self.current.kind != end_kind {
                     // let start = self.current.span.clone();
-                    let (t, n) = self.parse_array_type(Box::new([TokenKind::Comma, end_kind, TokenKind::NewLine]))?;
+                    let (t, n) = self.parse_array_type(&[TokenKind::Comma, end_kind, TokenKind::NewLine])?;
                     // let end = self.current.span.clone();
                     // let span = start.extend(&end);
                         // let mut span = self.current.span.clone();
@@ -540,7 +549,7 @@ impl<'t, 'contents> Parser<'t, 'contents> {
 
                         if self.current.kind == TokenKind::Comma {
                             self.advance();
-                        } 
+                        }
                     }
                 }
 
@@ -556,7 +565,7 @@ impl<'t, 'contents> Parser<'t, 'contents> {
             TokenKind::NewLine => {
                 println!("{:?}", &self.tokens[self.index - 1]);
                 ReportKind::UnexpectedToken
-                .new(format!("Unexpected newline"))
+                .new("Unexpected newline")
                 .with_label(ReportLabel::new(self.current.span.clone()))
                 .into()
             }
