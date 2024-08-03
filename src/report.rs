@@ -37,6 +37,7 @@ pub enum ReportKind {
     UnexpectedEOF,
     InvalidEscapeSequence,
     DuplicateAttribute,
+    RegisterWithinHeap,
 
     // General
     IOError,
@@ -70,6 +71,7 @@ impl ReportKind {
             | Self::UnexpectedEOF
             | Self::DuplicateAttribute
             | Self::InvalidEscapeSequence
+            | Self::RegisterWithinHeap
 
             // General
             | Self::IOError | Self::SyntaxError => Level::Error,

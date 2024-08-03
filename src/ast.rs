@@ -50,20 +50,9 @@ impl Display for Type {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Size(s) => write!(f, "{s}")?,
-            Self::Heap { is_pointer: true, contents } => {
-                // contents length is always 1 for pointers
-                write!(f, "[{}", &contents[0].0)?;
-                match contents[0].1 {
-                    Some(0) => write!(f, ":")?,
-                    Some(size) => write!(f, ":{size}")?,
-                    None => {},
-                };
-
-                write!(f, "]")?;
-            },
-            Self::Heap { is_pointer: false, contents } => {
-                write!(f, "{{")?;
-                for (t, elems) in contents {
+            Self::Heap { is_pointer, contents } => {
+                write!(f, "{}", if *is_pointer { "[" } else { "{" })?;
+                for (i, (t, elems)) in contents.iter().enumerate() {
                     write!(f, "{t}")?;
                     match elems {
                         Some(0) => write!(f, ":")?,
@@ -71,9 +60,11 @@ impl Display for Type {
                         None => {},
                     };
 
-                    write!(f, ", ")?;
+                    if i != contents.len() - 1 {
+                        write!(f, ", ")?;
+                    }
                 }
-                write!(f, "}}")?;
+                write!(f, "{}", if *is_pointer { "]" } else { "}" })?;
             },
             Self::Register { inner: t, ident } => {
                 if t.is_some() {
