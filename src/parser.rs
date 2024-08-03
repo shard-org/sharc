@@ -417,8 +417,7 @@ impl<'t, 'contents> Parser<'t, 'contents> {
                     .new("Register identifier intager overflows")
                     .with_label(ReportLabel::new(self.current.span.clone()))
                     .with_note("HINT: You dont have this many registers. Trust me"),
-            }
-            .into(),
+            }.into(),
             Ok(i) => Ok(Type::Register { inner: inner.map(|t| Box::new(t)), ident: i }),
         }
     }
@@ -561,121 +560,6 @@ impl<'t, 'contents> Parser<'t, 'contents> {
                 };
 
                 Ok(Type::Heap { is_pointer: true, contents: vec![(t, n)] })
-            },
-            TokenKind::LBrace => {
-                self.advance();
-                if self.current.kind == TokenKind::RBrace {
-                    let mut span = self.current.span.clone();
-                    span.start_index -= 1;
-
-                    return ReportKind::SyntaxError
-                        .new("Empty heaps are disallowed")
-                        .with_label(ReportLabel::new(span))
-                        .with_note("HINT: Did you want to create a void pointer: []")
-                        .into();
-                }
-                //NOTE: idk if 5 is the right number. To be determined
-                let mut vec: Vec<(Type, Option<usize>)> = Vec::with_capacity(5);
-                loop {
-                    let start = self.current.span.clone();
-                    let t = self.parse_type()?;
-                    let mut n = None;
-
-                    let end = self.current.span.clone();
-                    let span = start.extend(&end);
-                    self.advance();
-
-                    if self.current.kind == TokenKind::Colon {
-                        self.advance();
-                        match self.current.kind {
-                            TokenKind::DecimalIntLiteral => {
-                                n = Some(self.current.text.parse::<usize>().unwrap());
-                                if n == Some(0) {
-                                    return ReportKind::SyntaxError
-                                        .new("Array size cannot be zero.")
-                                        .with_note(format!("HINT: Did you mean {t}:"))
-                                        .with_label(ReportLabel::new(self.current.span.clone()))
-                                        .into();
-                                }
-                                self.advance();
-                            },
-                            TokenKind::Comma | TokenKind::RBrace => {},
-                            _ => {
-                                self.advance();
-                                return ReportKind::UnexpectedToken
-                                    .new(format!(
-                                        "Expected either `,` `}}` or a intager, got {:?}",
-                                        self.current.kind
-                                    ))
-                                    .with_label(ReportLabel::new(self.current.span.clone()))
-                                    .into();
-                            },
-                        }
-                    }
-
-                    if self.current.kind != TokenKind::Comma {
-                        if self.current.kind == TokenKind::RBrace {
-                            vec.push((t, n));
-                            break;
-                        }
-                        return ReportKind::SyntaxError
-                            .new("Expected comma to separate heap types")
-                            .with_label(ReportLabel::new(self.current.span.clone()))
-                            .into();
-                    }
-                    self.advance();
-                    if let Type::Register { ident, .. } = t {
-                        return ReportKind::SyntaxError
-                            .new("Heap types cannot contain register bindings")
-                            .with_label(ReportLabel::new(span))
-                            .with_note(format!("HINT: Did you want to bind the pointer to the register? {};r{ident}", Type::Heap { is_pointer: false, contents: vec }))
-                            .into();
-                    }
-
-                while self.current.kind != end_kind {
-                    // let start = self.current.span.clone();
-                    let (t, n) = self.parse_array_type(&[TokenKind::Comma, end_kind, TokenKind::NewLine])?;
-                    // let end = self.current.span.clone();
-                    // let span = start.extend(&end);
-                        // let mut span = self.current.span.clone();
-                        // span.start_index -= 2;
-                        // span.end_index -= 1;
-                    vec.push((t, n));
-
-                    if self.current.kind == TokenKind::NewLine {
-                        let mut span = self.current.span.clone();
-                        span.start_index -= 1;
-                        return ReportKind::SyntaxError
-                            .new(format!("Unterminated {} heap", if is_pointer {"pointer to"} else {""}))
-                            .with_label(ReportLabel::new(span))
-                            .with_note(format!("HINT: did you mean to close this heap? {}", Type::Heap { is_pointer, contents: vec } ))
-                            .into();
-                    }
-
-                    if self.current.kind != end_kind {
-                        if self.current.kind == (if is_pointer {TokenKind::RBrace} else {TokenKind::RBracket}) {
-                            return ReportKind::SyntaxError
-                                .new("Mismatched heap brackets")
-                                .with_label(ReportLabel::new(self.current.span.clone()))
-                                .with_note("HINT: Be more decisive next time. Is it a pointer or not?")
-                                .into();
-                        }
-
-                        if self.peek(1).kind == TokenKind::NewLine {
-                            return ReportKind::SyntaxError
-                                .new(format!("Unterminated {} heap", if is_pointer {"pointer to"} else {""}))
-                                .with_label(ReportLabel::new(self.current.span.clone()))
-                                .with_note("HINT: did you mean to close this heap?")
-                                .into();
-                        }
-
-                        if self.current.kind == TokenKind::Comma {
-                            self.advance();
-                        }
-                    }
-                }
-
-                Ok(Type::Heap { is_pointer, contents: vec })
             },
             TokenKind::Colon => {
                 ReportKind::SyntaxError
