@@ -51,7 +51,7 @@ impl Display for Type {
         match self {
             Self::Size(s) => write!(f, "{s}")?,
             Self::Heap { is_pointer, contents } => {
-                write!(f, "{}", if *is_pointer {"["} else {"{"})?;
+                write!(f, "{}", if *is_pointer { "[" } else { "{" })?;
                 for (i, (t, elems)) in contents.iter().enumerate() {
                     write!(f, "{t}")?;
                     match elems {
@@ -64,7 +64,7 @@ impl Display for Type {
                         write!(f, ", ")?;
                     }
                 }
-                write!(f, "{}", if *is_pointer {"]"} else {"}"})?;
+                write!(f, "{}", if *is_pointer { "]" } else { "}" })?;
             },
             Self::Register { inner: t, ident } => {
                 if t.is_some() {
