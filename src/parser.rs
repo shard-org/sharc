@@ -155,6 +155,7 @@ impl<'t, 'contents> Parser<'t, 'contents> {
                     span: self.current.span.clone(),
                 });
                 self.advance();
+                // assert_eq!(self.current.kind, TokenKind::NewLine);
                 return ret;
             },
             _ => self.parse_expression(),
@@ -372,7 +373,7 @@ impl<'t, 'contents> Parser<'t, 'contents> {
     }
 
     fn parse_register_binding(&mut self, inner: Option<Type>) -> Result<Type> {
-        // register binding
+        // we expect that self is a ;
         self.advance();
 
         match self.current.kind {
@@ -395,9 +396,9 @@ impl<'t, 'contents> Parser<'t, 'contents> {
                 .with_label(ReportLabel::new(self.current.span.clone()))
                 .with_note("HINT: Registers follow the format r<ident>. e.g r8 r32")
                 .into();
-        }
+        };
 
-        match self.current.text.strip_prefix("r").unwrap().parse::<usize>() {
+        match self.current.text[1..].parse::<usize>() {
             Err(e) => match e.kind() {
                 IntErrorKind::Empty => ReportKind::SyntaxError
                     .new("Expected register identifier after r prefix")
@@ -413,14 +414,60 @@ impl<'t, 'contents> Parser<'t, 'contents> {
                         .with_label(ReportLabel::new(self.current.span.clone()))
                         .with_note("HINT: Registers follow the format r<ident>. e.g r8 r32")
                 },
+                // Here only positive overflow can be omitted by parse::<usize>()
+                // It also doesnt omit Zero because usize can store 0.
                 _ => ReportKind::SyntaxError
                     .new("Register identifier intager overflows")
                     .with_label(ReportLabel::new(self.current.span.clone()))
                     .with_note("HINT: You dont have this many registers. Trust me"),
-            }
-            .into(),
+            }.into(),
             Ok(i) => Ok(Type::Register { inner: inner.map(|t| Box::new(t)), ident: i }),
         }
+    }
+
+    // We use box here cause we never grow the terminals, so no need for length/capacity which
+    // comes with Vec<TokenKind>
+    fn parse_array_type(&mut self, terminals: Box<[TokenKind]>) -> Result<(Type, Option<usize>)> {
+        let elem_type = self.parse_type()?;
+        
+        if let Type::Register { ident, .. } = elem_type {
+            return ReportKind::RegisterWithinHeap
+                .new("Heaps cannot contain register bindings")
+                .with_label(ReportLabel::new(self.current.span.clone()))
+                .with_note(format!("{ident}"))
+                .into();
+        }
+
+        self.advance();
+        if self.current.kind == TokenKind::Colon {
+            for term in &terminals {
+                if *term == self.peek(1).kind {
+                    self.advance();
+                    return Ok((elem_type, Some(0)));
+                }
+            }
+
+            self.advance();
+
+            if self.current.kind == TokenKind::DecimalIntLiteral {
+                let elem_size = self.current.text.parse::<usize>().unwrap();
+                if elem_size == 0 {
+                    return ReportKind::SyntaxError
+                        .new("Array size cannot be zero.")
+                        .with_note(format!("HINT: Did you mean [{elem_type}:]"))
+                        .with_label(ReportLabel::new(self.current.span.clone()))
+                        .into();
+                }
+                self.advance();
+                return Ok((elem_type, Some(elem_size)));
+            }
+            return ReportKind::UnexpectedToken
+                .new(format!("Expected {}, got {:?}", terminals.into_iter().map(|x| format!("{x:?}")).collect::<Vec<String>>().join(" or "), self.current.kind))
+                .with_label(ReportLabel::new(self.current.span.clone()))
+                .into();
+        }
+
+        Ok((elem_type, None))
     }
 
     fn parse_type(&mut self) -> Result<Type> {
@@ -428,7 +475,13 @@ impl<'t, 'contents> Parser<'t, 'contents> {
             TokenKind::Semicolon => self.parse_register_binding(None),
             TokenKind::DecimalIntLiteral => {
                 // We know it lexed so this has to pass, so we can unwrap
-                let size = self.current.text.parse::<usize>().unwrap();
+                let Ok(size) = self.current.text.parse::<usize>() else {
+                    return ReportKind::SyntaxError
+                        .new("You cant have this many bytes, what are you even doing anyways?? stack overflow?")
+                        .with_label(ReportLabel::new(self.current.span.clone()))
+                        .into();
+                };
+
                 if size == 0 {
                     return ReportKind::SyntaxError
                         .new("Size cannot be zero")
@@ -439,152 +492,78 @@ impl<'t, 'contents> Parser<'t, 'contents> {
                 Ok(Type::Size(size))
             },
             TokenKind::Identifier => Ok(Type::Struct(self.current.text.to_string())),
-            TokenKind::LBracket => {
+            TokenKind::LBrace | TokenKind::LBracket => {
+                let is_pointer = if self.current.kind == TokenKind::LBracket {true} else {false};
+                let start_kind = if is_pointer {TokenKind::LBracket} else {TokenKind::LBrace};
+                let end_kind = if is_pointer {TokenKind::RBracket} else {TokenKind::RBrace};
                 self.advance();
-                let t = self.parse_type()?;
-                let mut n = None;
 
-                self.advance();
-                if self.current.kind == TokenKind::Colon {
-                    self.advance();
-                    match self.current.kind {
-                        TokenKind::DecimalIntLiteral => {
-                            n = Some(self.current.text.parse::<usize>().unwrap());
-                            if n == Some(0) {
-                                return ReportKind::SyntaxError
-                                    .new("Array size cannot be zero.")
-                                    .with_note(format!("HINT: Did you mean [{t}:]"))
-                                    .with_label(ReportLabel::new(self.current.span.clone()))
-                                    .into();
-                            }
-                            self.advance();
-                        },
-                        TokenKind::RBracket => {},
-                        _ => {
-                            self.advance();
-                            return ReportKind::UnexpectedToken
-                                .new(format!("got {:?}", self.current.kind))
-                                .with_label(ReportLabel::new(self.current.span.clone()))
-                                .into();
-                        },
-                    }
-                }
-                // We should fail earlier but we wait to gather the element size
-                // n before logging for clearer error logging
-                if let Type::Register { inner, ident } = t {
-                    let mut inner_str = String::new();
-                    let mut n_str = String::new();
-                    if inner.is_some() {
-                        inner_str = format!("{}", inner.unwrap());
-                    }
-
-                    if n.is_some() && n.unwrap() != 0 {
-                        n_str = format!("{}", n.unwrap());
-                    }
-
-                    self.advance();
-                    return ReportKind::SyntaxError
-                        .new("Heap types cannot contain register bindings")
-                        .with_label(ReportLabel::new(self.current.span.clone()))
-                        .with_note(format!("HINT: Did you want to bind the pointer to the register? [{inner_str}:{n_str}];r{ident}"))
-                        .into();
-                }
-
-                if self.current.kind != TokenKind::RBracket {
-                    self.advance();
-                    return ReportKind::SyntaxError
-                        .new(format!("Expected closing bracket. Got {:?}", self.current.text))
-                        .with_label(ReportLabel::new(self.current.span.clone()))
-                        .into();
-                };
-
-                Ok(Type::Heap { is_pointer: true, contents: vec![(t, n)] })
-            },
-            TokenKind::LBrace => {
-                self.advance();
-                if self.current.kind == TokenKind::RBrace {
-                    let mut span = self.current.span.clone();
-                    span.start_index -= 1;
-
-                    return ReportKind::SyntaxError
-                        .new("Empty heaps are disallowed")
-                        .with_label(ReportLabel::new(span))
-                        .with_note("HINT: Did you want to create a void pointer: []")
-                        .into();
-                }
                 //NOTE: idk if 5 is the right number. To be determined
                 let mut vec: Vec<(Type, Option<usize>)> = Vec::with_capacity(5);
-                loop {
-                    let start = self.current.span.clone();
-                    let t = self.parse_type()?;
-                    let mut n = None;
 
-                    let end = self.current.span.clone();
-                    let span = start.extend(&end);
-                    self.advance();
-
-                    if self.current.kind == TokenKind::Colon {
-                        self.advance();
-                        match self.current.kind {
-                            TokenKind::DecimalIntLiteral => {
-                                n = Some(self.current.text.parse::<usize>().unwrap());
-                                if n == Some(0) {
-                                    return ReportKind::SyntaxError
-                                        .new("Array size cannot be zero.")
-                                        .with_note(format!("HINT: Did you mean {t}:"))
-                                        .with_label(ReportLabel::new(self.current.span.clone()))
-                                        .into();
-                                }
-                                self.advance();
-                            },
-                            TokenKind::Comma | TokenKind::RBrace => {},
-                            _ => {
-                                self.advance();
-                                return ReportKind::UnexpectedToken
-                                    .new(format!(
-                                        "Expected either `,` `}}` or a intager, got {:?}",
-                                        self.current.kind
-                                    ))
-                                    .with_label(ReportLabel::new(self.current.span.clone()))
-                                    .into();
-                            },
-                        }
-                    }
-
-                    if self.current.kind != TokenKind::Comma {
-                        if self.current.kind == TokenKind::RBrace {
-                            vec.push((t, n));
-                            break;
-                        }
-                        return ReportKind::SyntaxError
-                            .new("Expected comma to separate heap types")
-                            .with_label(ReportLabel::new(self.current.span.clone()))
-                            .into();
-                    }
-                    self.advance();
-                    if let Type::Register { ident, .. } = t {
-                        return ReportKind::SyntaxError
-                            .new("Heap types cannot contain register bindings")
-                            .with_label(ReportLabel::new(span))
-                            .with_note(format!("HINT: Did you want to bind the pointer to the register? {};r{ident}", Type::Heap { is_pointer: false, contents: vec }))
-                            .into();
-                    }
-
+                while self.current.kind != end_kind {
+                    // let start = self.current.span.clone();
+                    let (t, n) = self.parse_array_type(Box::new([TokenKind::Comma, end_kind, TokenKind::NewLine]))?;
+                    // let end = self.current.span.clone();
+                    // let span = start.extend(&end);
+                        // let mut span = self.current.span.clone();
+                        // span.start_index -= 2;
+                        // span.end_index -= 1;
                     vec.push((t, n));
+
+                    if self.current.kind == TokenKind::NewLine {
+                        let mut span = self.current.span.clone();
+                        span.start_index -= 1;
+                        return ReportKind::SyntaxError
+                            .new(format!("Unterminated {} heap", if is_pointer {"pointer to"} else {""}))
+                            .with_label(ReportLabel::new(span))
+                            .with_note(format!("HINT: did you mean to close this heap? {}", Type::Heap { is_pointer, contents: vec } ))
+                            .into();
+                    }
+
+                    if self.current.kind != end_kind {
+                        if self.current.kind == (if is_pointer {TokenKind::RBrace} else {TokenKind::RBracket}) {
+                            return ReportKind::SyntaxError
+                                .new("Mismatched heap brackets")
+                                .with_label(ReportLabel::new(self.current.span.clone()))
+                                .with_note("HINT: Be more decisive next time. Is it a pointer or not?")
+                                .into();
+                        }
+
+                        if self.peek(1).kind == TokenKind::NewLine {
+                            return ReportKind::SyntaxError
+                                .new(format!("Unterminated {} heap", if is_pointer {"pointer to"} else {""}))
+                                .with_label(ReportLabel::new(self.current.span.clone()))
+                                .with_note("HINT: did you mean to close this heap?")
+                                .into();
+                        }
+
+                        if self.current.kind == TokenKind::Comma {
+                            self.advance();
+                        } 
+                    }
                 }
 
-                if self.current.kind != TokenKind::RBrace {
-                    return ReportKind::SyntaxError
-                        .new(format!("Expected closing brace. Got {:?}", self.current.text))
-                        .with_label(ReportLabel::new(self.current.span.clone()))
-                        .into();
-                };
-                Ok(Type::Heap { is_pointer: false, contents: vec })
+                Ok(Type::Heap { is_pointer, contents: vec })
             },
-            _ => ReportKind::UnexpectedToken
-                .new(format!("Unexpected token: {}", self.current.text))
+            TokenKind::Colon => {
+                ReportKind::SyntaxError
+                    .new("Cannot have an array of an unknown type")
+                    .with_label(ReportLabel::new(self.current.span.clone()))
+                    .with_note("HINT: add a type before the colon, duh")
+                    .into()
+            }
+            TokenKind::NewLine => {
+                println!("{:?}", &self.tokens[self.index - 1]);
+                ReportKind::UnexpectedToken
+                .new(format!("Unexpected newline"))
                 .with_label(ReportLabel::new(self.current.span.clone()))
-                .with_note("Acceptable tokens are: `[` `{` or an intager")
+                .into()
+            }
+            _ => ReportKind::UnexpectedToken
+                .new(format!("Unexpected token: {:?}", self.current.kind))
+                .with_label(ReportLabel::new(self.current.span.clone()))
+                .with_note("HINT: We expect literally any type... and you still messed it up")
                 .into(),
         }.and_then(|t| {
             if self.peek(1).kind == TokenKind::Semicolon {
