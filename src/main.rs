@@ -56,7 +56,7 @@ fn check_reports(receiver: &Receiver<Box<Report>>, reports: &mut Vec<Report>) ->
     had_error
 }
 
-fn print_reports_and_exit(reports: &mut Vec<Report>, args: &args::Args) {
+fn print_reports_and_exit(reports: &mut Vec<Report>, args: &args::Args) -> ! {
     if *args.level == Level::Silent {
         exit(1);
     }
@@ -71,7 +71,7 @@ fn print_reports_and_exit(reports: &mut Vec<Report>, args: &args::Args) {
         }
     });
 
-    exit(1);
+    exit(1)
 }
 
 fn main() {
@@ -85,11 +85,8 @@ fn main() {
     let (sender, receiver) = std::sync::mpsc::channel::<Box<Report>>();
 
     let tokens = {
-        let mut lexer = Lexer::new(
-            &args.file,
-            Scanner::get_file(&args.file),
-            ReportSender::new(sender.clone()),
-        );
+        let mut lexer =
+            Lexer::new(&args.file, Scanner::get(&args.file), ReportSender::new(sender.clone()));
 
         lexer.lex_tokens();
         lexer.tokens.goto_front();

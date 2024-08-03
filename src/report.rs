@@ -171,7 +171,7 @@ impl Display for ReportFormatter<'_> {
         match report.label.as_ref() {
             Some(label) => {
                 let span = &label.span;
-                let contents = crate::Scanner::get_file(span.filename);
+                let contents = crate::Scanner::get(span.filename);
                 let line_index = match contents[..=span.start_index].rfind('\n') {
                     Some(val) => val + 1,
                     None => 0,
