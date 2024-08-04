@@ -74,7 +74,6 @@ impl<'t, 'contents> Parser<'t, 'contents> {
                 Ok(())
             },
             TokenKind::EOF => {
-                self.advance();
                 Ok(())
             },
             _ => ReportKind::UnexpectedToken
