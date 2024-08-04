@@ -173,7 +173,7 @@ impl Args {
     }
 }
 
-const USAGE: &str = "Usage: sharc [-hvd] [-l LEVEL] [-f FILE] [-o FILE] [VERB...]";
+const USAGE: &str = "Usage: sharc [-hVd] [-l LEVEL] [-f FILE] [-o FILE] [VERB...]";
 const HELP_MESSAGE: &str = "\x1b[1mDESCRIPTION\x1b[0m
     The compiler for the Shard Programming Language.
     Documentation can be found at https://shardlang.org/doc/
