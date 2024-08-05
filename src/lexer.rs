@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use iterlist::IterList;
 
-use crate::report::{Report, ReportKind, ReportLabel, ReportSender, Result};
+use crate::report::{Report, ReportKind, ReportSender, Result};
 use crate::span::Span;
 use crate::token::{Token, TokenKind};
 
@@ -93,7 +93,7 @@ impl<'source> Lexer<'source> {
                     while Some('\n') == self.current {
                         self.advance();
                     }
-                    if self.tokens.last().is_some_and(|token| token.kind != TokenKind::NewLine) {
+                    if self.tokens.get_offset(-1).is_some_and(|token| token.kind != TokenKind::NewLine) {
                         self.push_token(TokenKind::NewLine, span_to!(start_index), "");
                     }
                     continue;

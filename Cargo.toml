@@ -11,4 +11,5 @@ categories = ["compiler", "development-tools"]
 
 [dependencies]
 colored = "2.1"
+bitvec = { version = "1.0", no-default-features = true, features = ["std"] }
 iterlist = "0.1"

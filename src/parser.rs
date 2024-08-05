@@ -4,7 +4,7 @@ use std::slice::Iter;
 use std::str;
 
 use crate::ast::{ASTKind, LabelAttribute, Program, Type, AST};
-use crate::report::{Report, ReportKind, ReportLabel, ReportSender, Result, Unbox};
+use crate::report::{Report, ReportKind, ReportSender, Result, Unbox};
 use crate::token::{Token, TokenKind};
 
 pub struct Parser<'t, 'contents> {

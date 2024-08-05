@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::{self, BufReader, Read};
 use std::sync::{LazyLock, RwLock};
 
-use crate::report::{ReportKind, ReportLabel, UnwrapReport};
+use crate::report::{ReportKind, UnwrapReport};
 
 pub struct Scanner {
     filename: &'static str,

@@ -1,48 +1,76 @@
 use std::fmt::Formatter;
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct Span {
     pub filename:    &'static str,
     pub line_number: usize,
-    pub start_index: usize,
-    pub end_index:   usize,
+    pub offset:      usize,
+    pub length:      usize,
 }
 
 impl Span {
-    pub fn new(
-        filename: &'static str, line_number: usize, start_index: usize, end_index: usize,
-    ) -> Self {
-        Self { filename, line_number, start_index, end_index }
+    pub fn new(filename: &'static str, line_number: usize, offset: usize, length: usize) -> Self {
+        Self { filename, line_number, offset, length }
     }
 
-    pub fn extend(&self, other: &Self) -> Self {
-        Self {
-            filename:    self.filename,
-            line_number: self.line_number,
-            start_index: self.start_index,
-            end_index:   other.end_index,
-        }
-    }
+    // pub fn extend(&self, other: &Self) -> Self {
+    //     Self {
+    //         filename:    self.filename,
+    //         mask:        self.mask,
+    //         line_number: self.line_number,
+    //     }
+    // }
 
-    pub fn to_span_printer(&self, line_index: usize) -> SpanPrinter {
-        SpanPrinter { span: self, line_index }
+    pub fn ghost<T: Into<String>>(mut self, ghost: T) -> SpanWrapper {
+        let ghost: String = ghost.into();
+        assert_eq!(ghost.len(), self.span.length);
+
+        let wrap: SpanWrapper = self.into();
+        wrap.ghost = Some(ghost.into()); 
+        wrap
     }
 }
 
 impl std::fmt::Debug for Span {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}:{}({},{})", self.filename, self.line_number, self.start_index, self.end_index)
+        write!(f, "{}:{}:{}-{}", self.filename, self.line_number, self.offset, self.offset + self.length)
     }
 }
 
-pub struct SpanPrinter<'s> {
-    span:       &'s Span,
-    line_index: usize,
+impl std::fmt::Display for Span {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}:{}:{}", self.filename, self.line_number, self.offset)
+    }
 }
 
-impl std::fmt::Display for SpanPrinter<'_> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let column = self.span.start_index.saturating_sub(self.line_index);
-        write!(f, "{}:{}:{}", self.span.filename, self.span.line_number, column)
+#[derive(PartialEq)]
+pub struct SpanWrapper {
+    span: Span,
+    ghost: Option<String>,
+}
+
+impl Into<SpanWrapper> for Span {
+    fn into(self) -> SpanWrapper {
+        SpanWrapper { span: self, ghost: None }
+    }
+}
+
+impl PartialOrd for SpanWrapper {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.offset().cmp(&other.offset()))
+    }
+}
+
+impl SpanWrapper {
+    pub fn span(&self) -> &Span {
+        &self.span
+    }
+
+    pub fn offset(&self) -> usize {
+        self.span.offset
+    }
+
+    pub fn length(&self) -> usize {
+        self.span.length
     }
 }
