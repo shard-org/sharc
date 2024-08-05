@@ -2,10 +2,10 @@ use std::fmt::Formatter;
 
 #[derive(Clone)]
 pub struct Span {
-    pub filename: &'static str,
+    pub filename:    &'static str,
     pub line_number: usize,
     pub start_index: usize,
-    pub end_index: usize,
+    pub end_index:   usize,
 }
 
 impl Span {
@@ -17,10 +17,10 @@ impl Span {
 
     pub fn extend(&self, other: &Self) -> Self {
         Self {
-            filename: self.filename,
+            filename:    self.filename,
             line_number: self.line_number,
             start_index: self.start_index,
-            end_index: other.end_index,
+            end_index:   other.end_index,
         }
     }
 
@@ -36,7 +36,7 @@ impl std::fmt::Debug for Span {
 }
 
 pub struct SpanPrinter<'s> {
-    span: &'s Span,
+    span:       &'s Span,
     line_index: usize,
 }
 

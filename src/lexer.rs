@@ -1,17 +1,20 @@
+use std::fmt::Display;
+
+use iterlist::IterList;
+
 use crate::report::{Report, ReportKind, ReportLabel, ReportSender, Result};
 use crate::span::Span;
 use crate::token::{Token, TokenKind};
-use std::fmt::Display;
 
 pub struct Lexer<'source> {
-    filename: &'static str,
-    contents: &'source str,
-    chars: std::iter::Peekable<std::str::Chars<'source>>,
-    current: Option<char>,
+    filename:    &'static str,
+    contents:    &'source str,
+    chars:       std::iter::Peekable<std::str::Chars<'source>>,
+    current:     Option<char>,
     line_number: usize,
-    index: usize,
-    sender: ReportSender,
-    pub tokens: Vec<Token<'source>>,
+    index:       usize,
+    sender:      ReportSender,
+    pub tokens:  IterList<Token<'source>>,
 }
 
 impl<'source> Lexer<'source> {
@@ -25,7 +28,7 @@ impl<'source> Lexer<'source> {
             line_number: 1,
             index: 0,
             sender,
-            tokens: Vec::new(),
+            tokens: IterList::new(),
         }
     }
 
@@ -54,7 +57,7 @@ impl<'source> Lexer<'source> {
     }
 
     fn push_token(&mut self, kind: TokenKind, span: Span, text: &'source str) {
-        self.tokens.push(Token { kind, span, text });
+        self.tokens.push_next(Token { kind, span, text });
     }
 
     fn push_simple_token(&mut self, kind: TokenKind, length: usize) {
@@ -68,6 +71,7 @@ impl<'source> Lexer<'source> {
             self.slice_source(start_index, self.index),
         );
     }
+
     pub fn lex_tokens(&mut self) {
         'main: while let Some(current) = self.current {
             let (line_number, start_index) = (self.line_number, self.index);
@@ -325,7 +329,6 @@ impl<'source> Lexer<'source> {
                 //     _ => (TokenKind::Dot, 1),
                 // },
 
-                //
                 // Characters
                 '.' => (TokenKind::Dot, 1),
                 '~' => match self.peek() {

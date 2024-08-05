@@ -1,12 +1,12 @@
+use std::collections::{HashMap, HashSet};
+
+use iterlist::IterList;
+
 use crate::ast::Type;
 use crate::report::{Report, ReportKind, ReportLabel, ReportSender, Result, Unbox};
 use crate::scanner::Scanner;
 use crate::span::Span;
 use crate::token::{Token, TokenKind};
-use std::collections::{HashMap, HashSet};
-
-use std::collections::VecDeque;
-// ! USE LINKED LISTTTTTTT //# crate::linked_list::LinkedList;
 
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub enum Tag {
@@ -14,8 +14,8 @@ pub enum Tag {
     Arch(Vec<String>),
     Macro(String),
 
-    SyscallConv(Vec<Type>, Option<Box<Type>>), // expect registers
-                                               // Syscall(Vec<Box<AST>>, String),         // expect TypeAnnotation
+    SyscallConv(Vec<Type>, Option<Box<Type>>), /* expect registers
+                                                * Syscall(Vec<Box<AST>>, String),         // expect TypeAnnotation */
 }
 
 #[derive(Debug, Clone)]
@@ -54,43 +54,34 @@ impl<'contents> TokenWrap<'contents> {
 
 pub struct PreProcessor<'contents> {
     filename: &'static str,
-    tokens: VecDeque<Token<'contents>>,
-    index: usize,
-    sender: ReportSender,
+    tokens:   IterList<Token<'contents>>,
+    sender:   ReportSender,
 
-    tag_defs: HashMap<String, (Span, Vec<TokenWrap<'contents>>)>,
+    tag_defs:   HashMap<String, (Span, Vec<TokenWrap<'contents>>)>,
     macro_defs: HashMap<String, Vec<TokenWrap<'contents>>>,
 }
 
 impl<'contents> PreProcessor<'contents> {
     pub fn new(
-        filename: &'static str, tokens: Vec<Token<'contents>>, sender: ReportSender,
+        filename: &'static str, tokens: IterList<Token<'contents>>, sender: ReportSender,
     ) -> Self {
-        Self {
-            filename,
-            sender,
-            tokens: tokens.into(),
-            index: 0,
-            // tags: HashSet::new(),
-            tag_defs: HashMap::new(),
-            macro_defs: HashMap::new(),
-        }
+        Self { filename, sender, tokens, tag_defs: HashMap::new(), macro_defs: HashMap::new() }
     }
 
     fn advance(&mut self) {
-        self.index += 1;
+        self.tokens.advance();
     }
 
     fn consume(&mut self) -> Token<'contents> {
-        self.tokens.remove(self.index).unwrap()
+        self.tokens.consume().unwrap()
     }
 
     fn current(&self) -> &Token<'contents> {
-        &self.tokens[self.index]
+        self.tokens.current().unwrap()
     }
 
     fn peek(&self) -> &Token<'contents> {
-        &self.tokens[self.index + 1]
+        self.tokens.peek().unwrap()
     }
 
     fn parse_token(&mut self) -> TokenWrap<'contents> {
@@ -198,12 +189,11 @@ impl<'contents> PreProcessor<'contents> {
 
                     self.add_macro_def(token.text, args[1..].to_vec());
                 },
-                None => {
+                None =>
                     return ReportKind::SyntaxError
                         .new("Expected Identifier")
                         .with_label(ReportLabel::new(init_token.span))
-                        .into()
-                },
+                        .into(),
             },
             _ => {
                 self.tag_defs.insert(init_token.text.to_uppercase(), (init_token.span, args));
@@ -217,7 +207,8 @@ impl<'contents> PreProcessor<'contents> {
     }
 
     fn add_macro_def(&mut self, name: &str, mut tokens: Vec<TokenWrap<'contents>>) {
-        // if macro already exists, replace all instances in `tokens` and set it as the new definition
+        // if macro already exists, replace all instances in `tokens` and set it as the new
+        // definition
         if let Some(existing) = self.macro_defs.get_mut(name) {
             let mut index = 0;
             while let Some(i) =
@@ -273,16 +264,17 @@ impl<'contents> PreProcessor<'contents> {
 
     fn expand_macros(&mut self) -> Result<Vec<Token<'contents>>> {
         let mut tokens = Vec::with_capacity(self.tokens.len());
-        while let Some(token) = self.tokens.pop_front() {
+        self.tokens.goto_front();
+        while let Some(token) = self.tokens.consume() {
             match token.kind {
                 TokenKind::EOF => {
                     tokens.push(token);
                     break;
                 },
                 TokenKind::Pound
-                    if self.tokens.front().is_some_and(|t| t.kind == TokenKind::Identifier) =>
+                    if self.tokens.current().is_some_and(|t| t.kind == TokenKind::Identifier) =>
                 {
-                    let token = self.tokens.pop_front().unwrap();
+                    let token = self.consume();
                     if let Some(def) = self.macro_defs.get(token.text) {
                         tokens.extend(def.iter().map(|t| t.token().unwrap().clone()));
                         continue;
@@ -306,21 +298,18 @@ impl<'contents> PreProcessor<'contents> {
             match key.as_str() {
                 "NAME" => {
                     let name = match tokens.first().and_then(|t| t.token()) {
-                        Some(token) if token.kind == TokenKind::StringLiteral => {
-                            token.text.to_string()
-                        },
-                        Some(token) => {
+                        Some(token) if token.kind == TokenKind::StringLiteral =>
+                            token.text.to_string(),
+                        Some(token) =>
                             return ReportKind::SyntaxError
                                 .new(format!("Expected StringLiteral; got {:?}", token.kind))
                                 .with_label(ReportLabel::new(token.span.clone()))
-                                .into()
-                        },
-                        None => {
+                                .into(),
+                        None =>
                             return ReportKind::SyntaxError
                                 .new("Expected StringLiteral")
                                 .with_label(ReportLabel::new(self.current().span.clone()))
-                                .into()
-                        },
+                                .into(),
                     };
 
                     if tokens.len() > 1 {

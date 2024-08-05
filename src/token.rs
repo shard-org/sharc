@@ -1,5 +1,6 @@
-use crate::span::Span;
 use std::fmt::Formatter;
+
+use crate::span::Span;
 
 #[derive(Debug, PartialOrd, PartialEq, Clone, Copy)]
 pub enum TokenKind {

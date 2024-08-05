@@ -1,10 +1,11 @@
-use crate::span::Span;
 use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
 use std::io::ErrorKind;
 use std::sync::mpsc::Sender;
 
 use colored::{Color, Colorize};
+
+use crate::span::Span;
 
 #[derive(Debug, PartialEq, PartialOrd, Copy, Clone)]
 pub enum Level {
@@ -36,6 +37,7 @@ pub enum ReportKind {
     UnexpectedEOF,
     InvalidEscapeSequence,
     DuplicateAttribute,
+    RegisterWithinHeap,
 
     // General
     IOError,
@@ -69,6 +71,7 @@ impl ReportKind {
             | Self::UnexpectedEOF
             | Self::DuplicateAttribute
             | Self::InvalidEscapeSequence
+            | Self::RegisterWithinHeap
 
             // General
             | Self::IOError | Self::SyntaxError => Level::Error,
@@ -95,10 +98,10 @@ impl ReportLabel {
 
 #[derive(Clone)]
 pub struct Report {
-    kind: ReportKind,
+    kind:  ReportKind,
     title: String,
     label: Option<ReportLabel>,
-    note: Option<String>,
+    note:  Option<String>,
 }
 
 impl Report {
@@ -144,7 +147,7 @@ impl PartialOrd<Self> for Report {
 }
 
 struct ReportFormatter<'e> {
-    report: &'e Report,
+    report:       &'e Report,
     show_context: bool,
 }
 
@@ -170,7 +173,7 @@ impl Display for ReportFormatter<'_> {
         match report.label.as_ref() {
             Some(label) => {
                 let span = &label.span;
-                let contents = crate::Scanner::get_file(span.filename);
+                let contents = crate::Scanner::get(span.filename);
                 let line_index = match contents[..=span.start_index].rfind('\n') {
                     Some(val) => val + 1,
                     None => 0,
@@ -217,15 +220,15 @@ impl Display for ReportFormatter<'_> {
                             note.bright_black().italic()
                         )?;
                     }
-                } else if let Some(note) = &report.note {
+                }
+                else if let Some(note) = &report.note {
                     writeln!(f, " {}", note.bright_black().italic())?;
                 }
             },
-            None => {
+            None =>
                 if let Some(note) = &report.note {
                     writeln!(f, "{}", note.bright_black().italic())?;
-                }
-            },
+                },
         }
 
         Ok(())

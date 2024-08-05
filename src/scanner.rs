@@ -7,23 +7,17 @@ use crate::report::{ReportKind, ReportLabel, UnwrapReport};
 
 pub struct Scanner {
     filename: &'static str,
-    index: usize,
-    contents: String,
-    reader: BufReader<File>,
+    index:    usize,
+    contents: &'static mut String,
+    reader:   BufReader<File>,
 }
 
 static CACHE: LazyLock<RwLock<HashMap<&'static str, &'static str>>> =
-    LazyLock::new(|| RwLock::new(HashMap::new()));
 
+LazyLock::new(|| RwLock::new(HashMap::new()));
 impl Scanner {
-    pub fn get_cached(filename: &'static str) -> Option<&str> {
-        let cache = CACHE.read().expect("failed to lock on cache");
-
-        cache.get(&filename).copied()
-    }
-
-    pub fn get_file(filename: &'static str) -> &str {
-        if let Some(contents) = Self::get_cached(filename) {
+    pub fn get(filename: &'static str) -> &'static str {
+        if let Some(contents) = CACHE.read().unwrap().get(&filename) {
             return contents;
         }
 
@@ -39,39 +33,31 @@ impl Scanner {
                     .new(format!("Failed to read file: '{filename}'"))
                     .into(),
             )
-            .leak();
+            .contents;
 
-        let mut cache = CACHE.write().expect("failed to lock on cache");
-
-        cache.insert(filename, contents);
+        CACHE.write().unwrap().insert(filename, contents);
         contents
     }
 
     fn new(filename: &'static str) -> io::Result<Self> {
         let file = File::open(filename)?;
-
-        // We can forbid this, as files whose size are truncated are large enough that
-        // we can ignore this optimization loss.
-        #[allow(clippy::cast_possible_truncation)]
-        let file_size = file.metadata()?.len() as usize;
+        let file_size = usize::try_from(file.metadata()?.len()).unwrap();
 
         Ok(Self {
             filename,
             index: 0,
-            contents: String::with_capacity(file_size),
+            contents: Box::leak(String::with_capacity(file_size).into()),
             reader: BufReader::new(file),
         })
     }
 
     fn read(mut self) -> io::Result<Self> {
-        let mut buf = [0; 1];
+        let mut buf = [0u8; 1];
 
         while self.reader.read(&mut buf)? > 0 {
             match std::str::from_utf8(&buf) {
                 Ok(s) => match s {
-                    "\r" => {
-                        continue;
-                    }
+                    "\r" => continue,
                     _ => self.contents.push_str(s),
                 },
                 Err(_) => {
@@ -82,9 +68,9 @@ impl Scanner {
                                 '\n' => {
                                     li = index;
                                     ln += 1;
-                                }
-                                _ => {}
-                            };
+                                },
+                                _ => (),
+                            }
                             (li, ln)
                         },
                     );
@@ -101,9 +87,5 @@ impl Scanner {
         }
 
         Ok(self)
-    }
-
-    fn leak(self) -> &'static str {
-        Box::leak(self.contents.into_boxed_str())
     }
 }

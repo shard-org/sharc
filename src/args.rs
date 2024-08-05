@@ -1,7 +1,8 @@
-use crate::report::{Level, ReportKind};
 use std::borrow::Borrow;
 use std::fmt::{Debug, Formatter};
 use std::process::exit;
+
+use crate::report::{Level, ReportKind};
 
 macro_rules! error {
     ($($ident:tt)*) => {
@@ -16,20 +17,18 @@ macro_rules! error {
 #[derive(Copy, Clone)]
 pub struct Arg<T> {
     pub value: T,
-    set: bool,
+    set:       bool,
 }
 
 impl<T> Arg<T> {
-    fn new(default: T) -> Self {
-        Self {
-            value: default,
-            set: false,
-        }
+    pub fn new(default: T) -> Self {
+        Self { value: default, set: false }
     }
 
-    fn try_mut<N: std::fmt::Display>(&mut self, name: N, value: T) {
+    pub fn try_mut<N>(&mut self, name: N, value: T)
+    where N: std::fmt::Display {
         if self.set {
-            error!("'{}' may only be used once", name);
+            error!("'{name}' may only be used once");
         }
         self.value = value;
     }
@@ -51,23 +50,23 @@ impl<T: Debug> Debug for Arg<T> {
 
 #[derive(Debug)]
 pub struct Args {
-    pub file: Arg<&'static str>,
-    pub output: Arg<&'static str>,
-    pub debug: Arg<bool>,
+    pub file:         Arg<&'static str>,
+    pub output:       Arg<&'static str>,
+    pub debug:        Arg<bool>,
     pub code_context: Arg<bool>,
-    pub level: Arg<Level>,
-    pub verbs: Vec<&'static str>,
+    pub level:        Arg<Level>,
+    pub verbs:        Vec<&'static str>,
 }
 
 impl Args {
     pub fn default() -> Self {
         Self {
-            file: Arg::new("main.shd"),
-            output: Arg::new("main.asm"),
-            debug: Arg::new(false),
+            file:         Arg::new("main.shd"),
+            output:       Arg::new("main.asm"),
+            debug:        Arg::new(false),
             code_context: Arg::new(true),
-            level: Arg::new(Level::Warn),
-            verbs: Vec::new(),
+            level:        Arg::new(Level::Warn),
+            verbs:        Vec::new(),
         }
     }
 
@@ -152,17 +151,21 @@ impl Args {
         while let Some(arg) = args.next() {
             if arg.starts_with('-') {
                 out.handle_arg(&arg, &mut args);
-            } else if arg == "shark" {
-                println!("{SHARK_ASCII}");
-                exit(0);
-            } else {
-                out.verbs.push(Box::leak(arg.into_boxed_str()));
+                continue;
             }
+
+            if arg == "shark" {
+                println!("\x1b[34m{SHARK_ASCII}\x1b[0m");
+                exit(1);
+            }
+
+            out.verbs.push(Box::leak(arg.into_boxed_str()));
         }
 
-        args.for_each(|arg| {
+        // drain remaining args
+        for arg in args.by_ref() {
             out.verbs.push(Box::leak(arg.into_boxed_str()));
-        });
+        }
 
         out
     }

@@ -20,18 +20,20 @@
     clippy::derive_partial_eq_without_eq,
     clippy::missing_const_for_fn,
     clippy::cognitive_complexity,
-    clippy::option_if_let_else
+    clippy::option_if_let_else,
+    clippy::option_map_unit_fn
 )]
 #![allow(dead_code, unused)]
+
+use std::process::exit;
+use std::sync::mpsc::Receiver;
+
+use colored::Colorize;
 
 use crate::lexer::Lexer;
 use crate::parser::Parser;
 use crate::report::{Level, Report, ReportSender, Unbox};
 use crate::scanner::Scanner;
-use std::process::exit;
-use std::sync::mpsc::Receiver;
-
-use colored::Colorize;
 
 mod args;
 mod ast;
@@ -42,7 +44,6 @@ mod report;
 mod scanner;
 mod span;
 mod token;
-mod linked_list;
 
 fn check_reports(receiver: &Receiver<Box<Report>>, reports: &mut Vec<Report>) -> bool {
     let mut had_error = false;
@@ -55,7 +56,7 @@ fn check_reports(receiver: &Receiver<Box<Report>>, reports: &mut Vec<Report>) ->
     had_error
 }
 
-fn print_reports_and_exit(reports: &mut Vec<Report>, args: &args::Args) {
+fn print_reports_and_exit(reports: &mut Vec<Report>, args: &args::Args) -> ! {
     if *args.level == Level::Silent {
         exit(1);
     }
@@ -68,7 +69,7 @@ fn print_reports_and_exit(reports: &mut Vec<Report>, args: &args::Args) {
             report.display(*args.code_context);
         }
     });
-    exit(1);
+    exit(1)
 }
 
 fn main() {
@@ -82,16 +83,19 @@ fn main() {
     let (sender, receiver) = std::sync::mpsc::channel::<Box<Report>>();
 
     let tokens = {
-        let mut lexer = Lexer::new(
-            *args.file,
-            Scanner::get_file(*args.file),
-            ReportSender::new(sender.clone()),
-        );
+        let mut lexer =
+            Lexer::new(&args.file, Scanner::get(&args.file), ReportSender::new(sender.clone()));
 
         lexer.lex_tokens();
+        lexer.tokens.goto_front();
+
         if *args.debug {
             println!("\n{}", "LEXER".bold());
-            lexer.tokens.iter().for_each(|token| println!("{token:#}"));
+            let mut index = 0;
+            while let Some(token) = lexer.tokens.get_offset(index) {
+                println!("{token:#}");
+                index += 1;
+            }
         }
 
         if check_reports(&receiver, &mut reports) {
@@ -102,11 +106,8 @@ fn main() {
     };
 
     let (tokens, tags) = {
-        let mut preprocessor = preprocessor::PreProcessor::new(
-            *args.file,
-            tokens,
-            ReportSender::new(sender.clone()),
-        );
+        let mut preprocessor =
+            preprocessor::PreProcessor::new(&args.file, tokens, ReportSender::new(sender.clone()));
 
         let (tokens, tags) = preprocessor.process();
 

@@ -11,3 +11,4 @@ categories = ["compiler", "development-tools"]
 
 [dependencies]
 colored = "2.1"
+iterlist = "0.1"
