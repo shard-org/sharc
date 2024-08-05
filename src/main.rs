@@ -84,11 +84,8 @@ fn main() {
     let (sender, receiver) = std::sync::mpsc::channel::<Box<Report>>();
 
     let tokens = {
-        let mut lexer = Lexer::new(
-            *args.file,
-            Scanner::get_file(*args.file),
-            ReportSender::new(sender.clone()),
-        );
+        let mut lexer =
+            Lexer::new(*args.file, Scanner::get(*args.file), ReportSender::new(sender.clone()));
         lexer.lex_tokens();
         lexer.tokens.goto_front();
 
@@ -109,11 +106,8 @@ fn main() {
     };
 
     let (tokens, tags) = {
-        let mut preprocessor = preprocessor::PreProcessor::new(
-            *args.file,
-            tokens,
-            ReportSender::new(sender.clone()),
-        );
+        let mut preprocessor =
+            preprocessor::PreProcessor::new(*args.file, tokens, ReportSender::new(sender.clone()));
 
         let (tokens, tags) = preprocessor.process();
 

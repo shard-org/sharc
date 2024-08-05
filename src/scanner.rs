@@ -23,15 +23,11 @@ impl Scanner {
 
         let contents = Self::new(filename)
             .unwrap_or_fatal(
-                ReportKind::IOError
-                    .new(format!("Failed to open file: '{filename}'"))
-                    .into(),
+                ReportKind::IOError.new(format!("Failed to open file: '{filename}'")).into(),
             )
             .read()
             .unwrap_or_fatal(
-                ReportKind::IOError
-                    .new(format!("Failed to read file: '{filename}'"))
-                    .into(),
+                ReportKind::IOError.new(format!("Failed to read file: '{filename}'")).into(),
             )
             .contents;
 
@@ -69,8 +65,8 @@ impl Scanner {
                                 '\n' => {
                                     li = index;
                                     ln += 1;
-                                }
-                                _ => {}
+                                },
+                                _ => {},
                             };
                             (li, ln)
                         },
@@ -82,7 +78,7 @@ impl Scanner {
                         .with_label(ReportLabel::new(span))
                         .display(false);
                     std::process::exit(1);
-                }
+                },
             }
             self.index += 1;
         }

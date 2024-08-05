@@ -74,9 +74,7 @@ impl<'t, 'contents> Parser<'t, 'contents> {
                 }
                 Ok(())
             },
-            TokenKind::EOF => {
-                Ok(())
-            },
+            TokenKind::EOF => Ok(()),
             _ => ReportKind::UnexpectedToken
                 .new(format!("expected NewLine got '{kind:?}'"))
                 .with_label(ReportLabel::new(span.clone()))

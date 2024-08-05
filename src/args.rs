@@ -17,15 +17,12 @@ macro_rules! error {
 #[derive(Copy, Clone)]
 pub struct Arg<T> {
     pub value: T,
-    set: bool,
+    set:       bool,
 }
 
 impl<T> Arg<T> {
     fn new(default: T) -> Self {
-        Self {
-            value: default,
-            set: false,
-        }
+        Self { value: default, set: false }
     }
 
     fn try_mut<N: std::fmt::Display>(&mut self, name: N, value: T) {
@@ -75,7 +72,8 @@ impl Args {
     fn handle_arg(&mut self, argument: &str, arguments: &mut std::vec::IntoIter<String>) {
         let args: Vec<String> = if argument.starts_with("--") {
             vec![argument.into()]
-        } else {
+        }
+        else {
             argument.chars().skip(1).map(|c| format!("-{c}")).collect()
         };
         let args_len = args.len();
