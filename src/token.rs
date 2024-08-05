@@ -78,3 +78,17 @@ impl std::fmt::Display for Token<'_> {
         write!(f, ")")
     }
 }
+
+impl TokenKind {
+    pub fn matching(self) -> Self {
+        match self {
+            Self::LBrace => Self::RBrace,
+            Self::RBrace => Self::LBrace,
+            Self::LBracket => Self::RBracket,
+            Self::RBracket => Self::LBracket,
+            Self::LParen => Self::RParen,
+            Self::RParen => Self::LParen,
+            a => a,
+        }
+    }
+}

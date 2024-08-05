@@ -41,7 +41,8 @@ pub enum LabelAttribute {
 pub enum Type {
     Size(usize),
     // NOTE: a size of 0 represents an array of undetermined length e.g [1:]
-    Heap { is_pointer: bool, contents: Vec<(Type, Option<usize>)> },
+    Heap { is_pointer: bool, contents: Vec<Type> },
+    Array { inner: Box<Type>, elems: Option<usize> },
     Struct(String),
     Register { inner: Option<Box<Type>>, ident: usize },
 }
@@ -50,15 +51,21 @@ impl Display for Type {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Size(s) => write!(f, "{s}")?,
+            Self::Array { inner, elems } => {
+                write!(f, "{inner}")?;
+                if elems.is_none() {
+                    return Ok(());
+                };
+
+                write!(f, ":")?;
+                if elems.unwrap() != 0 {
+                    write!(f, "{}", elems.unwrap())?;
+                }
+            },
             Self::Heap { is_pointer, contents } => {
                 write!(f, "{}", if *is_pointer { "[" } else { "{" })?;
-                for (i, (t, elems)) in contents.iter().enumerate() {
+                for (i, t) in contents.iter().enumerate() {
                     write!(f, "{t}")?;
-                    match elems {
-                        Some(0) => write!(f, ":")?,
-                        Some(size) => write!(f, ":{size}")?,
-                        None => {},
-                    };
 
                     if i != contents.len() - 1 {
                         write!(f, ", ")?;
