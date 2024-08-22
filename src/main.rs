@@ -25,14 +25,11 @@
 )]
 #![allow(dead_code, unused)]
 
-use std::process::exit;
-use std::sync::mpsc::Receiver;
-
 use colored::Colorize;
 
 use crate::lexer::Lexer;
-use crate::parser::Parser;
-use crate::report::{Level, Report, ReportSender, Unbox};
+// use crate::parser::Parser;
+use crate::report::{Level, Report, report_handler, Event};
 use crate::scanner::Scanner;
 
 mod args;
@@ -80,8 +77,7 @@ fn main() {
         println!("{args:#?}");
     }
 
-    let mut reports = Vec::<Report>::new();
-    let (sender, receiver) = std::sync::mpsc::channel::<Box<Report>>();
+    let (sender, handle) = report_handler(*args.level);
 
     let tokens = {
         let mut lexer =
@@ -95,9 +91,7 @@ fn main() {
                 .for_each(|token| println!("{token:#}"));
         }
 
-        if check_reports(&receiver, &mut reports) {
-            print_reports_and_exit(&mut reports, &args);
-        }
+        sender.send(Event::Check);
 
         lexer.tokens
     };
