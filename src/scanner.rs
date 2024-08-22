@@ -2,8 +2,10 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::{self, BufReader, Read};
 use std::sync::{LazyLock, RwLock};
+use std::process::exit;
 
-use crate::report::{ReportKind, UnwrapReport};
+use crate::report::ReportKind;
+use crate::span::Span;
 
 pub struct Scanner {
     filename: &'static str,
@@ -22,13 +24,15 @@ impl Scanner {
         }
 
         let contents = Self::new(filename)
-            .unwrap_or_fatal(
-                ReportKind::IOError.title(format!("Failed to open file: '{filename}'")).into(),
-            )
+            .unwrap_or_else(|_| {
+                print!("{}", ReportKind::IOError.title(format!("Failed to open file: '{filename}'")));
+                std::process::exit(1);
+            })
             .read()
-            .unwrap_or_fatal(
-                ReportKind::IOError.title(format!("Failed to read file: '{filename}'")).into(),
-            )
+            .unwrap_or_else(|_| {
+                print!("{}", ReportKind::IOError.title(format!("Failed to read file: '{filename}'")));
+                exit(1);
+            })
             .contents;
 
         CACHE.write().unwrap().insert(filename, contents);
@@ -57,23 +61,18 @@ impl Scanner {
                     _ => self.contents.push_str(s),
                 },
                 Err(_) => {
-                    let (line_index, line_number) = self.contents.chars().enumerate().fold(
-                        (0, 1),
-                        |(mut li, mut ln), (index, c)| {
-                            if c == '\n' {
-                                li = index;
-                                ln += 1;
-                            }
-                            (li, ln)
-                        },
+                    let (line_index, line_number) = self.contents.chars().enumerate()
+                        .fold((0, 1), |acc, (i, c)| match c {
+                            '\n' => (i, acc.1 + 1),
+                            _    => acc,
+                        });
+
+                    print!("{}", ReportKind::IOError
+                        .title("Invalid UTF-8 data".to_string())
+                        .span(Span::new(self.filename, line_number, line_index, self.index))
                     );
-                    let span =
-                        crate::span::Span::new(self.filename, line_number, line_index, self.index);
-                    print!(
-                        "{}",
-                        ReportKind::IOError.title("Invalid UTF-8 data".to_string()).span(span)
-                    );
-                    std::process::exit(1);
+
+                    exit(1);
                 },
             }
             self.index += 1;
