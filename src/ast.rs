@@ -40,8 +40,8 @@ pub enum LabelAttribute {
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub enum Type {
     Size(usize),
-    // NOTE: a size of 0 represents an array of undetermined length e.g [1:]
     Heap { is_pointer: bool, contents: Vec<Type> },
+    // NOTE: a size of 0 represents an array of undetermined length e.g [1:]
     Array { inner: Box<Type>, elems: Option<usize> },
     Struct(String),
     Register { inner: Option<Box<Type>>, ident: usize },
