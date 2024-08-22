@@ -87,15 +87,12 @@ fn main() {
         let mut lexer =
             Lexer::new(*args.file, Scanner::get(*args.file), ReportSender::new(sender.clone()));
         lexer.lex_tokens();
-        lexer.tokens.goto_front();
+        lexer.tokens.move_to_front();
 
         if *args.debug {
             println!("\n{}", "LEXER".bold());
-            let mut index = 0;
-            while let Some(token) = lexer.tokens.get_offset(index) {
-                println!("{token:#}");
-                index += 1;
-            }
+            lexer.tokens.as_cursor()
+                .for_each(|token| println!("{token:#}"));
         }
 
         if check_reports(&receiver, &mut reports) {

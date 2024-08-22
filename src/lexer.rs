@@ -94,12 +94,8 @@ impl<'source> Lexer<'source> {
                         self.advance();
                     }
 
-                    if self
-                        .tokens
-                        .get_offset(-1)
-                        .is_some_and(|token| token.kind != TokenKind::NewLine)
-                    {
-                        self.push_token(TokenKind::NewLine, span_to!(start_index), "");
+                    if self.tokens.get_cursor().is_some_and(|t| t.kind != TokenKind::NewLine) {
+                        self.push_token(TokenKind::NewLine, self.span, "");
                     }
                     continue;
                 },
