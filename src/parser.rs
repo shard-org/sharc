@@ -11,10 +11,10 @@ use crate::token::{Token, TokenKind};
 
 pub struct Parser<'t, 'contents> {
     filename: &'static str,
-    tokens:   &'t [Token<'contents>],
-    current:  &'t Token<'contents>,
-    index:    usize,
-    sender:   ReportSender,
+    tokens: &'t [Token<'contents>],
+    current: &'t Token<'contents>,
+    index: usize,
+    sender: ReportSender,
 }
 
 impl<'t, 'contents> Parser<'t, 'contents> {
@@ -103,8 +103,7 @@ impl<'t, 'contents> Parser<'t, 'contents> {
     }
 
     pub fn parse(&mut self) -> Program {
-        let AST { kind: ASTKind::Block(stmts), .. } = self.parse_block(true)
-        else {
+        let AST { kind: ASTKind::Block(stmts), .. } = self.parse_block(true) else {
             unreachable!("Can't happen nerds!")
         };
         Program { stmts, filename: self.filename }
@@ -113,7 +112,7 @@ impl<'t, 'contents> Parser<'t, 'contents> {
     fn parse_block(&mut self, global: bool) -> AST {
         let mut stmts: Vec<AST> = Vec::new();
         let until = if global { TokenKind::EOF } else { TokenKind::RBrace };
-        let start = self.current.span.clone();
+        let start = &self.current.span;
 
         while self.current.kind != until {
             match self.parse_statement() {
@@ -135,7 +134,7 @@ impl<'t, 'contents> Parser<'t, 'contents> {
             self.consume(until, "block not terminated");
         };
 
-        let end = start.extend(stmts.last().map_or_else(|| &start, |ast| &ast.span));
+        let end = start.extend(&stmts.last().map_or_else(|| start, |ast| &ast.span));
 
         ASTKind::Block(stmts).into_ast(start.extend(&end))
     }
@@ -147,7 +146,9 @@ impl<'t, 'contents> Parser<'t, 'contents> {
             TokenKind::Identifier => self.parse_label(),
             TokenKind::Ret => self.parse_return(),
             // HACK: this is temporary, this should parse assignments
-            TokenKind::Percent => {
+            // Update: changed to another token because i needed % for modulo
+            // test cases should still pass just change it
+            TokenKind::Dollar => {
                 self.advance();
                 let ret = Ok(AST {
                     kind: ASTKind::TypeAnnotation(self.parse_type()?, None),
@@ -193,8 +194,9 @@ impl<'t, 'contents> Parser<'t, 'contents> {
         }
 
         match self.parse_expression()? {
-            AST { kind: ASTKind::IntegerLiteral(val), .. } =>
-                Ok(ASTKind::Interrupt(val).into_ast(self.current.span.clone())),
+            AST { kind: ASTKind::IntegerLiteral(val), .. } => {
+                Ok(ASTKind::Interrupt(val).into_ast(self.current.span.clone()))
+            },
             _ => ReportKind::SyntaxError
                 .new("Expected Integer Literal")
                 .with_label(ReportLabel::new(self.current.span.clone()))
@@ -250,8 +252,83 @@ impl<'t, 'contents> Parser<'t, 'contents> {
             .into_ast(self.current.span.clone()))
     }
 
+    //TODO: update this to be pratt parsing.
     fn parse_expression(&mut self) -> Result<AST> {
-        self.parse_atom()
+        let start = &self.current.span;
+        let lhs = self.parse_sum()?;
+
+        match self.current.kind {
+            TokenKind::Plus | TokenKind::Star | TokenKind::Slash | TokenKind::Percent => {
+                // recurse on the expr
+                let tok = self.current.kind;
+                self.advance();
+                let rhs = self.parse_expression()?;
+
+                Ok(AST::new(
+                    lhs.span.extend(&rhs.span),
+                    ASTKind::BinaryExpr(Box::new(lhs), Box::new(rhs), tok),
+                ))
+            },
+            _ => Ok(lhs),
+        }
+    }
+
+    fn parse_sum(&mut self) -> Result<AST> {
+        let start = &self.current.span;
+        let lhs = self.parse_term()?;
+        match self.current.kind {
+            TokenKind::Plus => {
+                let tok = self.current.kind;
+                self.advance();
+                let rhs = self.parse_product()?;
+                Ok(AST::new(
+                    start.extend(&self.current.span),
+                    ASTKind::BinaryExpr(Box::new(lhs), Box::new(rhs), tok),
+                ))
+            },
+            _ => Ok(lhs),
+        }
+    }
+
+    fn parse_product(&mut self) -> Result<AST> {
+        let start = &self.current.span;
+        let lhs = self.parse_sum()?;
+
+        match self.current.kind {
+            TokenKind::Star | TokenKind::Slash | TokenKind::Percent => {
+                let tok = self.current.kind;
+                self.advance();
+                let rhs = self.parse_term()?;
+                Ok(AST::new(
+                    start.extend(&self.current.span),
+                    ASTKind::BinaryExpr(Box::new(lhs), Box::new(rhs), tok),
+                ))
+            },
+            _ => Ok(lhs),
+        }
+    }
+
+    fn parse_term(&mut self) -> Result<AST> {
+        match self.current.kind {
+            TokenKind::LParen => {
+                let mut start = self.current.span.clone();
+                self.advance();
+                let mut inner = self.parse_expression()?;
+                if self.current.kind != TokenKind::RParen {
+                    let mut span = self.current.span.clone();
+                    span.start_index -= 1;
+                    return ReportKind::SyntaxError
+                        .new("Expected closing parenthesies")
+                        .with_label(ReportLabel::new(span.clone()))
+                        .into();
+                }
+                self.advance();
+
+                inner.span = start.extend(&self.current.span);
+                return Ok(inner);
+            },
+            _ => Ok(self.parse_atom()?),
+        }
     }
 
     fn parse_atom(&mut self) -> Result<AST> {
@@ -362,11 +439,12 @@ impl<'t, 'contents> Parser<'t, 'contents> {
             "\\?" => 32,
             "\\" => b'\\',
             "\\`" => b'`',
-            s if s.len() > 1 =>
+            s if s.len() > 1 => {
                 return ReportKind::InvalidEscapeSequence
                     .new("")
                     .with_label(ReportLabel::new(span.clone()))
-                    .into(),
+                    .into()
+            },
             s => s.as_bytes()[0],
         }) as char)
     }

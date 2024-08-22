@@ -1,10 +1,11 @@
 use std::fmt::{Display, Formatter};
 
 use crate::span::Span;
+use crate::token::TokenKind;
 
 pub struct Program {
     pub filename: &'static str,
-    pub stmts:    Vec<AST>,
+    pub stmts: Vec<AST>,
 }
 
 #[derive(Debug)]
@@ -17,6 +18,7 @@ pub enum ASTKind {
     Return(Option<Box<AST>>),
 
     // Expressions
+    BinaryExpr(Box<AST>, Box<AST>, TokenKind),
     Identifier(String),
 
     IntegerLiteral(usize),
@@ -107,6 +109,7 @@ impl Display for AST {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match &self.kind {
             ASTKind::IntegerLiteral(val) => write!(f, "(IntegerLiteral: {val})")?,
+            ASTKind::BinaryExpr(rhs, lhs, op) => write!(f, "(BinaryExpr {op:?} {rhs} {lhs})")?,
             ASTKind::Identifier(ident) => write!(f, "(Identifier: {ident})")?,
             ASTKind::Block(stmts) => write!(f, "(Block: {} statements)", stmts.len())?,
             ASTKind::StringLiteral(val) => write!(f, "(StringLiteral: {val:?})")?,
