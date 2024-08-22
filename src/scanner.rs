@@ -12,8 +12,8 @@ pub struct Scanner {
     reader:   BufReader<File>,
 }
 
-static CACHE: LazyLock<RwLock<HashMap<&'static str, &'static str>>> 
-    = LazyLock::new(|| RwLock::new(HashMap::new()));
+static CACHE: LazyLock<RwLock<HashMap<&'static str, &'static str>>> =
+    LazyLock::new(|| RwLock::new(HashMap::new()));
 
 impl Scanner {
     pub fn get(filename: &'static str) -> &'static str {
@@ -23,15 +23,11 @@ impl Scanner {
 
         let contents = Self::new(filename)
             .unwrap_or_fatal(
-                ReportKind::IOError
-                    .title(format!("Failed to open file: '{filename}'"))
-                    .into(),
+                ReportKind::IOError.title(format!("Failed to open file: '{filename}'")).into(),
             )
             .read()
             .unwrap_or_fatal(
-                ReportKind::IOError
-                    .title(format!("Failed to read file: '{filename}'"))
-                    .into(),
+                ReportKind::IOError.title(format!("Failed to read file: '{filename}'")).into(),
             )
             .contents;
 
@@ -73,11 +69,12 @@ impl Scanner {
                     );
                     let span =
                         crate::span::Span::new(self.filename, line_number, line_index, self.index);
-                    print!("{}", ReportKind::IOError
-                        .title("Invalid UTF-8 data".to_string())
-                        .span(span));
+                    print!(
+                        "{}",
+                        ReportKind::IOError.title("Invalid UTF-8 data".to_string()).span(span)
+                    );
                     std::process::exit(1);
-                }
+                },
             }
             self.index += 1;
         }

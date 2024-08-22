@@ -1,5 +1,5 @@
-use std::fmt::Formatter;
 use std::cmp::Ordering;
+use std::fmt::Formatter;
 
 #[derive(Clone, Copy, PartialEq)]
 pub struct Span {
@@ -21,11 +21,13 @@ impl Span {
     }
 
     pub fn len(mut self, len: usize) -> Self {
-        self.length = len; self
+        self.length = len;
+        self
     }
 
     pub fn offset(mut self, offset: usize) -> Self {
-        self.offset = offset; self
+        self.offset = offset;
+        self
     }
 
     pub fn ghost<T: std::fmt::Display>(self, ghost: T) -> (Self, HighVec) {
@@ -45,8 +47,16 @@ impl std::fmt::Debug for Span {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         if self.length == 0 {
             write!(f, "{}:{}:{}", self.filename, self.line_number, self.offset)
-        } else {
-            write!(f, "{}:{}:{}-{}", self.filename, self.line_number, self.offset, self.offset + self.length - 1)
+        }
+        else {
+            write!(
+                f,
+                "{}:{}:{}-{}",
+                self.filename,
+                self.line_number,
+                self.offset,
+                self.offset + self.length - 1
+            )
         }
     }
 }
@@ -56,8 +66,6 @@ impl std::fmt::Display for Span {
         write!(f, "{}:{}:{}", self.filename, self.line_number, self.offset)
     }
 }
-
-
 
 type HighVec = Vec<HighlightKind>;
 
@@ -76,19 +84,20 @@ impl From<Span> for (Span, HighVec) {
 #[repr(u8)]
 pub enum HighlightKind {
     Ghost(char) = 2,
-    Caret       = 1,
-    Empty       = 0,
+    Caret = 1,
+    Empty = 0,
 }
 
 pub fn combine(vec_a: HighVec, vec_b: HighVec) -> HighVec {
     let (mut a_iter, mut b_iter) = match vec_a.len().cmp(&vec_b.len()) {
-        Ordering::Less       => (vec_b.into_iter().peekable(),  vec_a.into_iter().peekable()),
-        _                    => (vec_a.into_iter().peekable(),  vec_b.into_iter().peekable()),
+        Ordering::Less => (vec_b.into_iter().peekable(), vec_a.into_iter().peekable()),
+        _ => (vec_a.into_iter().peekable(), vec_b.into_iter().peekable()),
     };
 
     let mut vec = Vec::new();
     while let Some(a) = a_iter.next() {
-        let Some(b) = b_iter.next() else {
+        let Some(b) = b_iter.next()
+        else {
             vec.push(a);
             continue;
         };
@@ -100,7 +109,6 @@ pub fn combine(vec_a: HighVec, vec_b: HighVec) -> HighVec {
             }
             vec.push(b);
         }
-
         else if matches!(b, HighlightKind::Ghost(_)) {
             vec.push(b);
             while let Some(HighlightKind::Ghost(_)) = b_iter.peek() {
@@ -108,13 +116,11 @@ pub fn combine(vec_a: HighVec, vec_b: HighVec) -> HighVec {
             }
             vec.push(a);
         }
-
-        else if a < b { 
+        else if a < b {
             vec.push(b);
         }
-
-        else { 
-            vec.push(a); 
+        else {
+            vec.push(a);
         }
     }
 

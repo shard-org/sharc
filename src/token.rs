@@ -1,4 +1,5 @@
 use std::fmt::Formatter;
+
 use colored::Colorize;
 
 use crate::span::Span;
@@ -92,12 +93,12 @@ impl std::fmt::Display for Token<'_> {
 impl TokenKind {
     pub fn matching(self) -> Self {
         match self {
-            Self::LBrace   => Self::RBrace,
-            Self::RBrace   => Self::LBrace,
+            Self::LBrace => Self::RBrace,
+            Self::RBrace => Self::LBrace,
             Self::LBracket => Self::RBracket,
             Self::RBracket => Self::LBracket,
-            Self::LParen   => Self::RParen,
-            Self::RParen   => Self::LParen,
+            Self::LParen => Self::RParen,
+            Self::RParen => Self::LParen,
             a => a,
         }
     }

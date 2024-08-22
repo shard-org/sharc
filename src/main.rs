@@ -21,7 +21,7 @@
     clippy::missing_const_for_fn,
     clippy::cognitive_complexity,
     clippy::option_if_let_else,
-    clippy::option_map_unit_fn,
+    clippy::option_map_unit_fn
 )]
 #![allow(dead_code, unused)]
 
@@ -29,7 +29,7 @@ use colored::Colorize;
 
 use crate::lexer::Lexer;
 // use crate::parser::Parser;
-use crate::report::{Level, Report, report_handler, Event};
+use crate::report::{report_handler, Event, Level, Report};
 use crate::scanner::Scanner;
 
 mod args;
@@ -58,8 +58,7 @@ fn main() {
 
         if *args.debug {
             println!("\n{}", "LEXER".bold());
-            lexer.tokens.as_cursor()
-                .for_each(|token| println!("{token:#}"));
+            lexer.tokens.as_cursor().for_each(|token| println!("{token:#}"));
         }
 
         sender.send(Event::Check);
@@ -100,7 +99,7 @@ fn main() {
     //         print_reports_and_exit(&mut reports, &args);
     //     };
     // };
-    
+
     sender.send(Event::Stop);
     handle.join().unwrap();
 }

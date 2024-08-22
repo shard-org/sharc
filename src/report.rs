@@ -1,9 +1,9 @@
 use std::fmt::{Display, Formatter};
 
 use colored::{Color, Colorize};
-use crate::scanner::Scanner;
 
-use crate::span::{Span, self, HighlightKind};
+use crate::scanner::Scanner;
+use crate::span::{self, HighlightKind, Span};
 
 #[derive(Debug, PartialEq, PartialOrd, Copy, Clone, Eq, Ord)]
 pub enum Level {
@@ -52,39 +52,38 @@ pub enum ReportKind {
 impl From<ReportKind> for Level {
     fn from(kind: ReportKind) -> Self {
         match () {
-            _ if kind > ReportKind::_FATAL_   => Self::Fatal,
-            _ if kind > ReportKind::_ERROR_   => Self::Error,
+            _ if kind > ReportKind::_FATAL_ => Self::Fatal,
+            _ if kind > ReportKind::_ERROR_ => Self::Error,
             _ if kind > ReportKind::_WARNING_ => Self::Warn,
-            _ if kind > ReportKind::_NOTE_    => Self::Note,
-            _                                 => Self::Silent,
+            _ if kind > ReportKind::_NOTE_ => Self::Note,
+            _ => Self::Silent,
         }
     }
 }
 
 impl ReportKind {
     pub fn untitled(self) -> Report {
-        Report { 
-            kind:      self, 
-            title:     None, 
-            span:      None, 
+        Report {
+            kind:      self,
+            title:     None,
+            span:      None,
             span_mask: Vec::new(),
-            label:     None, 
-            footers:   None, 
+            label:     None,
+            footers:   None,
         }
     }
 
     pub fn title<T: Display>(self, title: T) -> Report {
-        Report { 
-            kind:      self, 
-            title:     Some(title.to_string()), 
-            span:      None, 
+        Report {
+            kind:      self,
+            title:     Some(title.to_string()),
+            span:      None,
             span_mask: Vec::new(),
-            label:     None, 
-            footers:   None, 
+            label:     None,
+            footers:   None,
         }
     }
 }
-
 
 #[derive(Clone)]
 pub struct Report {
@@ -108,19 +107,23 @@ impl Report {
     }
 
     pub fn label<T: Display>(mut self, label: T) -> Self {
-        self.label = Some(label.to_string()); self
+        self.label = Some(label.to_string());
+        self
     }
 
     pub fn help<T: Display>(mut self, help: T) -> Self {
-        self.footers("HELP", help); self
+        self.footers("HELP", help);
+        self
     }
 
     pub fn info<T: Display>(mut self, info: T) -> Self {
-        self.footers("INFO", info); self
+        self.footers("INFO", info);
+        self
     }
 
     pub fn note<T: Display>(mut self, note: T) -> Self {
-        self.footers("NOTE", note); self
+        self.footers("NOTE", note);
+        self
     }
 
     fn footers<T: Display>(&mut self, prefix: &str, text: T) {
@@ -155,28 +158,37 @@ impl Display for Report {
             Level::Silent => unreachable!("Why does a report have the level of silent you idiot."),
         };
 
-        writeln!(f, "{} {}",
+        writeln!(
+            f,
+            "{} {}",
             format!("[{prefix}] {:?}:", self.kind).color(primary).bold(),
             self.title.as_ref().unwrap_or(&String::new()),
         )?;
 
         let mut padding = String::new();
-        if let Some(ref span) =  &self.span {
+        if let Some(ref span) = &self.span {
             writeln!(f, " {} {}", "--->".cyan(), self.span.as_ref().unwrap())?;
 
-            padding = format!("{} {} ", 
+            padding = format!(
+                "{} {} ",
                 " ".repeat(span.line_number.to_string().len()),
-                "|".cyan().dimmed());
+                "|".cyan().dimmed()
+            );
 
             let Some(line) = Scanner::get(self.span.as_ref().unwrap().filename)
-                .lines().nth(self.span.as_ref().unwrap().line_number - 1) else {
-                    return writeln!(f, "{padding}{}", "Could not fetch line.".color(Color::Red).bold());
-                };
+                .lines()
+                .nth(self.span.as_ref().unwrap().line_number - 1)
+            else {
+                return writeln!(
+                    f,
+                    "{padding}{}",
+                    "Could not fetch line.".color(Color::Red).bold()
+                );
+            };
 
-
-            let mut mask_iter  = self.span_mask.iter().copied().peekable();
-            let mut line_out   = String::new();
-            let mut span_out   = String::new();
+            let mut mask_iter = self.span_mask.iter().copied().peekable();
+            let mut line_out = String::new();
+            let mut span_out = String::new();
             let mut line_chars = line.chars().peekable();
 
             while let Some(char) = line_chars.peek().copied() {
@@ -194,7 +206,7 @@ impl Display for Report {
                         span_out.push('^');
                         while let Some(HighlightKind::Ghost(c)) = mask_iter.peek().copied() {
                             span_out.push('^');
-                            mask_iter.next(); 
+                            mask_iter.next();
                             str.push(c);
                         }
 
@@ -204,7 +216,6 @@ impl Display for Report {
                 }
                 line_chars.next();
             }
-
 
             writeln!(f, "{padding}{line_out}")?;
 
@@ -255,10 +266,7 @@ impl Ord for Report {
 pub type Result<T> = std::result::Result<T, Box<Report>>;
 pub type ReportSender = Sender<Event>;
 
-
-/*
- * Report Handler
- */
+// Report Handler
 pub enum Event {
     Stop,
     Check,
@@ -284,9 +292,7 @@ pub fn report_handler(level: Level) -> (Sender<Event>, JoinHandle<()>) {
         loop {
             match rx.recv().expect("Report Handler: Failed to receieve.") {
                 Event::Check if reports.iter().any(|r| Level::Error >= level) => {
-                    reports.iter()
-                        .filter(|r| r.level() >= level)
-                        .for_each(|r| print!("{r}"));
+                    reports.iter().filter(|r| r.level() >= level).for_each(|r| print!("{r}"));
                     std::process::exit(1);
                 },
                 Event::Check => continue,
@@ -298,9 +304,6 @@ pub fn report_handler(level: Level) -> (Sender<Event>, JoinHandle<()>) {
 
     (tx, thread)
 }
-
-
-
 
 pub trait UnwrapReport<T> {
     fn unwrap_or_fatal(self, report: Box<Report>) -> T;

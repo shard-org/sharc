@@ -7,9 +7,9 @@ use crate::span::Span;
 use crate::token::{Token, TokenKind};
 
 pub struct Lexer<'source> {
-    contents:   &'source str,
-    index:      usize,
-    span:       Span,
+    contents: &'source str,
+    index:    usize,
+    span:     Span,
 
     sender:     ReportSender,
     pub tokens: IterList<Token<'source>>,
@@ -18,9 +18,10 @@ pub struct Lexer<'source> {
 impl<'source> Lexer<'source> {
     pub fn new(filename: &'static str, contents: &'source str, sender: ReportSender) -> Self {
         Self {
-            contents, sender,
-            index:  0,
-            span:   Span::new(filename, 1, 0, 0),
+            contents,
+            sender,
+            index: 0,
+            span: Span::new(filename, 1, 0, 0),
             tokens: IterList::new(),
         }
     }
@@ -49,11 +50,7 @@ impl<'source> Lexer<'source> {
         let (index, span) = (self.index, self.span);
 
         (0..length).for_each(|_| self.advance());
-        self.push_token(
-            kind,
-            span.len(length),
-            self.slice_source(index, length)
-        );
+        self.push_token(kind, span.len(length), self.slice_source(index, length));
     }
 
     fn advance(&mut self) {
@@ -121,7 +118,7 @@ impl<'source> Lexer<'source> {
                             self.report(
                                 ReportKind::UnterminatedMultilineComment
                                     .title(format!("{depth} comments never terminated"))
-                                    .span(self.span)
+                                    .span(self.span),
                             );
                         }
 
@@ -141,13 +138,13 @@ impl<'source> Lexer<'source> {
 
                     let ident = self.slice_source(index, self.index - index);
                     let kind = match ident {
-                        "ret"    => TokenKind::KeywordRet,
+                        "ret" => TokenKind::KeywordRet,
                         "struct" => TokenKind::KeywordStruct,
-                        "enum"   => TokenKind::KeywordEnum,
-                        "destr"  => TokenKind::KeywordDestr,
-                        "type"   => TokenKind::KeywordType,
-                        "op"     => TokenKind::KeywordOp,
-                        "cast"   => TokenKind::KeywordCast,
+                        "enum" => TokenKind::KeywordEnum,
+                        "destr" => TokenKind::KeywordDestr,
+                        "type" => TokenKind::KeywordType,
+                        "op" => TokenKind::KeywordOp,
+                        "cast" => TokenKind::KeywordCast,
                         "extern" => TokenKind::KeywordExtern,
                         _ => TokenKind::Identifier,
                     };
@@ -172,7 +169,7 @@ impl<'source> Lexer<'source> {
                                 self.report(
                                     ReportKind::UnterminatedStringLiteral
                                         .untitled()
-                                        .span(span.offset(span.offset - 2).len(self.index - index))
+                                        .span(span.offset(span.offset - 2).len(self.index - index)),
                                 );
                                 continue 'outer;
                             },
@@ -201,7 +198,7 @@ impl<'source> Lexer<'source> {
                                     self.report(
                                         ReportKind::EmptyCharLiteral
                                             .untitled()
-                                            .span(span.len(2).offset(span.offset - 1))
+                                            .span(span.len(2).offset(span.offset - 1)),
                                     );
                                     self.advance();
                                     continue 'outer;
@@ -219,7 +216,7 @@ impl<'source> Lexer<'source> {
                                         ReportKind::UnterminatedCharLiteral
                                             .untitled()
                                             .span(span.len(self.index - index))
-                                            .help("Remove the escape character")
+                                            .help("Remove the escape character"),
                                     );
                                     continue 'outer;
                                 }
@@ -231,7 +228,7 @@ impl<'source> Lexer<'source> {
                                 self.report(
                                     ReportKind::UnterminatedCharLiteral
                                         .untitled()
-                                        .span(span.len(self.index - index).offset(span.offset - 1))
+                                        .span(span.len(self.index - index).offset(span.offset - 1)),
                                 );
                                 continue 'outer;
                             },
@@ -259,7 +256,9 @@ impl<'source> Lexer<'source> {
 
                     self.advance();
                     self.advance();
-                    if !self.lex_integer(base) { continue; }
+                    if !self.lex_integer(base) {
+                        continue;
+                    }
 
                     self.push_token(
                         kind,
@@ -271,17 +270,21 @@ impl<'source> Lexer<'source> {
                 },
 
                 c if c.chars().any(|c| c.is_ascii_digit()) => {
-                    if !self.lex_integer(10) { continue; }
+                    if !self.lex_integer(10) {
+                        continue;
+                    }
 
                     if self.current() == Some(".") {
                         self.advance();
-                        if !self.lex_integer(10) { continue; }
+                        if !self.lex_integer(10) {
+                            continue;
+                        }
 
                         if self.current() == Some(".") {
                             self.report(
                                 ReportKind::SyntaxError
                                     .title("Invalid Float Literal")
-                                    .span(self.span.len(1))
+                                    .span(self.span.len(1)),
                             );
                             self.advance();
                             continue;
@@ -307,7 +310,7 @@ impl<'source> Lexer<'source> {
                 "." => (TokenKind::Dot, 1),
                 "~" => match self.peek() {
                     Some("=") => (TokenKind::NotEquals, 2),
-                    _         => (TokenKind::Tilde, 1),
+                    _ => (TokenKind::Tilde, 1),
                 },
                 "!" => (TokenKind::Bang, 1),
                 "@" => (TokenKind::At, 1),
@@ -316,11 +319,11 @@ impl<'source> Lexer<'source> {
                 "%" => (TokenKind::Percent, 1),
                 "^" => match self.peek() {
                     Some("^") => (TokenKind::CaretCaret, 2),
-                    _         => (TokenKind::Caret, 1),
+                    _ => (TokenKind::Caret, 1),
                 },
                 "&" => match self.peek() {
                     Some("&") => (TokenKind::AmpersandAmpersand, 2),
-                    _         => (TokenKind::Ampersand, 1),
+                    _ => (TokenKind::Ampersand, 1),
                 },
                 "*" => (TokenKind::Star, 1),
                 "(" => (TokenKind::LParen, 1),
@@ -328,12 +331,12 @@ impl<'source> Lexer<'source> {
                 "-" => match self.peek() {
                     Some(">") => (TokenKind::ArrowRight, 2),
                     Some("-") => (TokenKind::MinusMinus, 2),
-                    _         => (TokenKind::Minus, 1),
+                    _ => (TokenKind::Minus, 1),
                 },
                 "_" => (TokenKind::Underscore, 1),
                 "+" => match self.peek() {
                     Some("+") => (TokenKind::PlusPlus, 2),
-                    _         => (TokenKind::Plus, 1),
+                    _ => (TokenKind::Plus, 1),
                 },
                 "[" => (TokenKind::LBracket, 1),
                 "]" => (TokenKind::RBracket, 1),
@@ -341,7 +344,7 @@ impl<'source> Lexer<'source> {
                 "}" => (TokenKind::RBrace, 1),
                 "|" => match self.peek() {
                     Some("|") => (TokenKind::PipePipe, 2),
-                    _         => (TokenKind::Pipe, 1),
+                    _ => (TokenKind::Pipe, 1),
                 },
                 ";" => (TokenKind::Semicolon, 1),
                 ":" => (TokenKind::Colon, 1),
@@ -349,25 +352,23 @@ impl<'source> Lexer<'source> {
                 "=" => match self.peek() {
                     // Some("=") => (TokenKind::EqualsEquals, 2),
                     Some(">") => (TokenKind::FatArrowRight, 2),
-                    _         => (TokenKind::Equals, 1),
+                    _ => (TokenKind::Equals, 1),
                 },
                 "<" => match self.peek() {
                     Some("=") => (TokenKind::LessThanEquals, 2),
                     Some("-") => (TokenKind::ArrowLeft, 2),
                     Some("<") => (TokenKind::ShiftLeft, 2),
-                    _         => (TokenKind::LessThan, 1),
+                    _ => (TokenKind::LessThan, 1),
                 },
                 ">" => match self.peek() {
                     Some("=") => (TokenKind::GreaterThanEquals, 2),
                     Some(">") => (TokenKind::ShiftRight, 2),
-                    _         => (TokenKind::GreaterThan, 1),
+                    _ => (TokenKind::GreaterThan, 1),
                 },
                 "?" => (TokenKind::Question, 1),
 
                 c => {
-                    self.report(
-                        ReportKind::UnexpectedCharacter
-                            .title(c).span(self.span));
+                    self.report(ReportKind::UnexpectedCharacter.title(c).span(self.span));
                     self.advance();
                     continue;
                 },
@@ -379,25 +380,23 @@ impl<'source> Lexer<'source> {
     }
 
     fn lex_integer(&mut self, base: usize) -> bool {
-        const CHARS: [char; 16] = [
-            '0', '1', '2', '3', '4', '5', '6', '7',
-            '8', '9', 'a', 'b', 'c', 'd', 'e', 'f',
-        ];
+        const CHARS: [char; 16] =
+            ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'];
 
         while let Some(c) = self.current() {
             match (base, c.to_ascii_lowercase().chars().next().unwrap()) {
-                (2,  c) if CHARS[..1].contains(&c) => self.advance(),
-                (8,  c) if CHARS[..7].contains(&c) => self.advance(),
+                (2, c) if CHARS[..1].contains(&c) => self.advance(),
+                (8, c) if CHARS[..7].contains(&c) => self.advance(),
                 (10, c) if CHARS[..9].contains(&c) => self.advance(),
                 (16, c) if CHARS.contains(&c) => self.advance(),
                 (_, '_') => self.advance(),
 
-                (_,  c) if c.is_ascii_alphanumeric() => {
+                (_, c) if c.is_ascii_alphanumeric() => {
                     self.report(
                         ReportKind::SyntaxError
                             .title("Invalid Integer Literal")
                             .span(self.span.len(1).offset(self.span.offset - 1))
-                            .label(format!("{c:?} not valid for base{base} Integer Literal"))
+                            .label(format!("{c:?} not valid for base{base} Integer Literal")),
                     );
                     return false;
                 },
