@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use iterlist::IterList;
 
 use crate::ast::Type;
-use crate::report::{Report, ReportKind, ReportLabel, ReportSender, Result, Unbox};
+use crate::report::{Report, ReportKind, ReportSender, Result, Unbox};
 use crate::scanner::Scanner;
 use crate::span::Span;
 use crate::token::{Token, TokenKind};

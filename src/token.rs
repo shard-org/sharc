@@ -1,4 +1,5 @@
 use std::fmt::Formatter;
+use colored::Colorize;
 
 use crate::span::Span;
 
@@ -8,7 +9,14 @@ pub enum TokenKind {
     NewLine,
     Identifier,
 
-    Ret,
+    KeywordRet,
+    KeywordStruct,
+    KeywordEnum,
+    KeywordDestr,
+    KeywordType,
+    KeywordOp,
+    KeywordCast,
+    KeywordExtern,
 
     FloatLiteral,
 
@@ -59,7 +67,9 @@ pub enum TokenKind {
     MinusMinus,
     NotEquals,
     PlusPlus,
-    EqualsEquals,
+    ShiftLeft,
+    ShiftRight,
+    // EqualsEquals,
 }
 
 #[derive(Debug, Clone)]
@@ -71,9 +81,9 @@ pub struct Token<'source> {
 
 impl std::fmt::Display for Token<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Token({:?}, {:?}", self.kind, self.span)?;
+        write!(f, "Token({:?}, {}", self.kind, format!("{:?}", self.span).bright_black())?;
         if !self.text.is_empty() {
-            write!(f, ", {:?}", self.text)?;
+            write!(f, ", {}", format!("{:?}", self.text).green())?;
         };
         write!(f, ")")
     }
@@ -82,12 +92,12 @@ impl std::fmt::Display for Token<'_> {
 impl TokenKind {
     pub fn matching(self) -> Self {
         match self {
-            Self::LBrace => Self::RBrace,
-            Self::RBrace => Self::LBrace,
+            Self::LBrace   => Self::RBrace,
+            Self::RBrace   => Self::LBrace,
             Self::LBracket => Self::RBracket,
             Self::RBracket => Self::LBracket,
-            Self::LParen => Self::RParen,
-            Self::RParen => Self::LParen,
+            Self::LParen   => Self::RParen,
+            Self::RParen   => Self::LParen,
             a => a,
         }
     }

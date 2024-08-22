@@ -5,7 +5,7 @@ use std::slice::Iter;
 use std::str;
 
 use crate::ast::{ASTKind, LabelAttribute, Program, Type, AST};
-use crate::report::{Report, ReportKind, ReportLabel, ReportSender, Result, Unbox};
+use crate::report::{Report, ReportKind, ReportSender, Result, Unbox};
 use crate::span::Span;
 use crate::token::{Token, TokenKind};
 
@@ -78,7 +78,7 @@ impl<'t, 'contents> Parser<'t, 'contents> {
             },
             TokenKind::EOF => Ok(()),
             _ => ReportKind::UnexpectedToken
-                .new(format!("expected NewLine got '{kind:?}'"))
+                .title(format!("expected NewLine got '{kind:?}'"))
                 .with_label(ReportLabel::new(span.clone()))
                 .into(),
         }
