@@ -66,35 +66,35 @@ impl From<ReportKind> for Level {
 impl ReportKind {
     pub fn untitled(self) -> Report {
         Report {
-            kind: self,
-            title: None,
-            span: None,
+            kind:      self,
+            title:     None,
+            span:      None,
             span_mask: Vec::new(),
-            label: None,
-            footers: None,
+            label:     None,
+            footers:   None,
         }
     }
 
     pub fn title<T: Display>(self, title: T) -> Report {
         Report {
-            kind: self,
-            title: Some(title.to_string()),
-            span: None,
+            kind:      self,
+            title:     Some(title.to_string()),
+            span:      None,
             span_mask: Vec::new(),
-            label: None,
-            footers: None,
+            label:     None,
+            footers:   None,
         }
     }
 }
 
 #[derive(Clone)]
 pub struct Report {
-    kind: ReportKind,
-    title: Option<String>,
-    span: Option<Span>,
+    kind:      ReportKind,
+    title:     Option<String>,
+    span:      Option<Span>,
     span_mask: Vec<HighlightKind>,
-    label: Option<String>,
-    footers: Option<Vec<String>>,
+    label:     Option<String>,
+    footers:   Option<Vec<String>>,
 }
 
 impl Report {

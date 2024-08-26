@@ -28,14 +28,14 @@
 use colored::Colorize;
 
 use crate::lexer::Lexer;
-// use crate::parser::Parser;
-use crate::report::{LogHandler, Level, Report};
+use crate::parser::Parser;
+use crate::report::{Level, LogHandler, Report};
 use crate::scanner::Scanner;
 
 mod args;
 mod ast;
 mod lexer;
-// mod parser;
+mod parser;
 // mod preprocessor;
 mod report;
 mod scanner;
@@ -79,6 +79,7 @@ fn main() {
     //         tokens.iter().for_each(|token| println!("{token:#}"));
     //         println!();
     //         tags.iter().for_each(|tag| println!("{tag:?}"));
+
     //     }
     //
     //     if check_reports(&receiver, &mut reports) {
@@ -88,19 +89,16 @@ fn main() {
     //     (tokens, tags)
     // };
 
-    // let program = {
-    //     let mut parser = Parser::new(&args.file, &tokens, ReportSender::new(sender));
-    //     let result = parser.parse();
-    //
-    //     if *args.debug {
-    //         println!("\n{}", "PARSER".bold());
-    //         result.stmts.iter().for_each(|stmt| println!("{stmt:#}"));
-    //     }
-    //
-    //     if check_reports(&receiver, &mut reports) {
-    //         print_reports_and_exit(&mut reports, &args);
-    //     };
-    // };
+    let program = {
+        let mut parser = Parser::new(&args.file, &tokens, sender.clone());
+        let result = parser.parse();
+
+        if *args.debug {
+            println!("\n{}", "PARSER".bold());
+            result.stmts.iter().for_each(|stmt| println!("{stmt:#}"));
+        }
+        sender.send(Event::Check);
+    };
 
     handler.terminate();
 }
