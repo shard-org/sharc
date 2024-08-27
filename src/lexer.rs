@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use iterlist::IterList;
 
-use crate::report::{Report, ReportKind, ReportSender};
+use crate::report::{Report, ReportKind, LogHandler};
 use crate::span::Span;
 use crate::token::{Token, TokenKind};
 
@@ -11,15 +11,15 @@ pub struct Lexer<'source> {
     index:    usize,
     span:     Span,
 
-    sender:     ReportSender,
+    handler:    LogHandler,
     pub tokens: IterList<Token<'source>>,
 }
 
 impl<'source> Lexer<'source> {
-    pub fn new(filename: &'static str, contents: &'source str, sender: ReportSender) -> Self {
+    pub fn new(filename: &'static str, contents: &'source str, handler: LogHandler) -> Self {
         Self {
             contents,
-            sender,
+            handler,
             index: 0,
             span: Span::new(filename, 1, 0, 0),
             tokens: IterList::new(),
@@ -27,7 +27,8 @@ impl<'source> Lexer<'source> {
     }
 
     fn report(&self, report: Report) {
-        self.sender.send(report.into());
+        let (priority, log) = report.into();
+        self.handler.add_log(priority, log);
     }
 
     fn current(&self) -> Option<&'source str> {

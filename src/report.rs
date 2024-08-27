@@ -1,17 +1,19 @@
 use std::fmt::{Display, Formatter};
 
 use colored::{Color, Colorize};
+pub use progressh::LogHandler;
 
 use crate::scanner::Scanner;
 use crate::span::{self, HighlightKind, Span};
 
-#[derive(Debug, PartialEq, PartialOrd, Copy, Clone, Eq, Ord)]
+#[derive(Debug, Copy, Clone, PartialEq)]
+#[repr(u8)]
 pub enum Level {
-    Silent,
-    Note,
-    Warn,
-    Error,
     Fatal,
+    Error,
+    Warn,
+    Note,
+    Silent,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
@@ -243,64 +245,10 @@ impl std::fmt::Debug for Report {
     }
 }
 
-impl PartialEq for Report {
-    fn eq(&self, other: &Self) -> bool {
-        self.level() == other.level()
-    }
-}
-impl Eq for Report {}
-
-#[allow(clippy::non_canonical_partial_ord_impl)]
-impl PartialOrd for Report {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.level().partial_cmp(&other.level())
-    }
-}
-
-impl Ord for Report {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.level().cmp(&other.level())
+impl Into<(usize, String)> for Report {
+    fn into(self) -> (usize, String) {
+        (self.level() as usize, self.to_string())
     }
 }
 
 pub type Result<T> = std::result::Result<T, Box<Report>>;
-pub type ReportSender = Sender<Event>;
-
-// Report Handler
-pub enum Event {
-    Stop,
-    Check,
-    Report(Box<Report>),
-}
-
-impl Into<Event> for Report {
-    fn into(self) -> Event {
-        Event::Report(Box::new(self))
-    }
-}
-
-use std::collections::BinaryHeap;
-use std::sync::mpsc::Sender;
-use std::thread::{self, JoinHandle};
-
-pub fn report_handler(level: Level) -> (Sender<Event>, JoinHandle<()>) {
-    let (tx, rx) = std::sync::mpsc::channel::<Event>();
-
-    let thread = thread::spawn(move || {
-        let mut reports: BinaryHeap<Box<Report>> = BinaryHeap::new();
-
-        loop {
-            match rx.recv().expect("Report Handler: Failed to receieve.") {
-                Event::Check if reports.iter().any(|r| Level::Error >= level) => {
-                    reports.iter().filter(|r| r.level() >= level).for_each(|r| print!("{r}"));
-                    std::process::exit(1);
-                },
-                Event::Check => continue,
-                Event::Report(report) => reports.push(report),
-                Event::Stop => break,
-            }
-        }
-    });
-
-    (tx, thread)
-}

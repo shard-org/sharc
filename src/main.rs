@@ -29,7 +29,7 @@ use colored::Colorize;
 
 use crate::lexer::Lexer;
 // use crate::parser::Parser;
-use crate::report::{report_handler, Event, Level, Report};
+use crate::report::{LogHandler, Level, Report};
 use crate::scanner::Scanner;
 
 mod args;
@@ -49,10 +49,10 @@ fn main() {
         println!("{args:#?}");
     }
 
-    let (sender, handle) = report_handler(*args.level);
+    let handler = LogHandler::new();
 
     let tokens = {
-        let mut lexer = Lexer::new(*args.file, Scanner::get(*args.file), sender.clone());
+        let mut lexer = Lexer::new(*args.file, Scanner::get(*args.file), handler.clone());
         lexer.lex_tokens();
         lexer.tokens.move_to_front();
 
@@ -61,7 +61,9 @@ fn main() {
             lexer.tokens.as_cursor().for_each(|token| println!("{token:#}"));
         }
 
-        sender.send(Event::Check);
+        if handler.test_ge_log(Level::Error as u8 as usize) {
+            std::process::exit(1);
+        }
 
         lexer.tokens
     };
@@ -100,6 +102,5 @@ fn main() {
     //     };
     // };
 
-    sender.send(Event::Stop);
-    handle.join().unwrap();
+    handler.terminate();
 }
