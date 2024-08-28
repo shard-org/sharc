@@ -61,7 +61,7 @@ fn main() {
             lexer.tokens.as_cursor().for_each(|token| println!("{token:#}"));
         }
 
-        if handler.test_ge_log(Level::Error as u8 as usize) {
+        if handler.test_ge_log(Level::Warn as u8 as usize) {
             std::process::exit(1);
         }
 

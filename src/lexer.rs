@@ -309,6 +309,7 @@ impl<'source> Lexer<'source> {
                 },
 
                 "." => (TokenKind::Dot, 1),
+                "'" => (TokenKind::Apostrophe, 1),
                 "~" => match self.peek() {
                     Some("=") => (TokenKind::NotEquals, 2),
                     _ => (TokenKind::Tilde, 1),

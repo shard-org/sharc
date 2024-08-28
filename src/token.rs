@@ -70,7 +70,7 @@ pub enum TokenKind {
     PlusPlus,
     ShiftLeft,
     ShiftRight,
-    // EqualsEquals,
+    Apostrophe,
 }
 
 #[derive(Debug, Clone)]
