@@ -12,7 +12,8 @@ categories = ["compiler", "development-tools"]
 [dependencies]
 colored = "2.1"   # needed for cross platform
 iterlist = "0.4"  # made by me so its fine
-progressh = "0.1" # also made by me
+
+progressh = { path = "progressh" }
 
 
 [profile.release]
