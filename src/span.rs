@@ -31,7 +31,7 @@ impl Span {
     }
 
     pub fn extend(mut self, other: &Span) -> Self {
-        self.len(self.offset - other.offset);
+        self.len(other.offset - self.offset + other.length);
         self
     }
 

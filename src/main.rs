@@ -90,14 +90,17 @@ fn main() {
     // };
 
     let program = {
-        let mut parser = Parser::new(&args.file, &tokens, sender.clone());
+        let mut parser = Parser::new(&args.file, tokens, handler.clone());
         let result = parser.parse();
 
         if *args.debug {
             println!("\n{}", "PARSER".bold());
             result.stmts.iter().for_each(|stmt| println!("{stmt:#}"));
         }
-        sender.send(Event::Check);
+
+        if handler.test_ge_log(Level::Warn as u8 as usize) {
+            std::process::exit(1);
+        }
     };
 
     handler.terminate();

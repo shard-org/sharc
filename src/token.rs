@@ -73,7 +73,7 @@ pub enum TokenKind {
     Apostrophe,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct Token<'source> {
     pub kind: TokenKind,
     pub span: Span,
