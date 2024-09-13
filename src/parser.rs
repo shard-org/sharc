@@ -71,7 +71,7 @@ impl<'contents> Parser<'contents> {
                         self.advance();
                         continue;
                     }
-                    break;me diff
+                    break;
                 }
                 Ok(())
             },
