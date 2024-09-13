@@ -6,7 +6,7 @@ use crate::token::TokenKind;
 
 pub struct Program {
     pub filename: &'static str,
-    pub stmts: Vec<AST>,
+    pub stmts:    Vec<AST>,
 }
 
 #[derive(Debug, PartialEq)]

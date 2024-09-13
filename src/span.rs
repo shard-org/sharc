@@ -3,10 +3,10 @@ use std::fmt::Formatter;
 
 #[derive(Clone, Copy, PartialEq)]
 pub struct Span {
-    pub filename: &'static str,
+    pub filename:    &'static str,
     pub line_number: usize,
-    pub offset: usize,
-    pub length: usize,
+    pub offset:      usize,
+    pub length:      usize,
 }
 
 impl Default for Span {
@@ -52,7 +52,8 @@ impl std::fmt::Debug for Span {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         if self.length == 0 {
             write!(f, "{}:{}:{}", self.filename, self.line_number, self.offset)
-        } else {
+        }
+        else {
             write!(
                 f,
                 "{}:{}:{}-{}",
@@ -100,7 +101,8 @@ pub fn combine(vec_a: HighVec, vec_b: HighVec) -> HighVec {
 
     let mut vec = Vec::new();
     while let Some(a) = a_iter.next() {
-        let Some(b) = b_iter.next() else {
+        let Some(b) = b_iter.next()
+        else {
             vec.push(a);
             continue;
         };
@@ -111,15 +113,18 @@ pub fn combine(vec_a: HighVec, vec_b: HighVec) -> HighVec {
                 vec.push(a_iter.next().unwrap());
             }
             vec.push(b);
-        } else if matches!(b, HighlightKind::Ghost(_)) {
+        }
+        else if matches!(b, HighlightKind::Ghost(_)) {
             vec.push(b);
             while let Some(HighlightKind::Ghost(_)) = b_iter.peek() {
                 vec.push(b_iter.next().unwrap());
             }
             vec.push(a);
-        } else if a < b {
+        }
+        else if a < b {
             vec.push(b);
-        } else {
+        }
+        else {
             vec.push(a);
         }
     }

@@ -13,8 +13,8 @@ use crate::token::{Token, TokenKind};
 
 pub struct Parser<'contents> {
     filename: &'static str,
-    tokens: IterList<Token<'contents>>,
-    handler: LogHandler,
+    tokens:   IterList<Token<'contents>>,
+    handler:  LogHandler,
 }
 
 impl<'contents> Parser<'contents> {
@@ -98,7 +98,8 @@ impl<'contents> Parser<'contents> {
     }
 
     pub fn parse(&mut self) -> Program {
-        let AST { kind: ASTKind::Block(stmts), .. } = self.parse_block(true) else {
+        let AST { kind: ASTKind::Block(stmts), .. } = self.parse_block(true)
+        else {
             unreachable!("Can't happen nerds!")
         };
         Program { stmts, filename: self.filename }
@@ -138,7 +139,7 @@ impl<'contents> Parser<'contents> {
         match self.current().kind {
             // TokenKind::Colon      => self.parse_tag(),
             TokenKind::Star => self.parse_interrupt(),
-            //TokenKind::Identifier => self.parse_label(),
+            // TokenKind::Identifier => self.parse_label(),
             TokenKind::KeywordRet => self.parse_return(),
             // HACK: this is temporary, this should parse assignments
             // Update: changed to another token because i needed % for modulo
@@ -188,9 +189,8 @@ impl<'contents> Parser<'contents> {
         }
 
         match self.parse_expression()? {
-            AST { kind: ASTKind::IntegerLiteral(val), .. } => {
-                Ok(ASTKind::Interrupt(val).into_ast(self.current().span))
-            },
+            AST { kind: ASTKind::IntegerLiteral(val), .. } =>
+                Ok(ASTKind::Interrupt(val).into_ast(self.current().span)),
             _ => ReportKind::SyntaxError
                 .title("Expected Integer Literal")
                 .span(self.current().span)
@@ -259,7 +259,7 @@ impl<'contents> Parser<'contents> {
                 if self.current().kind != TokenKind::RParen {
                     return ReportKind::SyntaxError
                         .title("Expected closing parenthesies")
-                        .span(self.current().span /*.ghost(")")*/)
+                        .span(self.current().span /* .ghost(")") */)
                         .as_err();
                 }
                 self.advance();
@@ -274,7 +274,7 @@ impl<'contents> Parser<'contents> {
                 if self.current().kind != TokenKind::RBracket {
                     return ReportKind::SyntaxError
                         .title("Unclosed dereference block")
-                        .span(self.current().span /*.ghost("]")*/)
+                        .span(self.current().span /* .ghost("]") */)
                         .as_err();
                 }
                 self.advance();
@@ -305,7 +305,7 @@ impl<'contents> Parser<'contents> {
                 self.advance();
                 ret
             },
-            //TODO: consider using if let in match. Currently its experimental
+            // TODO: consider using if let in match. Currently its experimental
             tok => {
                 if let Ok(op) = Operator::from_prefix(tok) {
                     let ((), r_bp) = self.prefix_binding_power().ok_or_else(|| {
@@ -323,11 +323,11 @@ impl<'contents> Parser<'contents> {
                     match op {
                         Operator::InternalCall => Ok(self.parse_function_call(rhs, false)?),
                         Operator::ExternalCall => Ok(self.parse_function_call(rhs, true)?),
-                        _ => {
-                            Ok(ASTKind::UnaryExpr(op, Box::new(rhs)).into_ast(self.current().span))
-                        },
+                        _ =>
+                            Ok(ASTKind::UnaryExpr(op, Box::new(rhs)).into_ast(self.current().span)),
                     }
-                } else {
+                }
+                else {
                     self.parse_atom()
                 }
             }?,
@@ -410,8 +410,8 @@ impl<'contents> Parser<'contents> {
 
         let mut args = Vec::new();
 
-        //HACK: if you add another terminal, you must list it
-        //here so that the 0-1 function rule is preserved.
+        // HACK: if you add another terminal, you must list it
+        // here so that the 0-1 function rule is preserved.
         match self.current().kind {
             TokenKind::Semicolon
             | TokenKind::FatArrowRight
@@ -519,9 +519,8 @@ impl<'contents> Parser<'contents> {
                 self.advance();
                 match usize::from_str_radix(text, base) {
                     Ok(val) => Ok(ASTKind::IntegerLiteral(val).into_ast(span)),
-                    Err(_) => {
-                        ReportKind::SyntaxError.title("Invalid Integer Literal").span(span).as_err()
-                    },
+                    Err(_) =>
+                        ReportKind::SyntaxError.title("Invalid Integer Literal").span(span).as_err(),
                 }
             },
 
@@ -600,9 +599,8 @@ impl<'contents> Parser<'contents> {
             "\\?" => 32,
             "\\" => b'\\',
             "\\`" => b'`',
-            s if s.len() > 1 => {
-                return ReportKind::InvalidEscapeSequence.untitled().span(span).as_err()
-            },
+            s if s.len() > 1 =>
+                return ReportKind::InvalidEscapeSequence.untitled().span(span).as_err(),
             s => s.as_bytes()[0],
         }) as char)
     }
