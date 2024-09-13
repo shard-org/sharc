@@ -4,10 +4,15 @@ use std::num::IntErrorKind;
 use std::slice::Iter;
 use std::str;
 
+<<<<<<< HEAD
 use iterlist::IterList;
 
 use crate::ast::{ASTKind, LabelAttribute, Operator, Program, Type, AST};
 use crate::report::{LogHandler, Report, ReportKind, Result};
+=======
+use crate::ast::{ASTKind, LabelAttribute, Program, Type, AST};
+use crate::report::{Report, ReportKind, ReportSender, Result, Unbox};
+>>>>>>> devel
 use crate::span::Span;
 use crate::token::{Token, TokenKind};
 
@@ -76,8 +81,13 @@ impl<'contents> Parser<'contents> {
             TokenKind::EOF => Ok(()),
             _ => ReportKind::UnexpectedToken
                 .title(format!("expected NewLine got '{kind:?}'"))
+<<<<<<< HEAD
                 .span(span)
                 .as_err(),
+=======
+                .with_label(ReportLabel::new(span.clone()))
+                .into(),
+>>>>>>> devel
         }
     }
 

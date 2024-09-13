@@ -30,8 +30,8 @@ impl Span {
         self
     }
 
-    pub fn extend(mut self, other: &Self) -> Self {
-        self.len(other.offset - self.offset + other.length);
+    pub fn extend(mut self, other: &Span) -> Self {
+        self.len(other.offset.checked_sub(self.offset).expect("other.offset behind self.offset!") + other.length);
         self
     }
 
@@ -51,18 +51,17 @@ impl Span {
 impl std::fmt::Debug for Span {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         if self.length == 0 {
-            write!(f, "{}:{}:{}", self.filename, self.line_number, self.offset)
+            return write!(f, "{}:{}:{}", self.filename, self.line_number, self.offset);
         }
-        else {
-            write!(
-                f,
-                "{}:{}:{}-{}",
-                self.filename,
-                self.line_number,
-                self.offset,
-                self.offset + self.length - 1
-            )
-        }
+
+        write!(
+            f,
+            "{}:{}:{}-{}",
+            self.filename,
+            self.line_number,
+            self.offset,
+            self.offset + self.length - 1
+        )
     }
 }
 
@@ -101,8 +100,7 @@ pub fn combine(vec_a: HighVec, vec_b: HighVec) -> HighVec {
 
     let mut vec = Vec::new();
     while let Some(a) = a_iter.next() {
-        let Some(b) = b_iter.next()
-        else {
+        let Some(b) = b_iter.next() else {
             vec.push(a);
             continue;
         };

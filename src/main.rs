@@ -79,7 +79,6 @@ fn main() {
     //         tokens.iter().for_each(|token| println!("{token:#}"));
     //         println!();
     //         tags.iter().for_each(|tag| println!("{tag:?}"));
-
     //     }
     //
     //     if check_reports(&receiver, &mut reports) {
@@ -101,6 +100,8 @@ fn main() {
         if handler.test_ge_log(Level::Warn as u8 as usize) {
             std::process::exit(1);
         }
+
+        result
     };
 
     handler.terminate();

@@ -1,6 +1,0 @@
-:name hello_world
-:arch x86_64 linux
-
-entry:
-  *write 1, "Hello, World!\n", 14
-  ret
