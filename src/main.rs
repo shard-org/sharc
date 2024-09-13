@@ -25,53 +25,22 @@
 )]
 #![allow(dead_code, unused)]
 
-use std::process::exit;
-use std::sync::mpsc::Receiver;
-
 use colored::Colorize;
 
 use crate::lexer::Lexer;
 use crate::parser::Parser;
-use crate::report::{Level, Report, ReportSender, Unbox};
+use crate::report::{Level, LogHandler, Report};
 use crate::scanner::Scanner;
 
 mod args;
 mod ast;
 mod lexer;
 mod parser;
-mod preprocessor;
+// mod preprocessor;
 mod report;
 mod scanner;
 mod span;
 mod token;
-
-fn check_reports(receiver: &Receiver<Box<Report>>, reports: &mut Vec<Report>) -> bool {
-    let mut had_error = false;
-    receiver.try_iter().for_each(|report| {
-        if report.level() >= Level::Error {
-            had_error = true;
-        }
-        reports.push(report.unbox());
-    });
-    had_error
-}
-
-fn print_reports_and_exit(reports: &mut Vec<Report>, args: &args::Args) -> ! {
-    if *args.level == Level::Silent {
-        exit(1);
-    }
-
-    reports.sort_by(|left, right| {
-        left.level().partial_cmp(&right.level()).expect("Failed to order report kinds.")
-    });
-    reports.iter().for_each(|report| {
-        if *args.level <= report.level() {
-            report.display(*args.code_context);
-        }
-    });
-
-    exit(1)
-}
 
 fn main() {
     let args = args::Args::parse(std::env::args().skip(1).collect());
@@ -80,53 +49,48 @@ fn main() {
         println!("{args:#?}");
     }
 
-    let mut reports = Vec::<Report>::new();
-    let (sender, receiver) = std::sync::mpsc::channel::<Box<Report>>();
+    let handler = LogHandler::new();
 
     let tokens = {
-        let mut lexer =
-            Lexer::new(*args.file, Scanner::get(*args.file), ReportSender::new(sender.clone()));
+        let mut lexer = Lexer::new(*args.file, Scanner::get(*args.file), handler.clone());
         lexer.lex_tokens();
-        lexer.tokens.goto_front();
+        lexer.tokens.move_to_front();
 
         if *args.debug {
             println!("\n{}", "LEXER".bold());
-            let mut index = 0;
-            while let Some(token) = lexer.tokens.get_offset(index) {
-                println!("{token:#}");
-                index += 1;
-            }
+            lexer.tokens.as_cursor().for_each(|token| println!("{token:#}"));
         }
 
-        if check_reports(&receiver, &mut reports) {
-            print_reports_and_exit(&mut reports, &args);
+        if handler.test_ge_log(Level::Warn as u8 as usize) {
+            std::process::exit(1);
         }
 
         lexer.tokens
     };
 
-    let (tokens, tags) = {
-        let mut preprocessor =
-            preprocessor::PreProcessor::new(*args.file, tokens, ReportSender::new(sender.clone()));
+    // let (tokens, tags) = {
+    //     let mut preprocessor =
+    //         preprocessor::PreProcessor::new(*args.file, tokens, ReportSender::new(sender.clone()));
+    //
+    //     let (tokens, tags) = preprocessor.process();
+    //
+    //     if *args.debug {
+    //         println!("\n{}", "PREPROCESSOR".bold());
+    //         tokens.iter().for_each(|token| println!("{token:#}"));
+    //         println!();
+    //         tags.iter().for_each(|tag| println!("{tag:?}"));
 
-        let (tokens, tags) = preprocessor.process();
-
-        if *args.debug {
-            println!("\n{}", "PREPROCESSOR".bold());
-            tokens.iter().for_each(|token| println!("{token:#}"));
-            println!();
-            tags.iter().for_each(|tag| println!("{tag:?}"));
-        }
-
-        if check_reports(&receiver, &mut reports) {
-            print_reports_and_exit(&mut reports, &args);
-        }
-
-        (tokens, tags)
-    };
+    //     }
+    //
+    //     if check_reports(&receiver, &mut reports) {
+    //         print_reports_and_exit(&mut reports, &args);
+    //     }
+    //
+    //     (tokens, tags)
+    // };
 
     let program = {
-        let mut parser = Parser::new(&args.file, &tokens, ReportSender::new(sender));
+        let mut parser = Parser::new(&args.file, tokens, handler.clone());
         let result = parser.parse();
 
         if *args.debug {
@@ -134,8 +98,10 @@ fn main() {
             result.stmts.iter().for_each(|stmt| println!("{stmt:#}"));
         }
 
-        if check_reports(&receiver, &mut reports) {
-            print_reports_and_exit(&mut reports, &args);
-        };
+        if handler.test_ge_log(Level::Warn as u8 as usize) {
+            std::process::exit(1);
+        }
     };
+
+    handler.terminate();
 }

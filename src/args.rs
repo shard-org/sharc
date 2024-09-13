@@ -7,9 +7,8 @@ use crate::report::{Level, ReportKind};
 macro_rules! error {
     ($($ident:tt)*) => {
         ReportKind::ArgumentParserError
-            .new(format!($($ident)*))
-            .with_note("(Run with \x1b[1m--help\x1b[0m for usage information)")
-            .display(false);
+            .title(format!($($ident)*))
+            .note("(Run with \x1b[1m--help\x1b[0m for usage information)");
         exit(1);
     };
 }
