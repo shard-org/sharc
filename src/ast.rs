@@ -65,18 +65,8 @@ pub enum Operator {
     Deref,
 }
 
-impl TryFrom<TokenKind> for Operator {
-    type Error = ();
-
-    fn try_from(kind: TokenKind) -> Result<Self, Self::Error> {
-        match kind {
-            _ => Err(()),
-        }
-    }
-}
-
 impl Operator {
-    pub fn from_prefix(kind: &TokenKind) -> Result<Self, ()> {
+    pub fn from_prefix(kind: TokenKind) -> Result<Self, ()> {
         Ok(match kind {
             TokenKind::Apostrophe => Self::MutatePre,
             TokenKind::Minus => Self::Negative,
@@ -90,7 +80,7 @@ impl Operator {
         })
     }
 
-    pub fn from_postfix(kind: &TokenKind) -> Result<Self, ()> {
+    pub fn from_postfix(kind: TokenKind) -> Result<Self, ()> {
         Ok(match kind {
             TokenKind::Apostrophe => Self::MutatePost,
             TokenKind::PlusPlus => Self::Increment,
@@ -102,7 +92,7 @@ impl Operator {
         })
     }
 
-    pub fn from_infix(kind: &TokenKind) -> Result<Self, ()> {
+    pub fn from_infix(kind: TokenKind) -> Result<Self, ()> {
         Ok(match kind {
             TokenKind::Semicolon => Self::Sequence,
             TokenKind::PipePipe => Self::Or,

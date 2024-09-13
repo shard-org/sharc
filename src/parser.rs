@@ -42,9 +42,7 @@ impl<'contents> Parser<'contents> {
     }
 
     fn advance(&mut self) {
-        if !self.tokens.advance() {
-            panic!("Failed to advance: Out of bounds");
-        }
+        assert!(!self.tokens.advance(), "Failed to advance: Out of bounds");
     }
 
     fn consume(&mut self, kind: TokenKind, msg: &'static str) -> Result<Token> {
@@ -149,7 +147,7 @@ impl<'contents> Parser<'contents> {
             //     self.advance();
             //     let ret = Ok(AST {
             //         kind: ASTKind::TypeAnnotation(self.parse_type()?, ASTKind::),
-            //         span: self.current().span.clone(),
+            //         span: self.current().span,
             //     });
             // assert_eq!(self.current().kind, TokenKind::NewLine);
             // return ret;
@@ -161,12 +159,12 @@ impl<'contents> Parser<'contents> {
     fn parse_return(&mut self) -> Result<AST> {
         if self.get(1).kind == TokenKind::NewLine {
             self.advance();
-            return Ok(ASTKind::Return(None).into_ast(self.current().span.clone()));
+            return Ok(ASTKind::Return(None).into_ast(self.current().span));
         }
 
         self.advance();
         let expr = self.parse_expression()?;
-        Ok(ASTKind::Return(Some(expr.into())).into_ast(self.current().span.clone()))
+        Ok(ASTKind::Return(Some(expr.into())).into_ast(self.current().span))
     }
 
     fn parse_interrupt(&mut self) -> Result<AST> {
@@ -186,12 +184,12 @@ impl<'contents> Parser<'contents> {
                 self.advance();
             }
 
-            return Ok(ASTKind::Syscall(call_name, args).into_ast(self.current().span.clone()));
+            return Ok(ASTKind::Syscall(call_name, args).into_ast(self.current().span));
         }
 
         match self.parse_expression()? {
             AST { kind: ASTKind::IntegerLiteral(val), .. } => {
-                Ok(ASTKind::Interrupt(val).into_ast(self.current().span.clone()))
+                Ok(ASTKind::Interrupt(val).into_ast(self.current().span))
             },
             _ => ReportKind::SyntaxError
                 .title("Expected Integer Literal")
@@ -245,7 +243,7 @@ impl<'contents> Parser<'contents> {
         self.advance();
 
         Ok(ASTKind::LabelDefinition(Some(label.to_string()), attributes)
-            .into_ast(self.current().span.clone()))
+            .into_ast(self.current().span))
     }
 
     fn parse_expression(&mut self) -> Result<AST> {
@@ -309,12 +307,14 @@ impl<'contents> Parser<'contents> {
             },
             //TODO: consider using if let in match. Currently its experimental
             tok => {
-                if let Ok(op) = Operator::from_prefix(&tok) {
-                    let ((), r_bp) = self.prefix_binding_power().ok_or(Box::new(
-                        ReportKind::UnexpectedToken
-                            .title("UnexpectedToken")
-                            .span(self.current().span),
-                    ))?;
+                if let Ok(op) = Operator::from_prefix(tok) {
+                    let ((), r_bp) = self.prefix_binding_power().ok_or_else(|| {
+                        Box::new(
+                            ReportKind::UnexpectedToken
+                                .title("UnexpectedToken")
+                                .span(self.current().span),
+                        )
+                    })?;
 
                     self.advance();
 
@@ -352,7 +352,7 @@ impl<'contents> Parser<'contents> {
 
                 println!(" post {:?}", self.current());
                 self.advance();
-                lhs = ASTKind::UnaryExpr(Operator::from_postfix(&op).unwrap(), Box::new(lhs))
+                lhs = ASTKind::UnaryExpr(Operator::from_postfix(op).unwrap(), Box::new(lhs))
                     .into_ast(self.current().span);
 
                 continue;
@@ -374,7 +374,7 @@ impl<'contents> Parser<'contents> {
                         self.advance();
                         let rhs = self.parse_expression_bp(r_bp)?;
                         lhs = ASTKind::BinaryExpr(
-                            Operator::from_infix(&tok).unwrap(),
+                            Operator::from_infix(tok).unwrap(),
                             Box::new(lhs),
                             Box::new(rhs),
                         )
@@ -489,9 +489,9 @@ impl<'contents> Parser<'contents> {
             | TokenKind::GreaterThanEquals => Some((14, 15)),
             TokenKind::ShiftLeft | TokenKind::ShiftRight => Some((16, 17)),
             TokenKind::Plus | TokenKind::Minus => Some((18, 19)),
-            TokenKind::Star | TokenKind::Slash | TokenKind::Percent => Some((18, 19)),
-            TokenKind::ArrowLeft => Some((20, 21)),
-            TokenKind::FatArrowRight | TokenKind::ArrowRight => Some((22, 23)),
+            TokenKind::Star | TokenKind::Slash | TokenKind::Percent => Some((20, 21)),
+            TokenKind::ArrowLeft => Some((21, 22)),
+            TokenKind::FatArrowRight | TokenKind::ArrowRight => Some((23, 24)),
             _ => None,
         }
     }
@@ -502,7 +502,7 @@ impl<'contents> Parser<'contents> {
         match &kind {
             TokenKind::Identifier => {
                 self.advance(); // mut self
-                Ok(ASTKind::Identifier((*text).to_string()).into_ast(span.clone()))
+                Ok(ASTKind::Identifier((*text).to_string()).into_ast(span))
             },
 
             TokenKind::DecimalIntLiteral
@@ -518,7 +518,7 @@ impl<'contents> Parser<'contents> {
                 };
                 self.advance();
                 match usize::from_str_radix(text, base) {
-                    Ok(val) => Ok(ASTKind::IntegerLiteral(val).into_ast(span.clone())),
+                    Ok(val) => Ok(ASTKind::IntegerLiteral(val).into_ast(span)),
                     Err(_) => {
                         ReportKind::SyntaxError.title("Invalid Integer Literal").span(span).as_err()
                     },
@@ -546,7 +546,7 @@ impl<'contents> Parser<'contents> {
                 }
 
                 self.advance();
-                Ok(ASTKind::StringLiteral(text).into_ast(span.clone()))
+                Ok(ASTKind::StringLiteral(text).into_ast(span))
             },
 
             TokenKind::CharLiteral => {
@@ -630,7 +630,7 @@ impl<'contents> Parser<'contents> {
             },
             TokenKind::Identifier => Ok(Type::Struct(self.current().text.to_string())),
             TokenKind::LBrace | TokenKind::LBracket => {
-                let start_span = self.current().span.clone();
+                let start_span = self.current().span;
                 let is_pointer = self.current().kind == TokenKind::LBracket;
                 let start_kind = if is_pointer {TokenKind::LBracket} else {TokenKind::LBrace};
                 let end_kind = if is_pointer {TokenKind::RBracket} else {TokenKind::RBrace};
@@ -643,7 +643,7 @@ impl<'contents> Parser<'contents> {
                     let t = self.parse_type().map_err(|e| {
                         match self.get(-1).kind {
                             TokenKind::Comma => {
-                                let mut span = self.current().span.clone();
+                                let mut span = self.current().span;
                                 span.offset += 1;
                                 ReportKind::SyntaxError
                                     .title("Unclosed heap, found comma")
@@ -662,7 +662,7 @@ impl<'contents> Parser<'contents> {
 
                                 ReportKind::SyntaxError
                                     .title("Incorrect heap nesting")
-                                    .span(self.get(-1).span.clone())
+                                    .span(self.get(-1).span)
                                     .label("This has no closing pair")
                                     .note("HINT: Inner heaps must terminate before outer ones")
                             }
@@ -697,7 +697,7 @@ impl<'contents> Parser<'contents> {
                         }
 
                         if self.current().kind == TokenKind::NewLine {
-                            let mut span = self.current().span.clone();
+                            let mut span = self.current().span;
                             span.offset += 1;
                             return ReportKind::UnexpectedToken
                                 .title("Unclosed heap, found newline")
@@ -707,7 +707,7 @@ impl<'contents> Parser<'contents> {
                         }
 
                         if self.current().kind != TokenKind::NewLine {
-                            let mut span = self.get(-1).span.clone();
+                            let mut span = self.get(-1).span;
                             span.offset += 1;
 
                             return ReportKind::SyntaxError
@@ -731,7 +731,7 @@ impl<'contents> Parser<'contents> {
                 Ok(Type::Heap { is_pointer, contents: vec })
             },
             TokenKind::NewLine => {
-                let mut span = self.current().span.clone();
+                let mut span = self.current().span;
                 span.offset += 1;
                 ReportKind::UnexpectedToken
                     .title("Unexpected newline")
@@ -755,7 +755,7 @@ impl<'contents> Parser<'contents> {
                 TokenKind::Semicolon => {
                     self.advance();
                     self.advance();
-                    let mut span = self.current().span.clone();
+                    let mut span = self.current().span;
 
                     match t {
                         Type::Heap { is_pointer: true, .. } => Ok(()),
