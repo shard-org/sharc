@@ -1,5 +1,7 @@
 use std::fmt::Formatter;
 
+use colored::Colorize;
+
 use crate::span::Span;
 
 #[derive(Debug, PartialOrd, PartialEq, Clone, Copy)]
@@ -8,7 +10,14 @@ pub enum TokenKind {
     NewLine,
     Identifier,
 
-    Ret,
+    KeywordRet,
+    KeywordStruct,
+    KeywordEnum,
+    KeywordDestr,
+    KeywordType,
+    KeywordOp,
+    KeywordCast,
+    KeywordExtern,
 
     FloatLiteral,
 
@@ -59,10 +68,12 @@ pub enum TokenKind {
     MinusMinus,
     NotEquals,
     PlusPlus,
-    EqualsEquals,
+    ShiftLeft,
+    ShiftRight,
+    Apostrophe,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct Token<'source> {
     pub kind: TokenKind,
     pub span: Span,
@@ -71,9 +82,9 @@ pub struct Token<'source> {
 
 impl std::fmt::Display for Token<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Token({:?}, {:?}", self.kind, self.span)?;
+        write!(f, "Token({:?}, {}", self.kind, format!("{:?}", self.span).bright_black())?;
         if !self.text.is_empty() {
-            write!(f, ", {:?}", self.text)?;
+            write!(f, ", {}", format!("{:?}", self.text).green())?;
         };
         write!(f, ")")
     }

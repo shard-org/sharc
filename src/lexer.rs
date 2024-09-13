@@ -2,129 +2,110 @@ use std::fmt::Display;
 
 use iterlist::IterList;
 
-use crate::report::{Report, ReportKind, ReportLabel, ReportSender, Result};
+<<<<<<< HEAD
+use crate::report::{LogHandler, Report, ReportKind};
+=======
+use crate::report::{Report, ReportKind, LogHandler};
+>>>>>>> devel
 use crate::span::Span;
 use crate::token::{Token, TokenKind};
 
 pub struct Lexer<'source> {
-    filename:    &'static str,
-    contents:    &'source str,
-    chars:       std::iter::Peekable<std::str::Chars<'source>>,
-    current:     Option<char>,
-    line_number: usize,
-    index:       usize,
-    sender:      ReportSender,
-    pub tokens:  IterList<Token<'source>>,
+    contents: &'source str,
+    index:    usize,
+    span:     Span,
+
+    handler:    LogHandler,
+    pub tokens: IterList<Token<'source>>,
 }
 
 impl<'source> Lexer<'source> {
-    pub fn new(filename: &'static str, contents: &'source str, sender: ReportSender) -> Self {
-        let mut chars = contents.chars().peekable();
+    pub fn new(filename: &'static str, contents: &'source str, handler: LogHandler) -> Self {
         Self {
-            filename,
             contents,
-            current: chars.next(),
-            chars,
-            line_number: 1,
+            handler,
             index: 0,
-            sender,
+            span: Span::new(filename, 1, 0, 0),
             tokens: IterList::new(),
         }
     }
 
-    fn report(&self, report: Box<Report>) {
-        self.sender.send(report);
+    fn report(&self, report: Report) {
+        let (priority, log) = report.into();
+        self.handler.add_log(priority, log);
     }
 
-    fn span(&self, line_number: usize, start_index: usize, end_index: usize) -> Span {
-        Span { filename: self.filename, line_number, start_index, end_index }
+    fn current(&self) -> Option<&'source str> {
+        self.contents.get(self.index..=self.index)
     }
 
-    fn slice_source(&self, start: usize, end: usize) -> &'source str {
-        &self.contents[start..end]
+    fn peek(&self) -> Option<&'source str> {
+        self.contents.get(self.index + 1..=self.index + 1)
     }
 
-    fn advance(&mut self) {
-        self.current = self.chars.next();
-        if Some('\n') == self.current {
-            self.line_number += 1;
-        }
-        self.index += 1;
-    }
-
-    fn peek(&mut self) -> Option<char> {
-        self.chars.peek().copied()
+    fn slice_source(&self, index: usize, len: usize) -> &'source str {
+        &self.contents[index..index + len]
     }
 
     fn push_token(&mut self, kind: TokenKind, span: Span, text: &'source str) {
         self.tokens.push_next(Token { kind, span, text });
     }
 
-    fn push_simple_token(&mut self, kind: TokenKind, length: usize) {
-        let (line_number, start_index) = (self.line_number, self.index);
-        for _ in 0..length {
-            self.advance();
+    fn push_token_simple(&mut self, kind: TokenKind, length: usize) {
+        let (index, span) = (self.index, self.span);
+
+        (0..length).for_each(|_| self.advance());
+        self.push_token(kind, span.len(length), self.slice_source(index, length));
+    }
+
+    fn advance(&mut self) {
+        self.index += 1;
+        self.span.offset += 1;
+
+        if Some("\n") == self.current() {
+            self.span.line_number += 1;
+            self.span.offset = 0;
         }
-        self.push_token(
-            kind,
-            self.span(line_number, start_index, self.index),
-            self.slice_source(start_index, self.index),
-        );
     }
 
     pub fn lex_tokens(&mut self) {
-        'main: while let Some(current) = self.current {
-            let (line_number, start_index) = (self.line_number, self.index);
-
-            macro_rules! span_to {
-                ($end:expr) => {
-                    self.span(line_number, start_index, $end)
-                };
-            }
-
-            // macro_rules! span_from {
-            //     ($start:expr) => {
-            //         self.span(line_number, $start, self.index)
-            //     };
-            // }
+        'outer: while let Some(current) = self.current() {
+            let (index, span) = (self.index, self.span);
 
             let (token, len) = match current {
-                '\n' => {
-                    while Some('\n') == self.current {
+                "\n" => {
+                    while Some("\n") == self.current() {
                         self.advance();
                     }
 
-                    if self
-                        .tokens
-                        .get_offset(-1)
-                        .is_some_and(|token| token.kind != TokenKind::NewLine)
-                    {
-                        self.push_token(TokenKind::NewLine, span_to!(start_index), "");
+                    if self.tokens.get_cursor().is_some_and(|t| t.kind != TokenKind::NewLine) {
+                        self.push_token(TokenKind::NewLine, self.span, "");
                     }
                     continue;
                 },
-                char if char.is_whitespace() => {
+
+                c if c.chars().any(char::is_whitespace) => {
                     self.advance();
                     continue;
                 },
-                '/' => match self.peek() {
-                    Some('/') => {
-                        while Some('\n') != self.current {
+
+                "/" => match self.peek() {
+                    Some("/") => {
+                        while Some("\n") != self.current() {
                             self.advance();
                         }
                         continue;
                     },
-                    Some('*') => {
+                    Some("*") => {
                         let mut depth = 0;
                         loop {
-                            let current = self.current;
-                            match current {
-                                Some('/') if Some('*') == self.peek() => {
+                            match self.current() {
+                                Some("/") if Some("*") == self.peek() => {
                                     self.advance();
                                     self.advance();
                                     depth += 1;
                                 },
-                                Some('*') if Some('/') == self.peek() => {
+                                Some("*") if Some("/") == self.peek() => {
                                     self.advance();
                                     self.advance();
                                     depth -= 1;
@@ -132,343 +113,303 @@ impl<'source> Lexer<'source> {
                                 None => break,
                                 _ => self.advance(),
                             }
+
                             if depth == 0 {
                                 break;
-                            };
+                            }
                         }
+
                         if depth > 0 {
                             self.report(
                                 ReportKind::UnterminatedMultilineComment
-                                    .new(format!("{depth} comments never terminated"))
-                                    .with_label(ReportLabel::new(span_to!(self.index)))
-                                    .into(),
+                                    .title(format!("{depth} comments never terminated"))
+                                    .span(self.span),
                             );
                         }
+
                         continue;
                     },
                     _ => (TokenKind::Slash, 1),
                 },
-                'a'..='z' | 'A'..='Z' => {
-                    while let Some(char) = self.current {
-                        match char {
-                            'a'..='z' | 'A'..='Z' | '0'..='9' | '_' => {
-                                self.advance();
-                            },
-                            _ => break,
-                        }
-                    }
-                    let ident = self.slice_source(start_index, self.index);
-                    let span = span_to!(self.index);
-                    let kind = match ident {
-                        // Any keywords are handled here
-                        "ret" => TokenKind::Ret,
-                        _ => TokenKind::Identifier,
-                    };
-                    self.push_token(kind, span, ident);
-                    continue;
-                },
-                // Literals
-                '0' if self.peek().map_or(false, |c| "box".contains(c)) => {
-                    let base = match (current, self.peek()) {
-                        ('0', Some('b')) => Base::Binary,
-                        ('0', Some('o')) => Base::Octal,
-                        ('0', Some('x')) => Base::Hexadecimal,
-                        _ => unreachable!(),
-                    };
-                    self.advance();
-                    self.advance();
-                    if let Err(report) = self.lex_integer(base) {
-                        self.report(report);
-                        continue;
-                    }
-                    self.push_token(
-                        TokenKind::from(base),
-                        span_to!(self.index),
-                        self.slice_source(start_index + 2, self.index),
-                    );
-                    continue;
-                },
-                '0'..='9' => {
-                    if let Err(report) = self.lex_integer(Base::Decimal) {
-                        self.report(report);
-                        continue;
-                    }
-                    if self.current == Some('.') {
-                        self.advance();
-                        if let Err(report) = self.lex_integer(Base::Decimal) {
-                            self.report(report);
+
+                c if c.chars().any(|c| c.is_ascii_alphabetic()) => {
+                    while let Some(c) = self.current() {
+                        if c.chars().any(|c| c.is_ascii_alphanumeric() || c == '_') {
+                            self.advance();
                             continue;
                         }
-                        if self.current == Some('.') {
+                        break;
+                    }
+
+                    let ident = self.slice_source(index, self.index - index);
+                    let kind = match ident {
+                        "ret" => TokenKind::KeywordRet,
+                        "struct" => TokenKind::KeywordStruct,
+                        "enum" => TokenKind::KeywordEnum,
+                        "destr" => TokenKind::KeywordDestr,
+                        "type" => TokenKind::KeywordType,
+                        "op" => TokenKind::KeywordOp,
+                        "cast" => TokenKind::KeywordCast,
+                        "extern" => TokenKind::KeywordExtern,
+                        _ => TokenKind::Identifier,
+                    };
+
+                    self.push_token(kind, span.len(self.index - index), ident);
+                    continue;
+                },
+
+                "\"" => {
+                    self.advance();
+                    let span = self.span;
+                    while let Some(c) = self.current() {
+                        match c {
+                            "\"" => break,
+                            "\\" => {
+                                self.advance();
+                                if self.current() == Some("\"") {
+                                    self.advance();
+                                }
+                            },
+                            "\n" => {
+                                self.report(
+                                    ReportKind::UnterminatedStringLiteral
+                                        .untitled()
+                                        .span(span.offset(span.offset - 2).len(self.index - index)),
+                                );
+                                continue 'outer;
+                            },
+                            _ => self.advance(),
+                        }
+                    }
+                    let span = span.len(self.index - (index + 1));
+                    self.push_token(
+                        TokenKind::StringLiteral,
+                        span,
+                        self.slice_source(index + 1, self.index - (index + 1)),
+                    );
+
+                    self.advance();
+
+                    continue;
+                },
+
+                "`" => {
+                    self.advance();
+                    let start = self.index;
+                    while let Some(c) = self.current() {
+                        match c {
+                            "`" => {
+                                if self.index == start {
+                                    self.report(
+                                        ReportKind::EmptyCharLiteral
+                                            .untitled()
+                                            .span(span.len(2).offset(span.offset - 1)),
+                                    );
+                                    self.advance();
+                                    continue 'outer;
+                                }
+
+                                self.advance();
+                                break;
+                            },
+
+                            "\\" => {
+                                self.advance();
+                                if self.current() == Some("`") && self.peek() != Some("`") {
+                                    self.advance();
+                                    self.report(
+                                        ReportKind::UnterminatedCharLiteral
+                                            .untitled()
+                                            .span(span.len(self.index - index))
+                                            .help("Remove the escape character"),
+                                    );
+                                    continue 'outer;
+                                }
+
+                                self.advance();
+                            },
+
+                            "\n" => {
+                                self.report(
+                                    ReportKind::UnterminatedCharLiteral
+                                        .untitled()
+                                        .span(span.len(self.index - index).offset(span.offset - 1)),
+                                );
+                                continue 'outer;
+                            },
+
+                            _ => self.advance(),
+                        }
+                    }
+
+                    self.push_token(
+                        TokenKind::CharLiteral,
+                        span.len(self.index - index),
+                        self.slice_source(index, self.index - index),
+                    );
+
+                    continue;
+                },
+
+                "0" if self.peek().filter(|c| "box".contains(c)).is_some() => {
+                    let (kind, base) = match self.peek() {
+                        Some("b") => (TokenKind::BinaryIntLiteral, 2),
+                        Some("o") => (TokenKind::OctalIntLiteral, 8),
+                        Some("x") => (TokenKind::HexadecimalIntLiteral, 16),
+                        _ => unreachable!(),
+                    };
+
+                    self.advance();
+                    self.advance();
+                    if !self.lex_integer(base) {
+                        continue;
+                    }
+
+                    self.push_token(
+                        kind,
+                        self.span.len(self.index - index),
+                        self.slice_source(index, self.index - index),
+                    );
+
+                    continue;
+                },
+
+                c if c.chars().any(|c| c.is_ascii_digit()) => {
+                    if !self.lex_integer(10) {
+                        continue;
+                    }
+
+                    if self.current() == Some(".") {
+                        self.advance();
+                        if !self.lex_integer(10) {
+                            continue;
+                        }
+
+                        if self.current() == Some(".") {
                             self.report(
                                 ReportKind::SyntaxError
-                                    .new("Invalid Float Literal")
-                                    .with_label(ReportLabel::new(self.span(
-                                        line_number,
-                                        self.index,
-                                        self.index + 1,
-                                    )))
-                                    .into(),
+                                    .title("Invalid Float Literal")
+                                    .span(self.span.len(1)),
                             );
                             self.advance();
                             continue;
                         }
+
                         self.push_token(
                             TokenKind::FloatLiteral,
-                            span_to!(self.index),
-                            self.slice_source(start_index, self.index),
+                            span.len(self.index - index),
+                            self.slice_source(index, self.index - index),
                         );
+
                         continue;
                     }
+
                     self.push_token(
                         TokenKind::DecimalIntLiteral,
-                        span_to!(self.index),
-                        self.slice_source(start_index, self.index),
+                        span.len(self.index - index),
+                        self.slice_source(index, self.index - index),
                     );
                     continue;
                 },
-                '"' => {
-                    self.advance();
-                    while let Some(char) = self.current {
-                        match char {
-                            '"' => {
-                                self.advance();
-                                break;
-                            },
-                            '\\' => {
-                                self.advance();
-                                if self.current == Some('"') {
-                                    self.advance();
-                                }
-                            },
-                            '\n' => {
-                                self.report(
-                                    ReportKind::UnterminatedStringLiteral
-                                        .new("")
-                                        .with_label(ReportLabel::new(span_to!(self.index)))
-                                        .into(),
-                                );
-                                continue 'main;
-                            },
-                            _ => self.advance(),
-                        }
-                    }
-                    self.push_token(
-                        TokenKind::StringLiteral,
-                        span_to!(self.index),
-                        self.slice_source(start_index + 1, self.index - 1),
-                    );
-                    continue;
-                },
-                '`' => {
-                    self.advance();
-                    while let Some(char) = self.current {
-                        match char {
-                            '`' => {
-                                self.advance();
-                                break;
-                            },
-                            '\\' => {
-                                self.advance();
-                                if self.current == Some('`') && self.peek() != Some('`') {
-                                    self.advance();
-                                    self.report(
-                                        ReportKind::UnterminatedCharLiteral
-                                            .new("")
-                                            .with_label(ReportLabel::new(span_to!(self.index)))
-                                            .with_note("help: Remove the escape character")
-                                            .into(),
-                                    );
-                                    continue 'main;
-                                }
 
-                                self.advance();
-                            },
-                            '\n' => {
-                                self.report(
-                                    ReportKind::UnterminatedCharLiteral
-                                        .new("")
-                                        .with_label(ReportLabel::new(span_to!(self.index)))
-                                        .into(),
-                                );
-                                continue 'main;
-                            },
-                            _ => self.advance(),
-                        }
-                    }
-                    self.push_token(
-                        TokenKind::CharLiteral,
-                        span_to!(self.index),
-                        self.slice_source(start_index + 1, self.index - 1),
-                    );
-                    continue;
-                },
-                // '.' => match self.peek() {
-                //     Some('0'..='9') => {
-                //         self.advance();
-                //         if let Err(report) = self.lex_integer(Base::Decimal) {
-                //             self.report(report);
-                //             continue;
-                //         }
-                //         if let Some('.') = self.current {
-                //             self.report(
-                //                 ReportKind::SyntaxError
-                //                     .new("Invalid Float Literal")
-                //                     .with_label(ReportLabel::new(self.span(
-                //                         _line_number,
-                //                         self.index,
-                //                         self.index + 1,
-                //                     )))
-                //                     .into(),
-                //             );
-                //             self.advance();
-                //             continue;
-                //         }
-                //         self.push_token(
-                //             TokenKind::FloatLiteral,
-                //             span_to!(self.index),
-                //             self.slice_source(start_index, self.index),
-                //         );
-                //         continue;
-                //     },
-                //     _ => (TokenKind::Dot, 1),
-                // },
-
-                // Characters
-                '.' => (TokenKind::Dot, 1),
-                '~' => match self.peek() {
-                    Some('=') => (TokenKind::NotEquals, 2),
+                "." => (TokenKind::Dot, 1),
+                "'" => (TokenKind::Apostrophe, 1),
+                "~" => match self.peek() {
+                    Some("=") => (TokenKind::NotEquals, 2),
                     _ => (TokenKind::Tilde, 1),
                 },
-                '!' => (TokenKind::Bang, 1),
-                '@' => (TokenKind::At, 1),
-                '#' => (TokenKind::Pound, 1),
-                '$' => (TokenKind::Dollar, 1),
-                '%' => (TokenKind::Percent, 1),
-                '^' => match self.peek() {
-                    Some('^') => (TokenKind::CaretCaret, 2),
+                "!" => (TokenKind::Bang, 1),
+                "@" => (TokenKind::At, 1),
+                "#" => (TokenKind::Pound, 1),
+                "$" => (TokenKind::Dollar, 1),
+                "%" => (TokenKind::Percent, 1),
+                "^" => match self.peek() {
+                    Some("^") => (TokenKind::CaretCaret, 2),
                     _ => (TokenKind::Caret, 1),
                 },
-                '&' => match self.peek() {
-                    Some('&') => (TokenKind::AmpersandAmpersand, 2),
+                "&" => match self.peek() {
+                    Some("&") => (TokenKind::AmpersandAmpersand, 2),
                     _ => (TokenKind::Ampersand, 1),
                 },
-                '*' => (TokenKind::Star, 1),
-                '(' => (TokenKind::LParen, 1),
-                ')' => (TokenKind::RParen, 1),
-                '-' => match self.peek() {
-                    Some('>') => (TokenKind::ArrowRight, 2),
-                    Some('-') => (TokenKind::MinusMinus, 2),
+                "*" => (TokenKind::Star, 1),
+                "(" => (TokenKind::LParen, 1),
+                ")" => (TokenKind::RParen, 1),
+                "-" => match self.peek() {
+                    Some(">") => (TokenKind::ArrowRight, 2),
+                    Some("-") => (TokenKind::MinusMinus, 2),
                     _ => (TokenKind::Minus, 1),
                 },
-                '_' => (TokenKind::Underscore, 1),
-                '+' => match self.peek() {
-                    Some('+') => (TokenKind::PlusPlus, 2),
+                "_" => (TokenKind::Underscore, 1),
+                "+" => match self.peek() {
+                    Some("+") => (TokenKind::PlusPlus, 2),
                     _ => (TokenKind::Plus, 1),
                 },
-                '[' => (TokenKind::LBracket, 1),
-                ']' => (TokenKind::RBracket, 1),
-                '{' => (TokenKind::LBrace, 1),
-                '}' => (TokenKind::RBrace, 1),
-                '|' => match self.peek() {
-                    Some('|') => (TokenKind::PipePipe, 2),
+                "[" => (TokenKind::LBracket, 1),
+                "]" => (TokenKind::RBracket, 1),
+                "{" => (TokenKind::LBrace, 1),
+                "}" => (TokenKind::RBrace, 1),
+                "|" => match self.peek() {
+                    Some("|") => (TokenKind::PipePipe, 2),
                     _ => (TokenKind::Pipe, 1),
                 },
-                ';' => (TokenKind::Semicolon, 1),
-                ':' => (TokenKind::Colon, 1),
-                ',' => (TokenKind::Comma, 1),
-                '=' => match self.peek() {
-                    Some('=') => (TokenKind::EqualsEquals, 2),
-                    Some('>') => (TokenKind::FatArrowRight, 2),
+                ";" => (TokenKind::Semicolon, 1),
+                ":" => (TokenKind::Colon, 1),
+                "," => (TokenKind::Comma, 1),
+                "=" => match self.peek() {
+                    // Some("=") => (TokenKind::EqualsEquals, 2),
+                    Some(">") => (TokenKind::FatArrowRight, 2),
                     _ => (TokenKind::Equals, 1),
                 },
-                '<' => match self.peek() {
-                    Some('=') => (TokenKind::LessThanEquals, 2),
-                    Some('-') => (TokenKind::ArrowLeft, 2),
+                "<" => match self.peek() {
+                    Some("=") => (TokenKind::LessThanEquals, 2),
+                    Some("-") => (TokenKind::ArrowLeft, 2),
+                    Some("<") => (TokenKind::ShiftLeft, 2),
                     _ => (TokenKind::LessThan, 1),
                 },
-                '>' => match self.peek() {
-                    Some('=') => (TokenKind::GreaterThanEquals, 2),
+                ">" => match self.peek() {
+                    Some("=") => (TokenKind::GreaterThanEquals, 2),
+                    Some(">") => (TokenKind::ShiftRight, 2),
                     _ => (TokenKind::GreaterThan, 1),
                 },
-                '?' => (TokenKind::Question, 1),
+                "?" => (TokenKind::Question, 1),
 
                 c => {
+                    self.report(ReportKind::UnexpectedCharacter.title(c).span(self.span));
                     self.advance();
-                    self.report(
-                        ReportKind::UnexpectedCharacter
-                            .new(format!("{c}"))
-                            .with_label(ReportLabel::new(span_to!(self.index)))
-                            .into(),
-                    );
                     continue;
                 },
             };
-            self.push_simple_token(token, len);
+            self.push_token_simple(token, len);
         }
 
-        self.push_token(TokenKind::EOF, self.span(self.line_number, self.index, self.index), "");
+        self.push_token(TokenKind::EOF, self.span, "");
     }
 
-    fn lex_integer(&mut self, base: Base) -> Result<()> {
-        // use slices instead
-        while let Some(char) = self.current {
-            match (base, char.to_ascii_lowercase()) {
-                (Base::Binary, '0'..='1')
-                | (Base::Octal, '0'..='7')
-                | (Base::Decimal, '0'..='9')
-                | (Base::Hexadecimal, '0'..='9' | 'a'..='f') => {
-                    self.advance();
-                },
-                (_, '0'..='9' | 'a'..='z') => {
-                    return ReportKind::SyntaxError
-                        .new("Invalid Integer Literal")
-                        .with_label(
-                            ReportLabel::new(self.span(
-                                self.line_number,
-                                self.index,
-                                self.index + 1,
-                            ))
-                            .with_text(format!("'{char}' not valid for {base} Integer Literal")),
-                        )
-                        .into();
-                },
+    fn lex_integer(&mut self, base: usize) -> bool {
+        const CHARS: [char; 16] =
+            ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'];
+
+        while let Some(c) = self.current() {
+            match (base, c.to_ascii_lowercase().chars().next().unwrap()) {
+                (2, c) if CHARS[..1].contains(&c) => self.advance(),
+                (8, c) if CHARS[..7].contains(&c) => self.advance(),
+                (10, c) if CHARS[..9].contains(&c) => self.advance(),
+                (16, c) if CHARS.contains(&c) => self.advance(),
                 (_, '_') => self.advance(),
+
+                (_, c) if c.is_ascii_alphanumeric() => {
+                    self.report(
+                        ReportKind::SyntaxError
+                            .title("Invalid Integer Literal")
+                            .span(self.span.len(1).offset(self.span.offset - 1))
+                            .label(format!("{c:?} not valid for base{base} Integer Literal")),
+                    );
+                    return false;
+                },
+
                 _ => break,
             }
         }
-        Ok(())
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-enum Base {
-    Binary,
-    Octal,
-    Decimal,
-    Hexadecimal,
-}
-
-impl Display for Base {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let str = match self {
-            Self::Binary => "Binary",
-            Self::Octal => "Octal",
-            Self::Decimal => "Decimal",
-            Self::Hexadecimal => "Hexadecimal",
-        }
-        .to_string();
-        write!(f, "{str}")
-    }
-}
-
-impl From<Base> for TokenKind {
-    fn from(value: Base) -> Self {
-        match value {
-            Base::Binary => Self::BinaryIntLiteral,
-            Base::Octal => Self::OctalIntLiteral,
-            Base::Decimal => Self::DecimalIntLiteral,
-            Base::Hexadecimal => Self::HexadecimalIntLiteral,
-        }
+        true
     }
 }

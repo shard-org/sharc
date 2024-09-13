@@ -1,23 +1,26 @@
-use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
-use std::io::ErrorKind;
-use std::sync::mpsc::Sender;
 
 use colored::{Color, Colorize};
+pub use progressh::LogHandler;
 
-use crate::span::Span;
+use crate::scanner::Scanner;
+use crate::span::{self, HighlightKind, Span};
 
-#[derive(Debug, PartialEq, PartialOrd, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
+#[repr(u8)]
 pub enum Level {
-    Silent,
-    Note,
-    Warn,
-    Error,
     Fatal,
+    Error,
+    Warn,
+    Note,
+    Silent,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
 pub enum ReportKind {
+    _NOTE_,
+    _WARNING_,
+    _ERROR_,
     ArgumentParserError,
 
     // Lexer
@@ -25,6 +28,7 @@ pub enum ReportKind {
     UnterminatedMultilineComment,
     UnterminatedStringLiteral,
     UnterminatedCharLiteral,
+    EmptyCharLiteral,
 
     // Preprocessor
     UndefinedMacro,
@@ -38,124 +42,121 @@ pub enum ReportKind {
     InvalidEscapeSequence,
     DuplicateAttribute,
     RegisterWithinHeap,
+    MismatchedDelimeter,
 
     // General
     IOError,
     SyntaxError,
+
+    _FATAL_,
+}
+
+impl From<ReportKind> for Level {
+    fn from(kind: ReportKind) -> Self {
+        match () {
+            _ if kind > ReportKind::_FATAL_ => Self::Fatal,
+            _ if kind > ReportKind::_ERROR_ => Self::Error,
+            _ if kind > ReportKind::_WARNING_ => Self::Warn,
+            _ if kind > ReportKind::_NOTE_ => Self::Note,
+            _ => Self::Silent,
+        }
+    }
 }
 
 impl ReportKind {
-    pub fn new<T: Into<String>>(self, title: T) -> Report {
-        Report::new(self, title)
+    pub fn untitled(self) -> Report {
+        Report {
+            kind:      self,
+            title:     None,
+            span:      None,
+            span_mask: Vec::new(),
+            label:     None,
+            footers:   None,
+        }
     }
 
-    pub fn level(&self) -> Level {
-        match self {
-            // Argument Parsing
-            Self::ArgumentParserError
-
-            // Lexing
-            | Self::UnexpectedCharacter
-            | Self::UnterminatedMultilineComment
-            | Self::UnterminatedStringLiteral
-            | Self::UnterminatedCharLiteral
-
-            // Preprocessing
-            | Self::UndefinedMacro
-            | Self::ExceededRecursionLimit
-            | Self::SelfReferentialMacro
-            | Self::InvalidTag
-
-            // Parsing
-            | Self::UnexpectedToken
-            | Self::UnexpectedEOF
-            | Self::DuplicateAttribute
-            | Self::InvalidEscapeSequence
-            | Self::RegisterWithinHeap
-
-            // General
-            | Self::IOError | Self::SyntaxError => Level::Error,
+    pub fn title<T: Display>(self, title: T) -> Report {
+        Report {
+            kind:      self,
+            title:     Some(title.to_string()),
+            span:      None,
+            span_mask: Vec::new(),
+            label:     None,
+            footers:   None,
         }
     }
 }
 
 #[derive(Clone)]
-pub struct ReportLabel {
-    span: Span,
-    text: Option<String>,
-}
-
-impl ReportLabel {
-    pub fn new(span: Span) -> Self {
-        Self { span, text: None }
-    }
-
-    pub fn with_text<T: Into<String>>(mut self, label: T) -> Self {
-        self.text = Some(label.into());
-        self
-    }
-}
-
-#[derive(Clone)]
 pub struct Report {
-    kind:  ReportKind,
-    title: String,
-    label: Option<ReportLabel>,
-    note:  Option<String>,
+    kind:      ReportKind,
+    title:     Option<String>,
+    span:      Option<Span>,
+    span_mask: Vec<HighlightKind>,
+    label:     Option<String>,
+    footers:   Option<Vec<String>>,
 }
 
 impl Report {
-    pub fn new<T: Into<String>>(kind: ReportKind, title: T) -> Self {
-        Self { kind, title: title.into(), label: None, note: None }
-    }
+    pub fn span<T: Into<(Span, Vec<HighlightKind>)>>(mut self, span: T) -> Self {
+        let (span, mask) = span.into();
+        if self.span.is_none() {
+            self.span = Some(span);
+        }
 
-    pub fn with_label(mut self, label: ReportLabel) -> Self {
-        self.label = Some(label);
+        self.span_mask = span::combine(self.span_mask, mask);
         self
     }
 
-    pub fn with_note<T: Into<String>>(mut self, note: T) -> Self {
-        self.note = Some(note.into());
+    pub fn label<T: Display>(mut self, label: T) -> Self {
+        self.label = Some(label.to_string());
         self
     }
 
+    pub fn help<T: Display>(mut self, help: T) -> Self {
+        self.footers("HELP", help);
+        self
+    }
+
+    pub fn info<T: Display>(mut self, info: T) -> Self {
+        self.footers("INFO", info);
+        self
+    }
+
+    pub fn note<T: Display>(mut self, note: T) -> Self {
+        self.footers("NOTE", note);
+        self
+    }
+
+    pub fn as_err<T>(mut self) -> Result<T> {
+        Err(Box::new(self))
+    }
+
+    fn footers<T: Display>(&mut self, prefix: &str, text: T) {
+        match self.footers {
+            Some(ref mut footers) => footers.push(format!("{prefix}: {text}")),
+            None => self.footers = Some(vec![format!("{prefix}: {text}")]),
+        }
+    }
+
+    #[inline]
     pub fn level(&self) -> Level {
-        self.kind.level()
-    }
-
-    pub fn display(&self, show_context: bool) {
-        eprint!("{}", ReportFormatter { report: self, show_context });
+        self.kind.into()
     }
 }
 
-impl<T> Into<Result<T>> for Report {
-    fn into(self) -> Result<T> {
-        Err(self.into())
+impl<T> From<Report> for Result<T> {
+    #[inline]
+    fn from(report: Report) -> Self {
+        Err(report.into())
     }
 }
 
-impl PartialEq<Self> for Report {
-    fn eq(&self, other: &Self) -> bool {
-        self.level().eq(&other.level())
-    }
-}
-
-impl PartialOrd<Self> for Report {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.level().partial_cmp(&other.level())
-    }
-}
-
-struct ReportFormatter<'e> {
-    report:       &'e Report,
-    show_context: bool,
-}
-
-impl Display for ReportFormatter<'_> {
+impl Display for Report {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let report = &self.report;
+        assert!(self.span.is_some() || self.label.is_none());
 
-        let (prefix, primary_color, secondary_color) = match report.kind.level() {
+        let (prefix, primary, secondary) = match self.kind.into() {
             Level::Fatal => ("Fatal", Color::Red, Color::BrightRed),
             Level::Error => ("Error", Color::Red, Color::BrightRed),
             Level::Warn => ("Warning", Color::Yellow, Color::BrightYellow),
@@ -166,143 +167,92 @@ impl Display for ReportFormatter<'_> {
         writeln!(
             f,
             "{} {}",
-            format!("{}", format!("[{prefix}] {:?}:", report.kind).color(primary_color)).bold(),
-            report.title
+            format!("[{prefix}] {:?}:", self.kind).color(primary).bold(),
+            self.title.as_ref().unwrap_or(&String::new()),
         )?;
 
-        match report.label.as_ref() {
-            Some(label) => {
-                let span = &label.span;
-                let contents = crate::Scanner::get(span.filename);
-                let line_index = match contents[..=span.start_index].rfind('\n') {
-                    Some(val) => val + 1,
-                    None => 0,
-                };
+        let mut padding = String::new();
+        if let Some(ref span) = &self.span {
+            writeln!(f, " {} {}", "--->".cyan(), self.span.as_ref().unwrap())?;
 
-                let end_line_index = {
-                    match contents[span.end_index..].find('\n') {
-                        Some(offset) => span.end_index + offset,
-                        None => contents.len().saturating_sub(1),
-                    }
-                };
+            padding = format!(
+                "{} {} ",
+                " ".repeat(span.line_number.to_string().len()),
+                "|".cyan().dimmed()
+            );
 
-                writeln!(f, " {} {}", "--->".cyan(), span.to_span_printer(line_index))?;
+            let Some(line) = Scanner::get(self.span.as_ref().unwrap().filename)
+                .lines()
+                .nth(self.span.as_ref().unwrap().line_number - 1)
+            else {
+                return writeln!(
+                    f,
+                    "{padding}{}",
+                    "Could not fetch line.".color(Color::Red).bold()
+                );
+            };
 
-                if self.show_context {
-                    let pad_num = span.line_number.to_string().len();
+            let mut mask_iter = self.span_mask.iter().copied().peekable();
+            let mut line_out = String::new();
+            let mut span_out = String::new();
+            let mut line_chars = line.chars().peekable();
 
-                    writeln!(
-                        f,
-                        "{} {} {}{}{}",
-                        span.line_number.to_string().dimmed().bold(),
-                        "|".cyan().dimmed(),
-                        &contents[line_index..span.start_index],
-                        &contents[span.start_index..span.end_index].color(secondary_color),
-                        &contents[span.end_index..=end_line_index].trim_end_matches('\n'),
-                    )?;
+            while let Some(char) = line_chars.peek().copied() {
+                match mask_iter.next().unwrap_or(HighlightKind::Empty) {
+                    HighlightKind::Empty => {
+                        span_out.push(' ');
+                        line_out.push(char);
+                    },
+                    HighlightKind::Caret => {
+                        span_out.push('^');
+                        line_out.push_str(&char.to_string().color(primary).bold().to_string());
+                    },
+                    HighlightKind::Ghost(c) => {
+                        let mut str = String::from(c);
+                        span_out.push('^');
+                        while let Some(HighlightKind::Ghost(c)) = mask_iter.peek().copied() {
+                            span_out.push('^');
+                            mask_iter.next();
+                            str.push(c);
+                        }
 
-                    writeln!(
-                        f,
-                        "{} {} {}{} {}",
-                        " ".repeat(pad_num),
-                        "|".cyan().dimmed(),
-                        " ".repeat(span.start_index - line_index),
-                        "^".repeat(span.end_index - span.start_index).color(primary_color).bold(),
-                        label.text.as_ref().unwrap_or(&String::new()).color(secondary_color),
-                    )?;
-
-                    if let Some(note) = &report.note {
-                        writeln!(
-                            f,
-                            "{} {} {}",
-                            " ".repeat(pad_num),
-                            "|".cyan().dimmed(),
-                            note.bright_black().italic()
-                        )?;
-                    }
+                        line_out.push_str(&str.color(Color::Green).bold().to_string());
+                        continue;
+                    },
                 }
-                else if let Some(note) = &report.note {
-                    writeln!(f, " {}", note.bright_black().italic())?;
-                }
-            },
-            None =>
-                if let Some(note) = &report.note {
-                    writeln!(f, "{}", note.bright_black().italic())?;
-                },
+                line_chars.next();
+            }
+
+            writeln!(f, "{padding}{line_out}")?;
+
+            writeln!(
+                f,
+                "{padding}{} {}",
+                span_out.trim_end().color(primary).bold(),
+                self.label.as_ref().unwrap_or(&String::new()).color(secondary),
+            )?;
+        }
+
+        if let Some(footers) = &self.footers {
+            for footer in footers {
+                writeln!(f, "{}{}", padding, footer.bright_black().italic())?;
+            }
         }
 
         Ok(())
     }
 }
 
-pub trait Unbox<T> {
-    type InnerValue;
-    fn unbox(&self) -> Self::InnerValue;
+impl std::fmt::Debug for Report {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self.kind)
+    }
 }
 
-impl<T: ToOwned> Unbox<T> for Box<T> {
-    type InnerValue = T::Owned;
-
-    fn unbox(&self) -> Self::InnerValue {
-        (**self).to_owned()
+impl Into<(usize, String)> for Report {
+    fn into(self) -> (usize, String) {
+        (self.level() as usize, self.to_string())
     }
 }
 
 pub type Result<T> = std::result::Result<T, Box<Report>>;
-
-pub struct ReportSender {
-    sender: Sender<Box<Report>>,
-}
-
-impl ReportSender {
-    pub fn new(sender: Sender<Box<Report>>) -> Self {
-        Self { sender }
-    }
-
-    pub fn send(&self, report: Box<Report>) {
-        self.sender.send(report).expect("Error sender failed to send report.");
-    }
-}
-
-pub trait UnwrapReport<T> {
-    fn unwrap_or_fatal(self, report: Box<Report>) -> T;
-    fn unwrap_result(self, report: Box<Report>) -> Result<T>;
-}
-
-impl<T> UnwrapReport<T> for Option<T> {
-    fn unwrap_or_fatal(self, report: Box<Report>) -> T {
-        match self {
-            Some(val) => val,
-            None => {
-                report.display(false);
-                std::process::exit(1);
-            },
-        }
-    }
-
-    fn unwrap_result(self, report: Box<Report>) -> Result<T> {
-        match self {
-            Some(val) => Ok(val),
-            None => Err(report),
-        }
-    }
-}
-
-impl<T, E> UnwrapReport<T> for std::result::Result<T, E> {
-    fn unwrap_or_fatal(self, report: Box<Report>) -> T {
-        match self {
-            Ok(val) => val,
-            Err(_) => {
-                report.display(false);
-                std::process::exit(1);
-            },
-        }
-    }
-
-    fn unwrap_result(self, report: Box<Report>) -> Result<T> {
-        match self {
-            Ok(val) => Ok(val),
-            Err(_) => Err(report),
-        }
-    }
-}

@@ -10,5 +10,15 @@ categories = ["compiler", "development-tools"]
 
 
 [dependencies]
-colored = "2.1"
-iterlist = "0.1"
+colored = "2.1"   # needed for cross platform
+iterlist = "0.4"  # made by me so its fine
+
+progressh = { path = "progressh" }
+
+
+[profile.release]
+lto = true
+panic = "abort"
+opt-level = "z"
+debug = false
+codegen-units = 1

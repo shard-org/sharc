@@ -1,9 +1,12 @@
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{self, BufReader, Read};
+use std::process::exit;
 use std::sync::{LazyLock, RwLock};
+use std::process::exit;
 
-use crate::report::{ReportKind, ReportLabel, UnwrapReport};
+use crate::report::ReportKind;
+use crate::span::Span;
 
 pub struct Scanner {
     filename: &'static str,
@@ -22,13 +25,15 @@ impl Scanner {
         }
 
         let contents = Self::new(filename)
-            .unwrap_or_fatal(
-                ReportKind::IOError.new(format!("Failed to open file: '{filename}'")).into(),
-            )
+            .unwrap_or_else(|_| {
+                print!("{}", ReportKind::IOError.title(format!("Failed to open file: '{filename}'")));
+                std::process::exit(1);
+            })
             .read()
-            .unwrap_or_fatal(
-                ReportKind::IOError.new(format!("Failed to read file: '{filename}'")).into(),
-            )
+            .unwrap_or_else(|_| {
+                print!("{}", ReportKind::IOError.title(format!("Failed to read file: '{filename}'")));
+                exit(1);
+            })
             .contents;
 
         CACHE.write().unwrap().insert(filename, contents);
@@ -37,7 +42,6 @@ impl Scanner {
 
     fn new(filename: &'static str) -> io::Result<Self> {
         let file = File::open(filename)?;
-
         let file_size = usize::try_from(file.metadata()?.len()).unwrap();
 
         Ok(Self {
@@ -58,26 +62,18 @@ impl Scanner {
                     _ => self.contents.push_str(s),
                 },
                 Err(_) => {
-                    let (line_index, line_number) = self.contents.chars().enumerate().fold(
-                        (0, 1),
-                        |(mut li, mut ln), (index, c)| {
-                            match c {
-                                '\n' => {
-                                    li = index;
-                                    ln += 1;
-                                },
-                                _ => {},
-                            };
-                            (li, ln)
-                        },
+                    let (line_index, line_number) = self.contents.chars().enumerate()
+                        .fold((0, 1), |acc, (i, c)| match c {
+                            '\n' => (i, acc.1 + 1),
+                            _    => acc,
+                        });
+
+                    print!("{}", ReportKind::IOError
+                        .title("Invalid UTF-8 data".to_string())
+                        .span(Span::new(self.filename, line_number, line_index, self.index))
                     );
-                    let span =
-                        crate::span::Span::new(self.filename, line_number, line_index, self.index);
-                    ReportKind::IOError
-                        .new("Invalid UTF-8 data")
-                        .with_label(ReportLabel::new(span))
-                        .display(false);
-                    std::process::exit(1);
+
+                    exit(1);
                 },
             }
             self.index += 1;
