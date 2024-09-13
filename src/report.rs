@@ -197,7 +197,7 @@ impl Display for Report {
             let mut span_out = String::new();
             let mut line_chars = line.chars().peekable();
 
-            while let Some(char) = line_chars.peek().copied() {
+            while let Some(char) = line_chars.peek().copied().or_else(|| mask_iter.peek().map_or(None, |_| Some(' '))) {
                 match mask_iter.next().unwrap_or(HighlightKind::Empty) {
                     HighlightKind::Empty => {
                         span_out.push(' ');

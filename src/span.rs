@@ -31,10 +31,11 @@ impl Span {
     }
 
     pub fn extend(mut self, other: &Self) -> Self {
-        self.len(
-            other.offset.checked_sub(self.offset).expect("other.offset behind self.offset!")
-                + other.length,
-        )
+        assert!(self.filename == other.filename, "filenames don't match!");
+        assert!(self.line_number == other.line_number, "line numbers don't match!");
+        assert!(self.offset > other.offset, "other.offset behind self.offset!");
+
+        self.len(other.offset - self.offset + other.length)
     }
 
     pub fn ghost<T: std::fmt::Display>(self, ghost: T) -> (Self, HighVec) {
@@ -73,7 +74,7 @@ impl From<Span> for (Span, HighVec) {
     fn from(val: Span) -> (Span, HighVec) {
         let mut vec = Vec::new();
 
-        (0..val.offset).for_each(|_| vec.push(HighlightKind::Empty));
+        (0..val.offset-1).for_each(|_| vec.push(HighlightKind::Empty));
         (0..val.length).for_each(|_| vec.push(HighlightKind::Caret));
 
         (val, vec)
