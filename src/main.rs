@@ -29,7 +29,7 @@ use colored::Colorize;
 
 use crate::lexer::Lexer;
 use crate::parser::Parser;
-use crate::report::{Level, LogHandler, Report};
+use crate::report::{Level, LogHandler, Report, ReportKind};
 use crate::scanner::Scanner;
 
 mod args;
@@ -103,6 +103,17 @@ fn main() {
 
         result
     };
+
+    println!("{:#?}", program.stmts[0]);
+    //
+    // let report = ReportKind::UnexpectedToken.untitled().span(program.stmts[0].span);
+    // let (priority, log) = report.into();
+
+    // program.stmts.iter().for_each(|stmt| {
+    //     let report = ReportKind::UnexpectedToken.untitled().span(stmt.span);
+    //     println!("{}", report);
+    // });
+    // handler.add_log(priority, log);
 
     handler.terminate();
 }

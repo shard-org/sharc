@@ -4,22 +4,17 @@ use std::num::IntErrorKind;
 use std::slice::Iter;
 use std::str;
 
-<<<<<<< HEAD
 use iterlist::IterList;
 
 use crate::ast::{ASTKind, LabelAttribute, Operator, Program, Type, AST};
 use crate::report::{LogHandler, Report, ReportKind, Result};
-=======
-use crate::ast::{ASTKind, LabelAttribute, Program, Type, AST};
-use crate::report::{Report, ReportKind, ReportSender, Result, Unbox};
->>>>>>> devel
 use crate::span::Span;
 use crate::token::{Token, TokenKind};
 
 pub struct Parser<'contents> {
     filename: &'static str,
-    tokens:   IterList<Token<'contents>>,
-    handler:  LogHandler,
+    tokens: IterList<Token<'contents>>,
+    handler: LogHandler,
 }
 
 impl<'contents> Parser<'contents> {

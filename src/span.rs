@@ -1,12 +1,12 @@
 use std::cmp::Ordering;
 use std::fmt::Formatter;
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub struct Span {
-    pub filename:    &'static str,
+    pub filename: &'static str,
     pub line_number: usize,
-    pub offset:      usize,
-    pub length:      usize,
+    pub offset: usize,
+    pub length: usize,
 }
 
 impl Default for Span {
@@ -30,9 +30,11 @@ impl Span {
         self
     }
 
-    pub fn extend(mut self, other: &Span) -> Self {
-        self.len(other.offset.checked_sub(self.offset).expect("other.offset behind self.offset!") + other.length);
-        self
+    pub fn extend(mut self, other: &Self) -> Self {
+        self.len(
+            other.offset.checked_sub(self.offset).expect("other.offset behind self.offset!")
+                + other.length,
+        )
     }
 
     pub fn ghost<T: std::fmt::Display>(self, ghost: T) -> (Self, HighVec) {
@@ -48,7 +50,7 @@ impl Span {
     }
 }
 
-impl std::fmt::Debug for Span {
+impl std::fmt::Display for Span {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         if self.length == 0 {
             return write!(f, "{}:{}:{}", self.filename, self.line_number, self.offset);
@@ -62,12 +64,6 @@ impl std::fmt::Debug for Span {
             self.offset,
             self.offset + self.length - 1
         )
-    }
-}
-
-impl std::fmt::Display for Span {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}:{}:{}", self.filename, self.line_number, self.offset)
     }
 }
 
@@ -111,18 +107,15 @@ pub fn combine(vec_a: HighVec, vec_b: HighVec) -> HighVec {
                 vec.push(a_iter.next().unwrap());
             }
             vec.push(b);
-        }
-        else if matches!(b, HighlightKind::Ghost(_)) {
+        } else if matches!(b, HighlightKind::Ghost(_)) {
             vec.push(b);
             while let Some(HighlightKind::Ghost(_)) = b_iter.peek() {
                 vec.push(b_iter.next().unwrap());
             }
             vec.push(a);
-        }
-        else if a < b {
+        } else if a < b {
             vec.push(b);
-        }
-        else {
+        } else {
             vec.push(a);
         }
     }

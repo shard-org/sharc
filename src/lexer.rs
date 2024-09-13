@@ -2,20 +2,16 @@ use std::fmt::Display;
 
 use iterlist::IterList;
 
-<<<<<<< HEAD
 use crate::report::{LogHandler, Report, ReportKind};
-=======
-use crate::report::{Report, ReportKind, LogHandler};
->>>>>>> devel
 use crate::span::Span;
 use crate::token::{Token, TokenKind};
 
 pub struct Lexer<'source> {
     contents: &'source str,
-    index:    usize,
-    span:     Span,
+    index: usize,
+    span: Span,
 
-    handler:    LogHandler,
+    handler: LogHandler,
     pub tokens: IterList<Token<'source>>,
 }
 
