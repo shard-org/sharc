@@ -76,6 +76,7 @@ impl ReportKind {
     }
 
     pub fn title<T: Display>(self, title: T) -> Report {
+        assert!(!title.to_string().is_empty(), "use ReportKind::untitled() instead.");
         Report {
             kind: self,
             title: Some(title.to_string()),
