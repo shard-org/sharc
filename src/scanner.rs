@@ -3,7 +3,6 @@ use std::fs::File;
 use std::io::{self, BufReader, Read};
 use std::process::exit;
 use std::sync::{LazyLock, RwLock};
-use std::process::exit;
 
 use crate::report::ReportKind;
 use crate::span::Span;
@@ -26,12 +25,18 @@ impl Scanner {
 
         let contents = Self::new(filename)
             .unwrap_or_else(|_| {
-                print!("{}", ReportKind::IOError.title(format!("Failed to open file: '{filename}'")));
+                print!(
+                    "{}",
+                    ReportKind::IOError.title(format!("Failed to open file: '{filename}'"))
+                );
                 std::process::exit(1);
             })
             .read()
             .unwrap_or_else(|_| {
-                print!("{}", ReportKind::IOError.title(format!("Failed to read file: '{filename}'")));
+                print!(
+                    "{}",
+                    ReportKind::IOError.title(format!("Failed to read file: '{filename}'"))
+                );
                 exit(1);
             })
             .contents;
@@ -62,15 +67,17 @@ impl Scanner {
                     _ => self.contents.push_str(s),
                 },
                 Err(_) => {
-                    let (line_index, line_number) = self.contents.chars().enumerate()
-                        .fold((0, 1), |acc, (i, c)| match c {
+                    let (line_index, line_number) =
+                        self.contents.chars().enumerate().fold((0, 1), |acc, (i, c)| match c {
                             '\n' => (i, acc.1 + 1),
-                            _    => acc,
+                            _ => acc,
                         });
 
-                    print!("{}", ReportKind::IOError
-                        .title("Invalid UTF-8 data".to_string())
-                        .span(Span::new(self.filename, line_number, line_index, self.index))
+                    print!(
+                        "{}",
+                        ReportKind::IOError
+                            .title("Invalid UTF-8 data".to_string())
+                            .span(Span::new(self.filename, line_number, line_index, self.index))
                     );
 
                     exit(1);
