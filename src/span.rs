@@ -30,8 +30,11 @@ impl Span {
         self
     }
 
-    pub fn extend(mut self, other: &Span) -> Self {
-        self.len(other.offset.checked_sub(self.offset).expect("other.offset behind self.offset!") + other.length);
+    pub fn extend(mut self, other: &Self) -> Self {
+        self.len(
+            other.offset.checked_sub(self.offset).expect("other.offset behind self.offset!")
+                + other.length,
+        );
         self
     }
 
@@ -100,7 +103,8 @@ pub fn combine(vec_a: HighVec, vec_b: HighVec) -> HighVec {
 
     let mut vec = Vec::new();
     while let Some(a) = a_iter.next() {
-        let Some(b) = b_iter.next() else {
+        let Some(b) = b_iter.next()
+        else {
             vec.push(a);
             continue;
         };

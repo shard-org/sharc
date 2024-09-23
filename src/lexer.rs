@@ -2,11 +2,7 @@ use std::fmt::Display;
 
 use iterlist::IterList;
 
-<<<<<<< HEAD
 use crate::report::{LogHandler, Report, ReportKind};
-=======
-use crate::report::{Report, ReportKind, LogHandler};
->>>>>>> devel
 use crate::span::Span;
 use crate::token::{Token, TokenKind};
 
