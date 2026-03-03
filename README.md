@@ -1,8 +1,5 @@
-This project is now under the free ammonia foundation :0  
-
-Shard is still at a VERY EARLY STAGE, like not even usable yet  
-If you like this concept then PLEASE help out  
-I cant do it all by myself.. :/  
+This project is now under the Free Ammonia Foundation :0  
+You can read more on our website: https://nh3.dev/projects/shard
 
 # Contributing Checklist
 - Join our [Discord](https://discord.gg/z3Qnr87e7c)
@@ -18,13 +15,13 @@ add(10)
 
 ```rs
 let printf_int = extern "printf" |fmt: raw &[u8], i: i32|: i32;
-printf_int("hello %d\n\0", 5 + 10);
+printf_int(c"hello %d\n", 5 + 10);
 ```
 
 ```rs
 let average = |nums: &[u32]|: u32 {
-	let sum = loop let (sum, i) = (0, 0) {
-		if i == a.len { break sum; }
+	let sum = loop |sum = 0, i = 0| {
+		if i == a.len => break sum;
 		(sum + a[i], i + 1)
 	};
 	sum / a.len
@@ -34,22 +31,28 @@ average(&[1, 2, 3, 4, 5]) // => 3
 ```
 
 ```rs
+let printf_int = extern "printf" |fmt: raw &[u8], i: i32|: i32;
+let<T> malloc = extern "malloc" |size: usize|: raw &mut T;
+let<T> free = extern "free" |ptr: raw &mut T|;
+
 let Box = |t: type| raw &mut t;
 
 let<T> box = |v: T|: Box(T) {
-	let<T> malloc = extern "malloc" |size: usize|: raw &mut T;
 	let ptr = malloc(core::tyinfo(T).size);
 	*ptr = v;
 	Box(T)(ptr)
 };
 
-impl<T> core::Drop |self: Box(T)| {
-	let<T> free = extern "free" |ptr: raw &mut T|;
-	free(self);
+impl<T> Deref<&T> |Box(ptr): &Box(T)| ptr;
+
+impl<T> Drop |Box(ptr): Box(T)| {
+	Drop(*ptr);
+	free(ptr);
 };
 
 let x: Box(i32) = box(5);
-core::Drop(x);
+printf_int(c"%d\n", *x);
+Drop(x);
 ```
 
 # TODOS
@@ -58,15 +61,15 @@ core::Drop(x);
 	- [x] move shard to faf (also make a faf org)??
 	- [ ] update [sherbert](https://github.com/shard-org/sherbert) with new docs
 	- [ ] sherbert fix syntax highlighting (prob get docs first)
-- [ ] diff syntax for `<` since that conflicts with type generics `Foo<Bar>`
+- [x] diff syntax for `<` since that conflicts with type generics `Foo<Bar>`
 - [ ] define move semantics. what's copy by default?
-- [x] bully @interacsion into either making a borrow checker or shutting up about it :) (preferably option b)
+- [ ] bully @interacsion into either making a borrow checker or shutting up about it :) (preferably option b)
 - [ ] do actual trait resolution
 - [ ] integrate core traits as operator overloads
 - [ ] draft up shard docs:
 	- [ ] basics + typing
 	- [ ] core lib
 - [ ] update nightly version to one with good features/stability
-- [ ] fix the bump allocator
+- [~] fix the bump allocator
 	- [ ] miri error (rust bs semantics are driving me crazy)
 	- [x] possible double free on panic? (needs investigation)
